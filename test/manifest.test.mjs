@@ -18,4 +18,8 @@ describe('manifest.json', () => {
   it('declares safari minimum version', () => {
     expect(manifest.browser_specific_settings?.safari?.strict_min_version).toBe('16.4');
   });
+
+  it('keeps description within Chrome Web Store limit', () => {
+    expect(manifest.description.length).toBeLessThanOrEqual(132);
+  });
 });

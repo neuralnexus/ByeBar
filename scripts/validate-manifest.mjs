@@ -28,4 +28,9 @@ if (!existsSync(join(root, manifest.background.service_worker))) {
   fail(`missing service worker: ${manifest.background.service_worker}`);
 }
 
+const MAX_DESCRIPTION_LENGTH = 132;
+if (manifest.description?.length > MAX_DESCRIPTION_LENGTH) {
+  fail(`manifest description is ${manifest.description.length} characters (max ${MAX_DESCRIPTION_LENGTH})`);
+}
+
 console.log('manifest validation passed');
