@@ -5,6 +5,7 @@ const DEFAULTS = {
   genericBlocking: true,
   cookieDecline: true,
   tosAccept: true,
+  locationDecline: true,
   siteOverrides: {}
 };
 
@@ -12,6 +13,7 @@ const siteEnabledEl = document.getElementById('site-enabled');
 const genericBlockingEl = document.getElementById('generic-blocking');
 const cookieDeclineEl = document.getElementById('cookie-decline');
 const tosAcceptEl = document.getElementById('tos-accept');
+const locationDeclineEl = document.getElementById('location-decline');
 const hostLabelEl = document.getElementById('host-label');
 
 let host = '';
@@ -35,6 +37,7 @@ function render() {
   genericBlockingEl.checked = settings.genericBlocking;
   cookieDeclineEl.checked = settings.cookieDecline;
   tosAcceptEl.checked = settings.tosAccept;
+  locationDeclineEl.checked = settings.locationDecline;
   hostLabelEl.textContent = host ? `Current site: ${host}` : '';
 }
 
@@ -70,6 +73,10 @@ cookieDeclineEl.addEventListener('change', () => {
 
 tosAcceptEl.addEventListener('change', () => {
   void save({ tosAccept: tosAcceptEl.checked });
+});
+
+locationDeclineEl.addEventListener('change', () => {
+  void save({ locationDecline: locationDeclineEl.checked });
 });
 
 void init();

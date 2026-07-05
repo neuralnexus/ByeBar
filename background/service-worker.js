@@ -6,6 +6,7 @@ const DEFAULTS = {
   genericBlocking: true,
   cookieDecline: true,
   tosAccept: true,
+  locationDecline: true,
   siteOverrides: {}
 };
 

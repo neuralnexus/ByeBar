@@ -27,6 +27,7 @@
       "js": [
         "shared/browser.js",
         "content/safari-compat.js",
+        "content/geolocation.js",
         "content/selectors.js",
         "content/shadow.js",
         "content/engine.js",
