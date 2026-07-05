@@ -279,12 +279,25 @@
     '[class*="consent-banner" i]',
     '[class*="consentBanner" i]',
     '[aria-label*="cookie" i][role="dialog"]',
-    '[aria-label*="consent" i][role="dialog"]'
+    '[aria-label*="consent" i][role="dialog"]',
+    '#didomi-host',
+    '#didomi-popup',
+    '.didomi-popup-backdrop',
+    '.didomi-popup-notice',
+    '.didomi-notice-popup',
+    '.didomi-screen-medium',
+    '.didomi-screen-small',
+    '.didomi-screen-large',
+    '[class*="didomi-consent-popup" i]',
+    '[class*="didomi-popup" i]',
+    '[id^="didomi-" i]',
+    'iframe[src*="didomi.io" i]',
+    'iframe[src*="privacy-center.org" i]'
   ];
 
   BYEBAR.COOKIE_BANNER_ANCESTORS =
     BYEBAR.COOKIE_HIDE.join(',') +
-    ',[class*="cookie" i],[class*="consent" i],[class*="gdpr" i],[id*="cookie" i],[id*="truste" i],[class*="trustarc" i],[class*="cky-" i],[data-cky-tag]';
+    ',[class*="cookie" i],[class*="consent" i],[class*="gdpr" i],[id*="cookie" i],[id*="truste" i],[class*="trustarc" i],[class*="cky-" i],[data-cky-tag],[class*="didomi-" i],[id*="didomi" i]';
 
   // Known decline / reject buttons (clicked before hide).
   BYEBAR.COOKIE_DECLINE_SELECTORS = [
@@ -323,7 +336,15 @@
     '[id*="reject" i][id*="cookie" i]',
     '[id*="decline" i][id*="cookie" i]',
     '[id*="opt-out" i]',
-    '[id*="optout" i]'
+    '[id*="optout" i]',
+    '#didomi-notice-disagree-button',
+    '#btn-toggle-disagree',
+    '.didomi-continue-without-agreeing',
+    'button[onclick*="setUserDisagreeToAll" i]',
+    'a[href*="setUserDisagreeToAll" i]',
+    'button[aria-label*="Disagree to all" i]',
+    'button[aria-label*="Refuser" i]',
+    'button[aria-label*="refuser" i]'
   ];
 
   // Terms-of-service / legal modals (tos.js clicks accept when possible).
@@ -378,7 +399,15 @@
     /^ablehnen$/i,
     /^alle ablehnen$/i,
     /^nur technisch notwendige/i,
-    /^nur erforderliche cookies/i
+    /^nur erforderliche cookies/i,
+    /^disagree$/i,
+    /^disagree to all$/i,
+    /^refuser$/i,
+    /^tout refuser$/i,
+    /^refuser tout$/i,
+    /^continuer sans accepter$/i,
+    /^je refuse$/i,
+    /^ne pas accepter$/i
   ];
 
   BYEBAR.isSubstack = () => BYEBAR.SITE_RULES.substack.hosts.some((re) => re.test(location.hostname));

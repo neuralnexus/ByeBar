@@ -138,11 +138,29 @@ iframe[src*='consent-pref.trustarc.com' i],
 [class*='cookieBanner' i],
 [class*='consent-banner' i],
 [aria-label*='cookie' i][role='dialog'],
-[aria-label*='consent' i][role='dialog'] {
+[aria-label*='consent' i][role='dialog'],
+#didomi-host,
+#didomi-popup,
+.didomi-popup-backdrop,
+.didomi-popup-notice,
+.didomi-notice-popup,
+.didomi-screen-medium,
+.didomi-screen-small,
+.didomi-screen-large,
+[class*='didomi-consent-popup' i],
+[class*='didomi-popup' i],
+[id^='didomi-' i],
+iframe[src*='didomi.io' i],
+iframe[src*='privacy-center.org' i] {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
   opacity: 0 !important;
+}
+
+body.didomi-popup-open,
+html.didomi-popup-open {
+  overflow: auto !important;
 }
 
 /* Terms-of-service / legal modals */

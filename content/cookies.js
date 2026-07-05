@@ -85,6 +85,108 @@
     }
   }
 
+  let didomiReadyHooked = false;
+
+  function hasDidomiBanner(root = document) {
+    return queryAll('#didomi-host, [class*="didomi-popup" i], [class*="didomi-consent" i]', root).length > 0;
+  }
+
+  function unlockDidomiBody() {
+    document.body?.classList?.remove('didomi-popup-open');
+    if (document.body?.style?.overflow === 'hidden') {
+      document.body.style.removeProperty('overflow');
+    }
+    document.documentElement?.classList?.remove('didomi-popup-open');
+    if (document.documentElement?.style?.overflow === 'hidden') {
+      document.documentElement.style.removeProperty('overflow');
+    }
+  }
+
+  function declineViaDidomiApi() {
+    if (!hasDidomiBanner()) return false;
+
+    try {
+      const didomi = window.Didomi;
+      if (didomi && typeof didomi.setUserDisagreeToAll === 'function') {
+        didomi.setUserDisagreeToAll();
+        unlockDidomiBody();
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
+  function cookieDeclineEnabled(settings) {
+    const key = location.hostname.replace(/^www\./i, '');
+    const siteOn = key in settings.siteOverrides ? settings.siteOverrides[key] : settings.enabled;
+    return Boolean(siteOn && settings.cookieDecline);
+  }
+
+  function runDidomiDecline() {
+    declineViaDidomiUi(document);
+    declineViaDidomiApi();
+    removeViaSelectors(document);
+    removeViaHeuristic(document);
+    unlockDidomiBody();
+  }
+
+  function hookDidomiReady() {
+    if (didomiReadyHooked) return;
+    didomiReadyHooked = true;
+
+    const { storageGet } = BYEBAR.browser || {};
+    const defaults = { enabled: true, cookieDecline: true, siteOverrides: {} };
+
+    window.didomiOnReady = window.didomiOnReady || [];
+    window.didomiOnReady.push(() => {
+      if (storageGet) {
+        void storageGet(defaults).then((settings) => {
+          if (cookieDeclineEnabled(settings)) runDidomiDecline();
+        });
+        return;
+      }
+
+      if (BYEBAR.engine?.settings?.cookieDecline && BYEBAR.engine?.siteEnabled?.()) {
+        runDidomiDecline();
+      }
+    });
+  }
+
+  function declineViaDidomiUi(root = document) {
+    if (!hasDidomiBanner(root)) return false;
+
+    let clickedAny = false;
+
+    const continueWithout = queryAll('.didomi-continue-without-agreeing', root);
+    for (const el of continueWithout) {
+      if (clickElement(el)) clickedAny = true;
+    }
+
+    const disagree = queryAll(
+      '#didomi-notice-disagree-button, #btn-toggle-disagree, button[onclick*="setUserDisagreeToAll" i], a[href*="setUserDisagreeToAll" i], button[aria-label*="Disagree to all" i], button[aria-label*="Refuser" i]',
+      root
+    );
+    for (const el of disagree) {
+      if (clickElement(el)) clickedAny = true;
+    }
+
+    const learnMore = queryAll('#didomi-notice-learn-more-button', root);
+    if (learnMore.length > 0 && !clickedAny) {
+      for (const el of learnMore) {
+        clickElement(el);
+      }
+      queryAll('#btn-toggle-disagree, #didomi-notice-disagree-button', root).forEach((el) => {
+        if (clickElement(el)) clickedAny = true;
+      });
+    }
+
+    if (clickedAny) unlockDidomiBody();
+    return clickedAny;
+  }
+
   function hasUsercentricsBanner(root = document) {
     return (
       queryAll(
@@ -180,7 +282,14 @@
       cls.includes('usercentrics') ||
       cls.includes('uc-banner') ||
       cls.startsWith('uc-') ||
-      el.getAttribute?.('data-testid')?.startsWith('uc-')
+      el.getAttribute?.('data-testid')?.startsWith('uc-') ||
+      id === 'didomi-host' ||
+      id.startsWith('didomi-') ||
+      id.includes('didomi') ||
+      cls.includes('didomi-') ||
+      cls.includes('didomi-popup') ||
+      cls.includes('didomi-consent') ||
+      cls.includes('didomi-screen')
     ) {
       return true;
     }
@@ -258,7 +367,7 @@
     let removedAny = false;
 
     queryAll(
-      '.cky-consent-container, .cky-banner-element, .cky-overlay, [data-cky-tag="notice"], #consent_blackbar, #trustarc-banner-overlay, #truste-consent-track, #truste-consent-content, [role="dialog"], [aria-modal="true"], div, section, aside',
+      '.cky-consent-container, .cky-banner-element, .cky-overlay, [data-cky-tag="notice"], #didomi-host, [class*="didomi-popup" i], [class*="didomi-consent" i], #consent_blackbar, #trustarc-banner-overlay, #truste-consent-track, #truste-consent-content, [role="dialog"], [aria-modal="true"], div, section, aside',
       root
     ).forEach((el) => {
       if (!looksLikeCookieBanner(el)) return;
@@ -273,16 +382,26 @@
     if (!BYEBAR.engine?.settings?.cookieDecline) return false;
     if (!BYEBAR.engine?.siteEnabled?.()) return false;
 
-    return removeViaSelectors(root) || removeViaHeuristic(root);
+    const removed = removeViaSelectors(root) || removeViaHeuristic(root);
+    if (removed || !hasDidomiBanner(root)) {
+      unlockDidomiBody();
+    }
+    return removed;
   }
 
   function decline(root = document) {
     if (!BYEBAR.engine?.settings?.cookieDecline) return false;
     if (!BYEBAR.engine?.siteEnabled?.()) return false;
 
+    if (hasDidomiBanner(root)) {
+      hookDidomiReady();
+    }
+
     const clicked =
+      declineViaDidomiUi(root) ||
       declineViaSelectors(root) ||
       declineViaTextScan(root) ||
+      (hasDidomiBanner(root) && declineViaDidomiApi()) ||
       (hasUsercentricsBanner(root) && declineViaUsercentricsApi()) ||
       (queryAll('#truste-consent-track, #consent_blackbar, #truste-ccpa-optout', root).length > 0 &&
         declineViaTrustArcApi());
@@ -291,5 +410,6 @@
     return clicked;
   }
 
+  hookDidomiReady();
   BYEBAR.cookies = { decline, removeBanners };
 })();
