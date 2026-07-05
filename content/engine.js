@@ -194,8 +194,9 @@
       requestAnimationFrame(() => {
         pending = false;
         nukeAll(document);
-        if (settings.cookieDecline && BYEBAR.cookies?.decline) {
+        if (settings.cookieDecline && BYEBAR.cookies) {
           BYEBAR.cookies.decline(document);
+          BYEBAR.cookies.removeBanners?.(document);
         }
       });
     });
@@ -223,8 +224,9 @@
     }
 
     nukeAll(document);
-    if (settings.cookieDecline && BYEBAR.cookies?.decline) {
+    if (settings.cookieDecline && BYEBAR.cookies) {
       BYEBAR.cookies.decline(document);
+      BYEBAR.cookies.removeBanners?.(document);
     }
     startObserver();
   }

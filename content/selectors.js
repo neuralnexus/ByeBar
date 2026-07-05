@@ -152,6 +152,16 @@
     '.cookie-banner',
     '.cookie-consent',
     '.cookies-banner',
+    '#consent_blackbar',
+    '#truste-consent-track',
+    '#truste-consent-content',
+    '#truste-consent-buttons',
+    '.truste_box',
+    '.truste-box',
+    '[class*="truste-consent" i]',
+    '[class*="trustarc" i][class*="banner" i]',
+    'iframe[src*="trustarc.com" i]',
+    'iframe[src*="consent.trustarc.com" i]',
     '[class*="cookieConsent" i]',
     '[class*="cookie-consent" i]',
     '[class*="cookieBanner" i]',
@@ -164,6 +174,10 @@
     '[aria-label*="cookie" i][role="dialog"]',
     '[aria-label*="consent" i][role="dialog"]'
   ];
+
+  BYEBAR.COOKIE_BANNER_ANCESTORS =
+    BYEBAR.COOKIE_HIDE.join(',') +
+    ',[class*="cookie" i],[class*="consent" i],[class*="gdpr" i],[id*="cookie" i],[id*="truste" i],[class*="trustarc" i]';
 
   // Known decline / reject buttons (clicked before hide).
   BYEBAR.COOKIE_DECLINE_SELECTORS = [
@@ -183,10 +197,16 @@
     '.cc-deny',
     '.cc-reject',
     '.cc-dismiss',
+    '.opt-out-button',
+    'button.opt-out-button',
+    '#truste-consent-required',
+    'button.truste-button.opt-out-button',
     '[class*="reject" i][class*="cookie" i]',
     '[class*="decline" i][class*="cookie" i]',
     '[id*="reject" i][id*="cookie" i]',
-    '[id*="decline" i][id*="cookie" i]'
+    '[id*="decline" i][id*="cookie" i]',
+    '[id*="opt-out" i]',
+    '[id*="optout" i]'
   ];
 
   BYEBAR.COOKIE_DECLINE_TEXT = [
@@ -194,6 +214,7 @@
     /^decline(\s+all)?$/i,
     /^deny(\s+all)?$/i,
     /^refuse(\s+all)?$/i,
+    /^opt-?out$/i,
     /^only\s+(essential|necessary|required)(\s+cookies)?$/i,
     /^essential\s+only$/i,
     /^necessary\s+only$/i,
