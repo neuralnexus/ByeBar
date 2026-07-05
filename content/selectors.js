@@ -159,6 +159,12 @@
     '#truste-consent-text',
     '#truste-consent-buttons',
     '#truste_domain_list',
+    '#truste-repop-msg',
+    '#teconsent #truste-consent-track',
+    '#teconsent #trustarc-banner-overlay',
+    '#ccpa-opted-in',
+    '#ccpa-opted-out',
+    '#ccpa-no-preference',
     '.truste-banner',
     '.truste_box',
     '.truste-box',
@@ -187,6 +193,7 @@
 
   // Known decline / reject buttons (clicked before hide).
   BYEBAR.COOKIE_DECLINE_SELECTORS = [
+    '#truste-ccpa-optout',
     '#onetrust-reject-all-handler',
     '#onetrust-pc-btn-handler',
     '.ot-pc-refuse-all-handler',

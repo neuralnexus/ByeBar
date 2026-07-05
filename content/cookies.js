@@ -89,6 +89,35 @@
     }
   }
 
+  function declineViaTrustArcApi() {
+    const truste = window.truste;
+    if (!truste) return false;
+    if (!queryAll('#truste-consent-track, #consent_blackbar, #truste-ccpa-optout').length) return false;
+
+    try {
+      const optout =
+        BYEBAR.shadow?.query('#truste-ccpa-optout') || document.getElementById('truste-ccpa-optout');
+      if (optout) {
+        clickElement(optout);
+        return true;
+      }
+
+      if (typeof truste.bn?.declineCPRA === 'function') {
+        truste.bn.declineCPRA();
+        return true;
+      }
+
+      if (typeof truste.eu?.clickListener === 'function') {
+        truste.eu.clickListener(7, true, { cpraConsent: '0', cpraSource: 'banner-decline-ccpa' });
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
   function looksLikeCookieBanner(el) {
     if (!el || el.nodeType !== 1 || removed.has(el)) return false;
 
@@ -99,6 +128,8 @@
       id === 'truste-consent-track' ||
       id === 'trustarc-banner-overlay' ||
       id === 'truste-consent-content' ||
+      id === 'truste-ccpa-optout' ||
+      id === 'truste-repop-msg' ||
       cls.includes('truste-consent') ||
       cls.includes('truste-banner') ||
       cls.includes('opt-out-button')
@@ -110,11 +141,11 @@
     if (text.length < 40) return false;
 
     const hasCookieLanguage =
-      /about cookies on this site|cookie preferences|privacy law|personal information|opt-?out|do not sell|similar technologies|required\)\./i.test(
+      /about cookies on this site|to opt-?out of us sharing|third parties for advertising|your privacy rights|cookie preferences|privacy law|personal information|opt-?out|do not sell|similar technologies|required\)\./i.test(
         text
       );
     const hasBannerActions =
-      /accept( all)?|opt-?out|more info|reject|decline|manage preferences|do not sell or share/i.test(text);
+      /accept( and proceed| all)?|opt-?out|more info|reject|decline|manage preferences|do not sell or share/i.test(text);
     if (!hasCookieLanguage || !hasBannerActions) return false;
 
     if (closestBanner(el)) return true;
@@ -196,7 +227,12 @@
     if (!BYEBAR.engine?.settings?.cookieDecline) return false;
     if (!BYEBAR.engine?.siteEnabled?.()) return false;
 
-    const clicked = declineViaSelectors(root) || declineViaTextScan(root);
+    const clicked =
+      declineViaSelectors(root) ||
+      declineViaTextScan(root) ||
+      (queryAll('#truste-consent-track, #consent_blackbar, #truste-ccpa-optout', root).length > 0 &&
+        declineViaTrustArcApi());
+
     removeBanners(root);
     return clicked;
   }

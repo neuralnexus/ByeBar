@@ -7,11 +7,14 @@
 
   const { engine, cookies } = window.ByeBar;
 
+  const runCookiePass = () => {
+    engine.nukeAll(document);
+    cookies.decline(document);
+    cookies.removeBanners?.(document);
+  };
+
   const boot = () => {
-    engine.loadSettings().then(() => {
-      engine.nukeAll(document);
-      cookies.decline(document);
-    });
+    engine.loadSettings().then(runCookiePass);
   };
 
   if (document.readyState === 'loading') {
@@ -20,9 +23,10 @@
     boot();
   }
 
-  // Re-run after full load for lazy-injected banners.
-  window.addEventListener('load', () => {
-    engine.nukeAll(document);
-    cookies.decline(document);
-  }, { once: true });
+  window.addEventListener('load', runCookiePass, { once: true });
+
+  // TrustArc/CCPA banners (e.g. ServiceNow) inject opt-out controls after async copy loads.
+  [500, 1500, 4000, 8000].forEach((ms) => {
+    setTimeout(runCookiePass, ms);
+  });
 })();
