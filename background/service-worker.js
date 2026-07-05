@@ -7,6 +7,7 @@ const DEFAULTS = {
   cookieDecline: true,
   tosAccept: true,
   locationDecline: true,
+  netsuiteLeadRedirect: true,
   siteOverrides: {}
 };
 
