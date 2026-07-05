@@ -67,12 +67,67 @@
     }
   }
 
-  function nukeModalViewer() {
-    if (!BYEBAR.isSubstack()) return;
-    const viewer = document.querySelector('[class*="modalViewer"]');
-    if (viewer?.children.length) {
-      Array.from(viewer.children).forEach(removeElement);
+  function isSubstackScrim(el) {
+    if (!el || el.nodeType !== 1) return false;
+    const cls = typeof el.className === 'string' ? el.className : '';
+    if ((el.textContent || '').trim().length > 0) return false;
+
+    // Substack modal dimmer, e.g. <div class="background-qPxN3C" style="opacity: 0.5">
+    if (/\bbackground-[A-Za-z0-9_-]+\b/.test(cls)) return true;
+
+    const hasBackdropClass =
+      /\boverlay-[A-Za-z0-9_-]+\b/.test(cls) ||
+      /modalScrim|modal-scrim|ModalScrim/i.test(cls);
+    if (!hasBackdropClass) return false;
+
+    const style = getComputedStyle(el);
+    const fixed = style.position === 'fixed' || style.position === 'absolute';
+    if (!fixed) return false;
+
+    const rect = el.getBoundingClientRect();
+    return rect.width >= window.innerWidth * 0.5 && rect.height >= window.innerHeight * 0.5;
+  }
+
+  function unlockPageScroll() {
+    const html = document.documentElement;
+    const body = document.body;
+    if (!html || !body) return;
+
+    for (const el of [html, body]) {
+      if (el.style.overflow === 'hidden' || el.style.position === 'fixed') {
+        el.style.overflow = '';
+        el.style.position = '';
+        el.style.top = '';
+        el.style.width = '';
+      }
     }
+
+    body.classList.forEach((name) => {
+      if (/no-scroll|noscroll|modal-open|overflow-hidden/i.test(name)) {
+        body.classList.remove(name);
+      }
+    });
+  }
+
+  function nukeSubstackLayers() {
+    if (!BYEBAR.isSubstack()) return;
+
+    document.querySelectorAll('[class*="modalViewer"]').forEach((viewer) => {
+      Array.from(viewer.children).forEach(removeElement);
+      if (!viewer.children.length && viewer.parentNode) {
+        removeElement(viewer);
+      }
+    });
+
+    document.querySelectorAll('[class^="background-"], [class^="overlay-"]').forEach((el) => {
+      if (isSubstackScrim(el)) removeElement(el);
+    });
+
+    document.querySelectorAll('body > div, body > div > div').forEach((el) => {
+      if (isSubstackScrim(el)) removeElement(el);
+    });
+
+    unlockPageScroll();
   }
 
   function looksLikeOverlay(el) {
@@ -126,7 +181,7 @@
     }
 
     matches.forEach(removeElement);
-    nukeModalViewer();
+    nukeSubstackLayers();
     heuristicScan(root);
   }
 

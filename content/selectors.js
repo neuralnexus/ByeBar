@@ -27,7 +27,12 @@
         '[class*="SubscribeOverlay"]',
         '[class*="modalViewer"] > *:not(:empty)',
         '[class*="modalViewer"][class*="-show"]',
-        '[class*="modalViewer"][class*="active"]'
+        '[class*="modalViewer"][class*="active"]',
+        '[class^="background-"]',
+        '[class*=" modalViewer"] [class^="background-"]',
+        '[class^="overlay-"]',
+        '[class*="modalScrim"]',
+        '[class*="modal-scrim"]'
       ],
       remove: [
         '[role="dialog"][aria-label="Subscribe modal"]',
@@ -47,7 +52,12 @@
         '[class*="signupPopup"]',
         '[class*="emailPopup"]',
         '[class*="subscribe-overlay"]',
-        '[class*="SubscribeOverlay"]'
+        '[class*="SubscribeOverlay"]',
+        '[class^="background-"]',
+        '[class^="overlay-"]',
+        '[class*="modalScrim"]',
+        '[class*="modal-scrim"]',
+        '[class*="ModalScrim"]'
       ]
     }
   };

@@ -35,7 +35,9 @@
 [class*="signupPopup"],
 [class*="emailPopup"],
 [class*="subscribe-overlay"],
-[class*="SubscribeOverlay"] {
+[class*="SubscribeOverlay"],
+[class*="modalScrim"],
+[class*="modal-scrim"] {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
