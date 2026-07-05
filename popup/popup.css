@@ -131,12 +131,32 @@ input[type='checkbox'] {
   accent-color: #00bfa5;
 }
 
-.credit {
-  margin: 14px 0 0;
+.footer {
+  margin-top: 14px;
   padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.privacy-note {
+  margin: 0 0 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+.privacy-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.credit {
+  margin: 0;
   font-size: 11px;
   color: #94a3b8;
-  text-align: center;
 }
 
 .credit a {
