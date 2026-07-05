@@ -6,6 +6,65 @@
   const BYEBAR = (window.ByeBar = window.ByeBar || {});
 
   BYEBAR.SITE_RULES = {
+    chinaCommerce: {
+      hosts: [
+        /\.temu\.com$/i,
+        /^temu\.com$/i,
+        /\.shein\.com$/i,
+        /^shein\.com$/i,
+        /\.aliexpress\.com$/i,
+        /^aliexpress\.com$/i,
+        /\.pinduoduo\.com$/i,
+        /^pinduoduo\.com$/i,
+        /yangkeduo\.com$/i,
+        /\.taobao\.com$/i,
+        /^taobao\.com$/i,
+        /\.tmall\.com$/i,
+        /^tmall\.com$/i,
+        /\.jd\.com$/i,
+        /^jd\.com$/i
+      ],
+      hide: [
+        '.react-responsive-modal-root',
+        '.react-responsive-modal-overlay',
+        '.react-responsive-modal-container',
+        '.c-vue-coupon',
+        '.j-vue-coupon-package-container',
+        '[class*="lottery" i]',
+        '[class*="turntable" i]',
+        '[class*="spin-wheel" i]',
+        '[class*="spinWheel" i]',
+        '[class*="coupon-spin" i]',
+        '[class*="couponSpin" i]',
+        '[class*="lucky-wheel" i]',
+        '[class*="luckyWheel" i]',
+        '[class*="fortune-wheel" i]',
+        '[class*="vue-coupon" i]',
+        '[id*="lottery" i]',
+        '[data-testid*="lottery" i]',
+        '[data-testid*="spin" i]'
+      ],
+      remove: [
+        '.react-responsive-modal-root',
+        '.react-responsive-modal-overlay',
+        '.react-responsive-modal-container',
+        '.c-vue-coupon',
+        '.j-vue-coupon-package-container',
+        '[class*="lottery" i]',
+        '[class*="turntable" i]',
+        '[class*="spin-wheel" i]',
+        '[class*="spinWheel" i]',
+        '[class*="coupon-spin" i]',
+        '[class*="couponSpin" i]',
+        '[class*="lucky-wheel" i]',
+        '[class*="luckyWheel" i]',
+        '[class*="fortune-wheel" i]',
+        '[class*="vue-coupon" i]',
+        '[id*="lottery" i]',
+        '[data-testid*="lottery" i]',
+        '[data-testid*="spin" i]'
+      ]
+    },
     bloomberg: {
       hosts: [/\.bloomberg\./i, /^bloomberg\./i],
       hide: [

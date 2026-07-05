@@ -46,6 +46,10 @@
       BYEBAR.SITE_RULES.bloomberg.remove.forEach((s) => selectors.add(s));
     }
 
+    if (BYEBAR.isChinaCommerce?.()) {
+      BYEBAR.SITE_RULES.chinaCommerce.remove.forEach((s) => selectors.add(s));
+    }
+
     if (BYEBAR.isSubstack()) {
       BYEBAR.SITE_RULES.substack.remove.forEach((s) => selectors.add(s));
     }
@@ -240,6 +244,7 @@
 
   function looksLikeOverlay(el) {
     if (!el || el.nodeType !== 1) return false;
+    if (BYEBAR.chinaCommerce?.looksLikeSpinner?.(el)) return false;
     if (el.closest('header, nav, footer, main article')) {
       const tag = el.tagName;
       if (tag !== 'DIALOG' && el.getAttribute('role') !== 'dialog') return false;
@@ -302,6 +307,7 @@
     });
     nukeSubstackLayers();
     nukeBloombergPromos(root);
+    BYEBAR.chinaCommerce?.nukeSpinners?.(root);
     heuristicScan(root);
   }
 

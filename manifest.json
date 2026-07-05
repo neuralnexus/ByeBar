@@ -32,6 +32,7 @@
         "content/engine.js",
         "content/cookies.js",
         "content/tos.js",
+        "content/china-commerce.js",
         "content/main.js"
       ],
       "css": ["content/styles.css", "content/styles-safari.css"],
@@ -47,6 +48,21 @@
     {
       "matches": ["*://*.bloomberg.com/*", "*://*.bloomberg.co.jp/*", "*://*.bloomberg.tv/*"],
       "css": ["content/bloomberg.css"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "*://*.temu.com/*",
+        "*://*.shein.com/*",
+        "*://*.aliexpress.com/*",
+        "*://*.pinduoduo.com/*",
+        "*://*.yangkeduo.com/*",
+        "*://*.taobao.com/*",
+        "*://*.tmall.com/*",
+        "*://*.jd.com/*"
+      ],
+      "css": ["content/china-commerce.css"],
       "run_at": "document_start",
       "all_frames": true
     }

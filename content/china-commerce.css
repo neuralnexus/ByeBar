@@ -1,0 +1,22 @@
+/* Temu / Shein / AliExpress coupon spinner & lottery wheels. */
+
+.react-responsive-modal-root,
+.react-responsive-modal-overlay,
+.react-responsive-modal-container,
+.c-vue-coupon,
+.j-vue-coupon-package-container,
+[class*='lottery'],
+[class*='turntable'],
+[class*='spin-wheel'],
+[class*='spinWheel'],
+[class*='coupon-spin'],
+[class*='couponSpin'],
+[class*='lucky-wheel'],
+[class*='luckyWheel'],
+[class*='fortune-wheel'],
+[class*='vue-coupon'] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}

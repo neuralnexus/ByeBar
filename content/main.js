@@ -5,7 +5,7 @@
   if (window.__byeBarLoaded) return;
   window.__byeBarLoaded = true;
 
-  const { engine, cookies, tos } = window.ByeBar;
+  const { engine, cookies, tos, chinaCommerce } = window.ByeBar;
 
   const runPasses = () => {
     engine.nukeAll(document);
@@ -13,6 +13,7 @@
     cookies.removeBanners?.(document);
     tos?.accept?.(document);
     tos?.removeModals?.(document);
+    chinaCommerce?.nukeSpinners?.(document);
   };
 
   const boot = () => {
@@ -27,7 +28,7 @@
 
   window.addEventListener('load', runPasses, { once: true });
 
-  // TrustArc/CCPA banners (e.g. ServiceNow) and Bloomberg TOS inject after async loads.
+  // TrustArc/CCPA, Bloomberg TOS, and Temu/Shein spinners inject after async loads.
   [500, 1500, 4000, 8000].forEach((ms) => {
     setTimeout(runPasses, ms);
   });
