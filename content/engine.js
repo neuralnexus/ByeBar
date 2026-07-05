@@ -117,6 +117,106 @@
     });
   }
 
+  function hasBloombergModuleClass(el) {
+    const cls = typeof el?.className === 'string' ? el.className : '';
+    return /_showOn(?:Mobile|Desktop)/.test(cls);
+  }
+
+  function matchesBloombergPromoText(text) {
+    const sample = (text || '').replace(/\s+/g, ' ').trim();
+    if (!sample || sample.length > 500) return false;
+    return /flash sale|save up to \d+%|subscribe for (just )?\$?\d|limited[- ]time offer|get \d+% off|off your first (month|year)|unlock your offer/i.test(
+      sample
+    );
+  }
+
+  function findBloombergPromoRoot(el) {
+    if (!el) return null;
+
+    let node = el;
+    let anchorMatch = null;
+
+    for (let depth = 0; depth < 12 && node; depth++) {
+      const tag = node.tagName;
+      const href = node.getAttribute?.('href') || '';
+
+      if (tag === 'A' && /\/subscriptions|subscribe|offer|flash/i.test(href)) {
+        anchorMatch = node;
+      }
+
+      const style = getComputedStyle(node);
+      if (style.position === 'fixed' || style.position === 'sticky') {
+        return node;
+      }
+
+      if (node.getAttribute?.('role') === 'banner' || tag === 'HEADER' || tag === 'NAV') {
+        return node;
+      }
+
+      const parent = node.parentElement;
+      if (!parent) break;
+
+      const parentTag = parent.tagName;
+      if (parentTag === 'BODY' || parentTag === 'HTML') {
+        break;
+      }
+
+      node = parent;
+    }
+
+    return anchorMatch || el;
+  }
+
+  function looksLikeBloombergPromo(el) {
+    if (!el || el.nodeType !== 1 || !BYEBAR.isBloomberg?.()) return false;
+    if (el.getAttribute('data-byebar-hidden')) return false;
+
+    const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!matchesBloombergPromoText(text)) return false;
+
+    if (
+      hasBloombergModuleClass(el) ||
+      el.querySelector?.('[class*="_showOnMobile"], [class*="_showOnDesktop"]')
+    ) {
+      return true;
+    }
+
+    const style = getComputedStyle(el);
+    const positioned =
+      style.position === 'fixed' ||
+      style.position === 'sticky' ||
+      style.position === 'absolute' ||
+      parseInt(style.zIndex, 10) >= 50;
+
+    if (!positioned) return false;
+
+    const rect = el.getBoundingClientRect();
+    return rect.width >= window.innerWidth * 0.4 && rect.height <= 200;
+  }
+
+  function nukeBloombergPromos(root = document) {
+    if (!BYEBAR.isBloomberg?.() || !siteEnabled()) return;
+
+    const seen = new Set();
+
+    queryMatches('[class*="_showOnMobile"], [class*="_showOnDesktop"]', root).forEach((el) => {
+      const promoRoot = findBloombergPromoRoot(el);
+      if (!promoRoot || seen.has(promoRoot)) return;
+      seen.add(promoRoot);
+      removeElement(promoRoot);
+    });
+
+    queryMatches('a[href*="/subscriptions"], [role="banner"], header, nav, div, section', root).forEach(
+      (el) => {
+        if (!looksLikeBloombergPromo(el)) return;
+        const promoRoot = findBloombergPromoRoot(el);
+        if (!promoRoot || seen.has(promoRoot)) return;
+        seen.add(promoRoot);
+        removeElement(promoRoot);
+      }
+    );
+  }
+
   function nukeSubstackLayers() {
     if (!BYEBAR.isSubstack()) return;
 
@@ -201,6 +301,7 @@
       queryMatches(selector, root).forEach(removeElement);
     });
     nukeSubstackLayers();
+    nukeBloombergPromos(root);
     heuristicScan(root);
   }
 

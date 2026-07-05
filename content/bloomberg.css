@@ -1,0 +1,29 @@
+/* Bloomberg subscription promo strips (CSS modules). */
+
+[class*='_showOnMobile'],
+[class*='_showOnDesktop'] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+a[href*='/subscriptions']:has([class*='_showOnMobile']),
+a[href*='/subscriptions']:has([class*='_showOnDesktop']) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+div:has(> a[href*='/subscriptions'] [class*='_showOnMobile']),
+div:has(> a[href*='/subscriptions'] [class*='_showOnDesktop']) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}

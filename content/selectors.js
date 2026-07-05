@@ -8,8 +8,20 @@
   BYEBAR.SITE_RULES = {
     bloomberg: {
       hosts: [/\.bloomberg\./i, /^bloomberg\./i],
-      hide: ['#cmp-consent-modal'],
-      remove: ['#cmp-consent-modal']
+      hide: [
+        '#cmp-consent-modal',
+        '[class*="_showOnMobile"]',
+        '[class*="_showOnDesktop"]',
+        'a[href*="/subscriptions"]:has([class*="_showOnMobile"])',
+        'a[href*="/subscriptions"]:has([class*="_showOnDesktop"])'
+      ],
+      remove: [
+        '#cmp-consent-modal',
+        '[class*="_showOnMobile"]',
+        '[class*="_showOnDesktop"]',
+        'a[href*="/subscriptions"]:has([class*="_showOnMobile"])',
+        'a[href*="/subscriptions"]:has([class*="_showOnDesktop"])'
+      ]
     },
     substack: {
       hosts: [/\.substack\.com$/i, /^substack\.com$/i],
