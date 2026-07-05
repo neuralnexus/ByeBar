@@ -14,7 +14,6 @@ const COLORS = {
   lineMuted: [240, 236, 231],
   lineSoft: [232, 228, 223],
   accent: [196, 92, 38],
-  dismiss: [40, 40, 40],
   white: [255, 255, 255]
 };
 
@@ -79,46 +78,76 @@ function distanceToSegment(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - projX, py - projY);
 }
 
+function distanceToQuadratic(px, py, x0, y0, cx, cy, x1, y1, samples = 12) {
+  let min = Infinity;
+  let prevX = x0;
+  let prevY = y0;
+  for (let i = 1; i <= samples; i++) {
+    const t = i / samples;
+    const inv = 1 - t;
+    const x = inv * inv * x0 + 2 * inv * t * cx + t * t * x1;
+    const y = inv * inv * y0 + 2 * inv * t * cy + t * t * y1;
+    min = Math.min(min, distanceToSegment(px, py, prevX, prevY, x, y));
+    prevX = x;
+    prevY = y;
+  }
+  return min;
+}
+
 function pickColor(size, x, y) {
+  const iconRadius = size * 0.21875;
+  if (!insideRoundedRect(x, y, 0, 0, size, size, iconRadius)) {
+    return COLORS.bg;
+  }
+
+  const barTop = size * 0.5625;
   const popup = {
-    left: size * 0.2,
-    top: size * 0.24,
-    width: size * 0.6,
-    height: size * 0.38,
-    radius: Math.max(2, size * 0.08)
+    left: size * 0.1875,
+    top: size * 0.14,
+    width: size * 0.625,
+    height: size * 0.40625,
+    radius: Math.max(2, size * 0.09375)
   };
 
   const badge = {
-    cx: size * 0.72,
-    cy: size * 0.62,
-    radius: size * 0.17
+    cx: size * 0.71875,
+    cy: size * 0.234375,
+    radius: size * 0.15625
   };
 
   const line1 = {
-    left: size * 0.27,
-    top: size * 0.34,
-    width: size * 0.28,
-    height: Math.max(1, size * 0.05),
-    radius: Math.max(1, size * 0.025)
+    left: size * 0.265625,
+    top: size * 0.21875,
+    width: size * 0.25,
+    height: Math.max(1, size * 0.046875),
+    radius: Math.max(1, size * 0.0234375)
   };
 
   const line2 = {
-    left: size * 0.27,
-    top: size * 0.44,
-    width: size * 0.44,
-    height: Math.max(1, size * 0.04),
-    radius: Math.max(1, size * 0.02)
+    left: size * 0.265625,
+    top: size * 0.3125,
+    width: size * 0.4375,
+    height: Math.max(1, size * 0.0390625),
+    radius: Math.max(1, size * 0.01953125)
   };
 
   const line3 = {
-    left: size * 0.27,
-    top: size * 0.52,
-    width: size * 0.34,
-    height: Math.max(1, size * 0.04),
-    radius: Math.max(1, size * 0.02)
+    left: size * 0.265625,
+    top: size * 0.390625,
+    width: size * 0.3125,
+    height: Math.max(1, size * 0.0390625),
+    radius: Math.max(1, size * 0.01953125)
   };
 
-  const xStroke = Math.max(1.4, size * 0.045);
+  const dash = {
+    left: size * 0.28125,
+    top: size * 0.71875,
+    width: size * 0.25,
+    height: Math.max(1, size * 0.0546875),
+    radius: Math.max(1, size * 0.02734375)
+  };
+
+  const xStroke = Math.max(1.4, size * 0.046875);
   const x1 = badge.cx - badge.radius * 0.42;
   const y1 = badge.cy - badge.radius * 0.42;
   const x2 = badge.cx + badge.radius * 0.42;
@@ -127,6 +156,18 @@ function pickColor(size, x, y) {
   if (distanceToSegment(x, y, x1, y1, x2, y2) <= xStroke) return COLORS.white;
   if (distanceToSegment(x, y, x2, y1, x1, y2) <= xStroke) return COLORS.white;
   if (insideCircle(x, y, badge.cx, badge.cy, badge.radius)) return COLORS.accent;
+
+  const waveStroke = Math.max(1.2, size * 0.0390625);
+  const waveY = size * 0.7421875;
+  const waveDist = Math.min(
+    distanceToQuadratic(x, y, size * 0.59375, waveY, size * 0.640625, size * 0.6796875, size * 0.6875, waveY),
+    distanceToQuadratic(x, y, size * 0.6875, waveY, size * 0.734375, size * 0.8046875, size * 0.78125, waveY)
+  );
+  if (waveDist <= waveStroke) return COLORS.white;
+
+  if (insideRoundedRect(x, y, dash.left, dash.top, dash.width, dash.height, dash.radius)) {
+    return COLORS.white;
+  }
 
   if (insideRoundedRect(x, y, line1.left, line1.top, line1.width, line1.height, line1.radius)) {
     return COLORS.lineSoft;
@@ -138,7 +179,7 @@ function pickColor(size, x, y) {
     return COLORS.lineMuted;
   }
 
-  const stroke = Math.max(1, Math.round(size * 0.03));
+  const stroke = Math.max(1, Math.round(size * 0.03125));
   const outer = insideRoundedRect(x, y, popup.left, popup.top, popup.width, popup.height, popup.radius);
   const inner = insideRoundedRect(
     x,
@@ -153,6 +194,7 @@ function pickColor(size, x, y) {
   if (outer && !inner) return COLORS.popupStroke;
   if (inner) return COLORS.popupFill;
 
+  if (y >= barTop) return COLORS.accent;
   return COLORS.bg;
 }
 

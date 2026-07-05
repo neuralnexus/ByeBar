@@ -15,7 +15,7 @@ const genericBlockingEl = document.getElementById('generic-blocking');
 const cookieDeclineEl = document.getElementById('cookie-decline');
 const tosAcceptEl = document.getElementById('tos-accept');
 const locationDeclineEl = document.getElementById('location-decline');
-const netsuiteLeadRedirectEl = document.getElementById('netsuite-lead-redirect');
+const bypassLeadFormsEl = document.getElementById('bypass-lead-forms');
 const hostLabelEl = document.getElementById('host-label');
 
 let host = '';
@@ -40,7 +40,7 @@ function render() {
   cookieDeclineEl.checked = settings.cookieDecline;
   tosAcceptEl.checked = settings.tosAccept;
   locationDeclineEl.checked = settings.locationDecline;
-  netsuiteLeadRedirectEl.checked = settings.netsuiteLeadRedirect;
+  bypassLeadFormsEl.checked = settings.netsuiteLeadRedirect;
   hostLabelEl.textContent = host ? `Current site: ${host}` : '';
 }
 
@@ -82,8 +82,8 @@ locationDeclineEl.addEventListener('change', () => {
   void save({ locationDecline: locationDeclineEl.checked });
 });
 
-netsuiteLeadRedirectEl.addEventListener('change', () => {
-  void save({ netsuiteLeadRedirect: netsuiteLeadRedirectEl.checked });
+bypassLeadFormsEl.addEventListener('change', () => {
+  void save({ netsuiteLeadRedirect: bypassLeadFormsEl.checked });
 });
 
 void init();

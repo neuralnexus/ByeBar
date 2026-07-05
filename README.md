@@ -46,7 +46,7 @@ document_start
 | **Auto-decline cookie banners**    | Clicks reject/deny when possible, calls CMP APIs, then hides the banner                              |
 | **Auto-accept terms modals**       | Dismisses legal/TOS popups (e.g. Bloomberg consent)                                                  |
 | **Auto-decline location requests** | Denies `navigator.geolocation` without a browser prompt                                              |
-| **NetSuite lead-form redirect**    | Leaves broken `extforms.netsuite.com` pages for the brand site                                       |
+| **Bypass lead forms**              | Leaves broken external lead forms (e.g. NetSuite `extforms`) for the brand site                      |
 | **Site-specific rules**            | Targeted CSS + selectors + heuristics for known offenders                                            |
 
 Open the toolbar popup to toggle behavior globally or per-site.
@@ -118,14 +118,14 @@ For Safari, see [SAFARI.md](SAFARI.md).
 
 Open the popup from the toolbar:
 
-| Setting                             | Default | Description                                                             |
-| ----------------------------------- | ------- | ----------------------------------------------------------------------- |
-| Enabled on this site                | On      | Per-site override; turning off adds the current host to `siteOverrides` |
-| Generic blocking                    | On      | Newsletter/subscribe overlay heuristics on all sites                    |
-| Auto-decline cookie banners         | On      | Reject cookies and hide consent UI                                      |
-| Auto-accept terms & legal modals    | On      | Click through TOS/legal modals                                          |
-| Auto-decline location requests      | On      | Block geolocation prompts                                               |
-| Redirect broken NetSuite lead forms | On      | Redirect away from broken NetSuite external lead pages                  |
+| Setting                          | Default | Description                                                             |
+| -------------------------------- | ------- | ----------------------------------------------------------------------- |
+| Enabled on this site             | On      | Per-site override; turning off adds the current host to `siteOverrides` |
+| Generic blocking                 | On      | Newsletter/subscribe overlay heuristics on all sites                    |
+| Auto-decline cookie banners      | On      | Reject cookies and hide consent UI                                      |
+| Auto-accept terms & legal modals | On      | Click through TOS/legal modals                                          |
+| Auto-decline location requests   | On      | Block geolocation prompts                                               |
+| Bypass lead forms                | On      | Redirect away from broken external lead capture pages                   |
 
 Settings persist in `storage.sync` (falls back to `storage.local` on Safari).
 
