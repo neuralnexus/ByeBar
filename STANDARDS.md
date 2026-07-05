@@ -141,17 +141,18 @@ npm run validate
 
 ## Tests
 
-| Area                 | Test file                                 | Notes                           |
-| -------------------- | ----------------------------------------- | ------------------------------- |
-| Cookie CMP detection | `test/cookie-heuristics.test.mjs`         | CookieYes, Usercentrics, Didomi |
-| Substack modals      | `test/substack-heuristics.test.mjs`       | Radix signup dialogs            |
-| Bloomberg promos     | `test/bloomberg-heuristics.test.mjs`      | Flash sale strips               |
-| China commerce       | `test/china-commerce-heuristics.test.mjs` | Spinner wheels                  |
-| TOS modals           | `test/tos-heuristics.test.mjs`            | Bloomberg CMP                   |
-| NetSuite leads       | `test/netsuite-lead.test.mjs`             | extforms redirect               |
-| Geolocation          | `test/geolocation.test.mjs`               | Settings + API patch            |
-| Host / settings      | `test/host.test.mjs`                      | Per-site overrides              |
-| Manifest             | `test/manifest.test.mjs`                  | MV3 structure                   |
+| Area                 | Test file                                 | Notes                                                                                    |
+| -------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Cookie CMP detection | `test/cookie-heuristics.test.mjs`         | CookieYes, Usercentrics, Didomi, Sourcepoint, Funding Choices, iubenda, Ketch, Complianz |
+| Cookie CMP APIs      | `test/cookie-cmp.test.mjs`                | Sourcepoint, Cookiebot, Quantcast, iubenda, OneTrust, Ketch                              |
+| Substack modals      | `test/substack-heuristics.test.mjs`       | Radix signup dialogs                                                                     |
+| Bloomberg promos     | `test/bloomberg-heuristics.test.mjs`      | Flash sale strips                                                                        |
+| China commerce       | `test/china-commerce-heuristics.test.mjs` | Spinner wheels                                                                           |
+| TOS modals           | `test/tos-heuristics.test.mjs`            | Bloomberg CMP                                                                            |
+| NetSuite leads       | `test/netsuite-lead.test.mjs`             | extforms redirect                                                                        |
+| Geolocation          | `test/geolocation.test.mjs`               | Settings + API patch                                                                     |
+| Host / settings      | `test/host.test.mjs`                      | Per-site overrides                                                                       |
+| Manifest             | `test/manifest.test.mjs`                  | MV3 structure                                                                            |
 
 Integration/manual checks (no automated test yet):
 

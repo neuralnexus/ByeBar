@@ -230,6 +230,33 @@
     '#CybotCookiebotDialogBody',
     '.qc-cmp2-container',
     '#sp-cc',
+    '[id^="sp_message_container"]',
+    '.sp_message_container',
+    'iframe[id^="sp_message_iframe"]',
+    '.fc-consent-root',
+    '#fc-consent-root',
+    '.fc-dialog-container',
+    '.fc-dialog-overlay',
+    '#iubenda-cs-banner',
+    '[id^="iubenda-cs-"]',
+    '#termly-code-snippet-support',
+    '[data-termly-modal]',
+    '.t-consent-banner',
+    '#lanyard-root',
+    '[id^="ketch-"]',
+    '#BorlabsCookieBox',
+    '[class*="BorlabsCookie" i]',
+    '#cmplz-cookiebanner-container',
+    '.cmplz-cookiebanner',
+    '#moove_gdpr_cookie_info_bar',
+    '#moove_gdpr_cookie_modal',
+    '#cookie-notice',
+    '#cmpbox',
+    '#cmpbox2',
+    '.cmpwrapper',
+    '.CybotCookiebotDialogActive',
+    'iframe[src*="consent.cookiebot.com" i]',
+    'iframe[src*="fundingchoicesmessages.google.com" i]',
     '#cookieConsent',
     '#cookie-consent',
     '#cookie-banner',
@@ -306,7 +333,7 @@
 
   BYEBAR.COOKIE_BANNER_ANCESTORS =
     BYEBAR.COOKIE_HIDE.join(',') +
-    ',[class*="cookie" i],[class*="consent" i],[class*="gdpr" i],[id*="cookie" i],[id*="truste" i],[class*="trustarc" i],[class*="cky-" i],[data-cky-tag],[class*="didomi-" i],[id*="didomi" i]';
+    ',[class*="cookie" i],[class*="consent" i],[class*="gdpr" i],[id*="cookie" i],[id*="truste" i],[class*="trustarc" i],[class*="cky-" i],[data-cky-tag],[class*="didomi-" i],[id*="didomi" i],[class*="sp_message" i],[class*="sp_choice" i],[class*="fc-consent" i],[class*="fc-dialog" i],[class*="iubenda" i],[class*="termly" i],[class*="ketch" i],[class*="borlabs" i],[class*="brlbs-" i],[class*="cmplz" i],[class*="moove-gdpr" i],[id^="cmpbox" i],[class*="cybotcookiebot" i],[class*="qc-cmp" i]';
 
   // Known decline / reject buttons (clicked before hide).
   BYEBAR.COOKIE_DECLINE_SELECTORS = [
@@ -353,7 +380,30 @@
     'a[href*="setUserDisagreeToAll" i]',
     'button[aria-label*="Disagree to all" i]',
     'button[aria-label*="Refuser" i]',
-    'button[aria-label*="refuser" i]'
+    'button[aria-label*="refuser" i]',
+    'button.sp_choice_type_11',
+    'button.sp_choice_type_REJECT_ALL',
+    'button[title="Reject All"]',
+    'button[title="Reject all"]',
+    'button[title="Do not sell or share my personal information"]',
+    '.fc-cta-do-not-consent',
+    'button.fc-cta-do-not-consent',
+    'button.fc-secondary-button',
+    'button.iubenda-cs-reject-btn',
+    'button.iub-cmp-reject-btn',
+    '#iubFooterBtn',
+    '#ketch-banner-button-secondary',
+    'button#ketch-banner-button-secondary',
+    '.cmplz-deny',
+    'button.cmplz-deny',
+    '.brlbs-btn-deny',
+    '[class*="brlbs-btn-deny" i]',
+    '.moove-gdpr-infobar-reject-btn',
+    'button.cookie-notice__button--dismiss',
+    '.cn-reject-cookie',
+    '#cmpbox .cmpboxbtnno',
+    'a.cmpboxbtnno',
+    '.qc-cmp2-buttons button[mode="secondary"]'
   ];
 
   // Terms-of-service / legal modals (tos.js clicks accept when possible).

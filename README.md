@@ -66,12 +66,22 @@ Open the toolbar popup to toggle behavior globally or per-site.
 
 Auto-decline and hide are implemented for common CMPs, including:
 
-- **OneTrust** (`#onetrust-banner-sdk`)
-- **CookieYes** (`.cky-*`)
-- **Usercentrics** (`#usercentrics-root`, `UC_UI` API) — e.g. Mercedes-Benz
-- **TrustArc / Truste** (`#consent_blackbar`, CCPA opt-out)
-- **Didomi** (`#didomi-host`, `Didomi.setUserDisagreeToAll()`) — e.g. orange.jobs, Orange.fr
-- **Cookiebot**, **Quantcast**, **Klaviyo**, and generic cookie-banner heuristics
+| CMP                                                                                               | Decline                                  | API fallback              |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------- |
+| **Sourcepoint**                                                                                   | `sp_choice_type_11`, Reject All          | `_sp_.gdpr.rejectAll()`   |
+| **Google Funding Choices**                                                                        | `.fc-cta-do-not-consent`                 | —                         |
+| **OneTrust**                                                                                      | `#onetrust-reject-all-handler`           | `OneTrust.RejectAll()`    |
+| **CookieYes**                                                                                     | `[data-cky-tag="reject-button"]`         | —                         |
+| **Cookiebot**                                                                                     | `#CybotCookiebotDialogBodyButtonDecline` | `Cookiebot.withdraw()`    |
+| **Quantcast**                                                                                     | `.qc-cmp2-summary-buttons` secondary     | `__cmp('rejectAll')`      |
+| **Usercentrics**                                                                                  | `uc-deny-all-button`                     | `UC_UI.denyAllConsents()` |
+| **TrustArc / Truste**                                                                             | CCPA opt-out button                      | `truste.bn.declineCPRA()` |
+| **Didomi**                                                                                        | disagree / continue-without              | `setUserDisagreeToAll()`  |
+| **iubenda**                                                                                       | `.iubenda-cs-reject-btn`                 | `_iub.cs.api.reject()`    |
+| **Ketch**                                                                                         | `#ketch-banner-button-secondary`         | `ketch('deny')`           |
+| **Termly**, **Borlabs**, **Complianz**, **consentmanager.net**, **Moove GDPR**, **Cookie Notice** | vendor decline selectors                 | —                         |
+
+Generic cookie-banner heuristics still catch long-tail CMPs not listed above.
 
 ### Generic heuristics (all sites)
 

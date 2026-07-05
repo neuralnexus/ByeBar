@@ -228,6 +228,213 @@
     return false;
   }
 
+  function isKnownCmpNode(el) {
+    if (!el || el.nodeType !== 1) return false;
+    const id = (el.id || '').toLowerCase();
+    const cls = typeof el.className === 'string' ? el.className.toLowerCase() : '';
+
+    return (
+      id === 'sp-cc' ||
+      id.startsWith('sp_message_') ||
+      cls.includes('sp_message') ||
+      cls.includes('sp_choice_type') ||
+      id === 'fc-consent-root' ||
+      cls.includes('fc-consent') ||
+      cls.includes('fc-dialog') ||
+      id.startsWith('cybotcookiebot') ||
+      cls.includes('cybotcookiebot') ||
+      cls.includes('qc-cmp2') ||
+      id.startsWith('iubenda-cs-') ||
+      cls.includes('iubenda-cs-') ||
+      cls.includes('iub-cmp') ||
+      id === 'termly-code-snippet-support' ||
+      id.startsWith('termly-') ||
+      cls.includes('termly') ||
+      cls.includes('t-consent-banner') ||
+      id === 'lanyard-root' ||
+      id.startsWith('ketch-') ||
+      cls.includes('ketch-banner') ||
+      id === 'borlabscookiebox' ||
+      cls.includes('borlabs') ||
+      cls.includes('brlbs-') ||
+      id === 'cmplz-cookiebanner-container' ||
+      id.startsWith('cmplz-') ||
+      cls.includes('cmplz-') ||
+      id.startsWith('moove_gdpr') ||
+      cls.includes('moove-gdpr') ||
+      id === 'cmpbox' ||
+      id === 'cmpbox2' ||
+      cls.includes('cmpwrapper') ||
+      id.startsWith('onetrust') ||
+      cls.includes('onetrust') ||
+      cls.includes('ot-sdk') ||
+      id === 'cookieyes-banner' ||
+      cls.includes('cky-consent') ||
+      cls.includes('cky-banner') ||
+      cls.startsWith('cky-') ||
+      el.hasAttribute?.('data-cky-tag') ||
+      id === 'usercentrics-root' ||
+      id.includes('usercentrics') ||
+      cls.includes('usercentrics') ||
+      cls.startsWith('uc-') ||
+      id === 'didomi-host' ||
+      id.startsWith('didomi-') ||
+      cls.includes('didomi-')
+    );
+  }
+
+  function hasSourcepointBanner(root = document) {
+    return (
+      queryAll(
+        '#sp-cc, [id^="sp_message_container"], .sp_message_container, iframe[id^="sp_message_iframe"]',
+        root
+      ).length > 0 || Boolean(root.defaultView?._sp_)
+    );
+  }
+
+  function hasCookiebotBanner(root = document) {
+    return (
+      queryAll('#CybotCookiebotDialog, .CybotCookiebotDialogActive', root).length > 0 ||
+      Boolean(root.defaultView?.Cookiebot)
+    );
+  }
+
+  function hasQuantcastBanner(root = document) {
+    return queryAll('.qc-cmp2-container', root).length > 0 || typeof root.defaultView?.__cmp === 'function';
+  }
+
+  function hasIubendaBanner(root = document) {
+    return (
+      queryAll('#iubenda-cs-banner, [id^="iubenda-cs-"]', root).length > 0 ||
+      Boolean(root.defaultView?._iub?.cs?.api)
+    );
+  }
+
+  function hasOneTrustBanner(root = document) {
+    return (
+      queryAll('#onetrust-banner-sdk, #onetrust-consent-sdk', root).length > 0 ||
+      Boolean(root.defaultView?.OneTrust || root.defaultView?.Optanon)
+    );
+  }
+
+  function hasKetchBanner(root = document) {
+    return (
+      queryAll('#lanyard-root, [id^="ketch-"]', root).length > 0 ||
+      typeof root.defaultView?.ketch === 'function'
+    );
+  }
+
+  function declineViaSourcepointApi() {
+    if (!hasSourcepointBanner()) return false;
+
+    try {
+      const sp = window._sp_;
+      if (!sp) return false;
+
+      for (const scope of [sp.gdpr, sp.cc, sp.usnat, sp.ccpa, sp]) {
+        if (scope && typeof scope.rejectAll === 'function') {
+          scope.rejectAll();
+          return true;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
+  function declineViaCookiebotApi() {
+    if (!hasCookiebotBanner()) return false;
+
+    try {
+      const bot = window.Cookiebot;
+      if (!bot) return false;
+      if (typeof bot.withdraw === 'function') {
+        bot.withdraw();
+        return true;
+      }
+      if (typeof bot.hide === 'function') {
+        bot.hide();
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
+  function declineViaQuantcastApi() {
+    if (!hasQuantcastBanner()) return false;
+
+    try {
+      if (typeof window.__cmp === 'function') {
+        window.__cmp('rejectAll');
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
+  function declineViaIubendaApi() {
+    if (!hasIubendaBanner()) return false;
+
+    try {
+      const api = window._iub?.cs?.api;
+      if (!api) return false;
+      if (typeof api.reject === 'function') {
+        api.reject();
+        return true;
+      }
+      if (typeof api.close === 'function') {
+        api.close();
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
+  function declineViaOneTrustApi() {
+    if (!hasOneTrustBanner()) return false;
+
+    try {
+      if (typeof window.OneTrust?.RejectAll === 'function') {
+        window.OneTrust.RejectAll();
+        return true;
+      }
+      if (typeof window.Optanon?.RejectAll === 'function') {
+        window.Optanon.RejectAll();
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
+  function declineViaKetchApi() {
+    if (!hasKetchBanner()) return false;
+
+    try {
+      if (typeof window.ketch === 'function') {
+        window.ketch('deny', { showRightsForm: false });
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
   function declineViaTrustArcApi() {
     const truste = window.truste;
     if (!truste) return false;
@@ -289,7 +496,8 @@
       cls.includes('didomi-') ||
       cls.includes('didomi-popup') ||
       cls.includes('didomi-consent') ||
-      cls.includes('didomi-screen')
+      cls.includes('didomi-screen') ||
+      isKnownCmpNode(el)
     ) {
       return true;
     }
@@ -367,7 +575,7 @@
     let removedAny = false;
 
     queryAll(
-      '.cky-consent-container, .cky-banner-element, .cky-overlay, [data-cky-tag="notice"], #didomi-host, [class*="didomi-popup" i], [class*="didomi-consent" i], #consent_blackbar, #trustarc-banner-overlay, #truste-consent-track, #truste-consent-content, [role="dialog"], [aria-modal="true"], div, section, aside',
+      '.cky-consent-container, .cky-banner-element, .cky-overlay, [data-cky-tag="notice"], #didomi-host, [class*="didomi-popup" i], [class*="didomi-consent" i], #sp-cc, [id^="sp_message_container"], .fc-consent-root, #iubenda-cs-banner, #termly-code-snippet-support, #lanyard-root, #BorlabsCookieBox, #cmplz-cookiebanner-container, #moove_gdpr_cookie_info_bar, #cookie-notice, #cmpbox, #consent_blackbar, #trustarc-banner-overlay, #truste-consent-track, #truste-consent-content, [role="dialog"], [aria-modal="true"], div, section, aside',
       root
     ).forEach((el) => {
       if (!looksLikeCookieBanner(el)) return;
@@ -401,6 +609,12 @@
       declineViaDidomiUi(root) ||
       declineViaSelectors(root) ||
       declineViaTextScan(root) ||
+      (hasSourcepointBanner(root) && declineViaSourcepointApi()) ||
+      (hasCookiebotBanner(root) && declineViaCookiebotApi()) ||
+      (hasQuantcastBanner(root) && declineViaQuantcastApi()) ||
+      (hasIubendaBanner(root) && declineViaIubendaApi()) ||
+      (hasOneTrustBanner(root) && declineViaOneTrustApi()) ||
+      (hasKetchBanner(root) && declineViaKetchApi()) ||
       (hasDidomiBanner(root) && declineViaDidomiApi()) ||
       (hasUsercentricsBanner(root) && declineViaUsercentricsApi()) ||
       (queryAll('#truste-consent-track, #consent_blackbar, #truste-ccpa-optout', root).length > 0 &&
