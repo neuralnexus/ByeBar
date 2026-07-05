@@ -7,6 +7,7 @@
     enabled: true,
     genericBlocking: true,
     cookieDecline: true,
+    tosAccept: true,
     siteOverrides: {}
   };
 
@@ -35,6 +36,14 @@
 
     if (settings.cookieDecline) {
       BYEBAR.COOKIE_HIDE.forEach((s) => selectors.add(s));
+    }
+
+    if (settings.tosAccept) {
+      BYEBAR.TOS_HIDE.forEach((s) => selectors.add(s));
+    }
+
+    if (BYEBAR.isBloomberg?.()) {
+      BYEBAR.SITE_RULES.bloomberg.remove.forEach((s) => selectors.add(s));
     }
 
     if (BYEBAR.isSubstack()) {
@@ -211,6 +220,10 @@
           BYEBAR.cookies.decline(document);
           BYEBAR.cookies.removeBanners?.(document);
         }
+        if (settings.tosAccept && BYEBAR.tos) {
+          BYEBAR.tos.accept(document);
+          BYEBAR.tos.removeModals?.(document);
+        }
       });
     });
 
@@ -256,6 +269,10 @@
     if (settings.cookieDecline && BYEBAR.cookies) {
       BYEBAR.cookies.decline(document);
       BYEBAR.cookies.removeBanners?.(document);
+    }
+    if (settings.tosAccept && BYEBAR.tos) {
+      BYEBAR.tos.accept(document);
+      BYEBAR.tos.removeModals?.(document);
     }
     startObserver();
   }

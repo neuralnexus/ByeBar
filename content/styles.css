@@ -135,3 +135,20 @@ iframe[src*='consent-pref.trustarc.com' i],
   pointer-events: none !important;
   opacity: 0 !important;
 }
+
+/* Terms-of-service / legal modals */
+#cmp-consent-modal,
+[id^='sp_message_container'],
+.sp_message_container,
+iframe[id^='sp_message_iframe'],
+[class*='tos-modal' i],
+[class*='terms-modal' i],
+[id*='tos-modal' i],
+[id*='terms-modal' i],
+[aria-label*='terms of service' i][role='dialog'],
+[aria-label*='updated terms' i][role='dialog'] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}

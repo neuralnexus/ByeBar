@@ -6,6 +6,11 @@
   const BYEBAR = (window.ByeBar = window.ByeBar || {});
 
   BYEBAR.SITE_RULES = {
+    bloomberg: {
+      hosts: [/\.bloomberg\./i, /^bloomberg\./i],
+      hide: ['#cmp-consent-modal'],
+      remove: ['#cmp-consent-modal']
+    },
     substack: {
       hosts: [/\.substack\.com$/i, /^substack\.com$/i],
       hide: [
@@ -237,6 +242,41 @@
     '[id*="optout" i]'
   ];
 
+  // Terms-of-service / legal modals (tos.js clicks accept when possible).
+  BYEBAR.TOS_HIDE = [
+    '#cmp-consent-modal',
+    '[id^="sp_message_container"]',
+    '.sp_message_container',
+    'iframe[id^="sp_message_iframe"]',
+    '[class*="tos-modal" i]',
+    '[class*="terms-modal" i]',
+    '[class*="TosModal" i]',
+    '[class*="TermsModal" i]',
+    '[id*="tos-modal" i]',
+    '[id*="terms-modal" i]',
+    '[id*="tos_modal" i]',
+    '[id*="terms_modal" i]',
+    '[data-testid*="tos-modal" i]',
+    '[aria-label*="terms of service" i][role="dialog"]',
+    '[aria-label*="updated terms" i][role="dialog"]'
+  ];
+
+  BYEBAR.TOS_BANNER_ANCESTORS =
+    BYEBAR.TOS_HIDE.join(',') +
+    ',[class*="tos" i][class*="modal" i],[class*="terms" i][class*="modal" i],[id*="tos" i][role="dialog"],[id*="terms" i][role="dialog"]';
+
+  BYEBAR.TOS_ACCEPT_SELECTORS = ['#cmp-consent-button', '#cmp-consent-modal #cmp-consent-button'];
+
+  BYEBAR.TOS_ACCEPT_TEXT = [
+    /^accept$/i,
+    /^i agree$/i,
+    /^agree$/i,
+    /^accept and continue$/i,
+    /^got it$/i,
+    /^ok$/i,
+    /^okay$/i
+  ];
+
   BYEBAR.COOKIE_DECLINE_TEXT = [
     /^reject(\s+all)?$/i,
     /^decline(\s+all)?$/i,
@@ -254,4 +294,6 @@
   ];
 
   BYEBAR.isSubstack = () => BYEBAR.SITE_RULES.substack.hosts.some((re) => re.test(location.hostname));
+
+  BYEBAR.isBloomberg = () => BYEBAR.SITE_RULES.bloomberg.hosts.some((re) => re.test(location.hostname));
 })();
