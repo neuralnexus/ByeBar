@@ -22,7 +22,7 @@ open safari/ByeBar/ByeBar.xcodeproj
 ## Run on Mac
 
 1. In Xcode, choose the **ByeBar (macOS)** scheme.
-2. Press Run — Safari opens with the extension installed for debugging.
+2. Press Run ; Safari opens with the extension installed for debugging.
 3. Enable the extension in **Safari → Settings → Extensions**.
 
 After changing extension source files, rebuild in Xcode or re-run `npm run build:safari` before testing.
@@ -43,19 +43,19 @@ Safari Web Extensions must be distributed inside a container app:
 
 ## Safari-specific behavior
 
-- **Storage** — falls back to `storage.local` when `storage.sync` is unavailable (`shared/browser.js`).
-- **Case-insensitive selectors** — `[attr*="x" i]` is stripped at runtime on older WebKit builds (`content/safari-compat.js`).
-- **Extra CSS** — `content/styles-safari.css` provides additional hide rules for WebKit.
-- **Shadow DOM** — `content/shadow.js` pierces shadow roots where standard `querySelector` cannot reach CMP UI.
+- **Storage** ; falls back to `storage.local` when `storage.sync` is unavailable (`shared/browser.js`).
+- **Case-insensitive selectors** ; `[attr*="x" i]` is stripped at runtime on older WebKit builds (`content/safari-compat.js`).
+- **Extra CSS** ; `content/styles-safari.css` provides additional hide rules for WebKit.
+- **Shadow DOM** ; `content/shadow.js` pierces shadow roots where standard `querySelector` cannot reach CMP UI.
 
 ## Debugging
 
 1. Enable the extension in Safari Settings.
 2. Open **Develop → Web Extension Background Pages → ByeBar** for service worker logs.
 3. Use **Develop → Show Web Inspector** on the target page; ByeBar content scripts appear under the page's script list.
-4. If overlays persist, check whether Safari stripped a case-insensitive selector — add an explicit variant to `styles-safari.css`.
+4. If overlays persist, check whether Safari stripped a case-insensitive selector ; add an explicit variant to `styles-safari.css`.
 
 ## See also
 
-- [README.md](README.md) — features and install overview
-- [STANDARDS.md](STANDARDS.md) — architecture and contributing
+- [README.md](README.md) ; features and install overview
+- [STANDARDS.md](STANDARDS.md) ; architecture and contributing

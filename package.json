@@ -2,7 +2,7 @@
   "name": "byebar",
   "version": "0.2.0",
   "private": true,
-  "description": "ByeBar — Overlay & Popup Blocker (Chrome, Firefox, Safari)",
+  "description": "ByeBar; Overlay & Popup Blocker (Chrome, Firefox, Safari)",
   "type": "module",
   "scripts": {
     "lint": "eslint .",
@@ -13,7 +13,8 @@
     "test:run": "vitest run",
     "validate": "node scripts/validate-manifest.mjs && npm run lint && npm run format:check && npm run test:run",
     "build:safari": "bash scripts/build-safari.sh",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "build:store": "node scripts/generate-icons.mjs && node scripts/build-chrome-store.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",

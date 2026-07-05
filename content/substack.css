@@ -1,4 +1,4 @@
-/* Substack-only: signup modals and modal scrims — never unscoped background-* rules. */
+/* Substack-only: signup modals and modal scrims ; never unscoped background-* rules. */
 
 [class*='modalViewer'] [class^='background-'],
 [class*='modalViewer'] [class*=' background-'],

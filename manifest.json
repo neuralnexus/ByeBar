@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "ByeBar — Overlay & Popup Blocker",
+  "name": "ByeBar; Overlay & Popup Blocker",
   "short_name": "ByeBar",
-  "description": "Remove intrusive popups. Browse in peace. Blocks newsletter nags, subscribe overlays, cookie banners, and more. Not an ad blocker.",
+  "description": "Remove distracting popups and make webpages easier to browse. Blocks newsletter overlays, cookie banners, and more. Not an ad-blocker.",
   "version": "0.2.0",
+  "homepage_url": "https://neuralnexus.github.io/ByeBar/",
   "icons": {
     "48": "icons/icon-48.png",
     "96": "icons/icon-96.png",

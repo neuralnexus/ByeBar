@@ -1,5 +1,5 @@
 /**
- * ByeBar cookie consent — auto-decline when a reject button is found.
+ * ByeBar cookie consent ; auto-decline when a reject button is found.
  */
 (() => {
   const BYEBAR = window.ByeBar;

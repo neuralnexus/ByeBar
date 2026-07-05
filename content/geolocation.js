@@ -1,5 +1,5 @@
 /**
- * ByeBar — auto-decline navigator.geolocation prompts.
+ * ByeBar ; auto-decline navigator.geolocation prompts.
  */
 (() => {
   if (window.__byeBarGeoPatched) return;

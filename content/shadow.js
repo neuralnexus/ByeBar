@@ -1,5 +1,5 @@
 /**
- * ByeBar shadow DOM helpers — pierce open shadow roots (e.g. IBM c4d-legal-nav).
+ * ByeBar shadow DOM helpers ; pierce open shadow roots (e.g. IBM c4d-legal-nav).
  */
 (() => {
   const BYEBAR = window.ByeBar;

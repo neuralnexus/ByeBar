@@ -49,12 +49,12 @@ MutationObserver re-runs on DOM changes
 
 ### Architecture rules
 
-1. **Cross-browser API** — use `shared/browser.js` (`ByeBar.browser`) instead of calling `chrome.*` directly.
-2. **Safari selectors** — run dynamic selectors through `content/safari-compat.js` before `querySelector(All)`.
-3. **CSS first** — add hide rules to CSS for instant suppression at `document_start`; JS removal is the backup.
-4. **Site-specific before generic** — add targeted rules under `content/selectors.js` (`SITE_RULES`) before widening generic heuristics.
-5. **Testable logic in `lib/`** — regexes, host checks, and text heuristics belong in `lib/*.mjs` with Vitest coverage; content scripts duplicate the runtime logic.
-6. **Not an ad blocker** — do not block ads, trackers, or network requests. DOM-only overlay/popup removal.
+1. **Cross-browser API** ; use `shared/browser.js` (`ByeBar.browser`) instead of calling `chrome.*` directly.
+2. **Safari selectors** ; run dynamic selectors through `content/safari-compat.js` before `querySelector(All)`.
+3. **CSS first** ; add hide rules to CSS for instant suppression at `document_start`; JS removal is the backup.
+4. **Site-specific before generic** ; add targeted rules under `content/selectors.js` (`SITE_RULES`) before widening generic heuristics.
+5. **Testable logic in `lib/`** ; regexes, host checks, and text heuristics belong in `lib/*.mjs` with Vitest coverage; content scripts duplicate the runtime logic.
+6. **Not an ad blocker** ; do not block ads, trackers, or network requests. DOM-only overlay/popup removal.
 
 ## Adding a new site rule
 
@@ -65,7 +65,7 @@ Capture from DevTools:
 - Stable selectors (IDs, `data-testid`, CMP root nodes)
 - Hostname pattern (`*.example.com` vs global CMP)
 - Whether CSS-only hide is enough, or click-to-decline is required (cookies)
-- Whether the overlay injects late (needs mutation observer / retry — already handled by `main.js`)
+- Whether the overlay injects late (needs mutation observer / retry ; already handled by `main.js`)
 
 ### 2. Register selectors
 
@@ -175,4 +175,4 @@ Integration/manual checks (no automated test yet):
 | `activeTab`       | Popup reads the active tab hostname                |
 | `<all_urls>` host | Content scripts run on all pages to catch overlays |
 
-No `webRequest`, `declarativeNetRequest`, or broad history access — ByeBar does not intercept network traffic.
+No `webRequest`, `declarativeNetRequest`, or broad history access ; ByeBar does not intercept network traffic.

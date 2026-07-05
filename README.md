@@ -4,7 +4,7 @@
 
 Website: [neuralnexus.github.io/ByeBar](https://neuralnexus.github.io/ByeBar/)
 
-ByeBar removes the UI clutter that gets between you and the page: newsletter modals, subscribe bars, email-capture overlays, cookie consent walls, coupon spinners, and similar interruptions. It works entirely in the DOM — it does not block ads, trackers, or network requests.
+ByeBar removes the UI clutter that gets between you and the page: newsletter modals, subscribe bars, email-capture overlays, cookie consent walls, coupon spinners, and similar interruptions. It works entirely in the DOM ; it does not block ads, trackers, or network requests.
 
 ## Table of contents
 
@@ -23,11 +23,11 @@ ByeBar removes the UI clutter that gets between you and the page: newsletter mod
 
 ByeBar is a Manifest V3 extension that injects content scripts at `document_start` on every page.
 
-1. **CSS hide** — `content/styles.css` (and site-specific stylesheets) hide known overlays instantly, before paint.
-2. **Selector pass** — the engine removes matching elements from `content/selectors.js` (`SITE_RULES`, `GENERIC_REMOVE`, cookie/TOS lists).
-3. **Heuristic pass** — text and layout heuristics catch newsletter dialogs, Substack signup modals, Bloomberg promos, coupon spinners, etc.
-4. **Interaction pass** — cookie and TOS modules click decline/accept buttons when available, then remove leftovers.
-5. **Mutation observer** — watches for late-injected overlays (common with CMPs and SPAs) and re-runs passes; delayed retries at 500 ms–8 s cover async injection.
+1. **CSS hide** ; `content/styles.css` (and site-specific stylesheets) hide known overlays instantly, before paint.
+2. **Selector pass** ; the engine removes matching elements from `content/selectors.js` (`SITE_RULES`, `GENERIC_REMOVE`, cookie/TOS lists).
+3. **Heuristic pass** ; text and layout heuristics catch newsletter dialogs, Substack signup modals, Bloomberg promos, coupon spinners, etc.
+4. **Interaction pass** ; cookie and TOS modules click decline/accept buttons when available, then remove leftovers.
+5. **Mutation observer** ; watches for late-injected overlays (common with CMPs and SPAs) and re-runs passes; delayed retries at 500 ms–8 s cover async injection.
 
 Early scripts (`geolocation.js`, `netsuite-lead.js`) patch browser APIs or redirect before the page fully loads.
 
@@ -71,9 +71,9 @@ Auto-decline and hide are implemented for common CMPs, including:
 | CMP                                                                                               | Decline                                  | API fallback              |
 | ------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------- |
 | **Sourcepoint**                                                                                   | `sp_choice_type_11`, Reject All          | `_sp_.gdpr.rejectAll()`   |
-| **Google Funding Choices**                                                                        | `.fc-cta-do-not-consent`                 | —                         |
+| **Google Funding Choices**                                                                        | `.fc-cta-do-not-consent`                 | -                         |
 | **OneTrust**                                                                                      | `#onetrust-reject-all-handler`           | `OneTrust.RejectAll()`    |
-| **CookieYes**                                                                                     | `[data-cky-tag="reject-button"]`         | —                         |
+| **CookieYes**                                                                                     | `[data-cky-tag="reject-button"]`         | -                         |
 | **Cookiebot**                                                                                     | `#CybotCookiebotDialogBodyButtonDecline` | `Cookiebot.withdraw()`    |
 | **Quantcast**                                                                                     | `.qc-cmp2-summary-buttons` secondary     | `__cmp('rejectAll')`      |
 | **Usercentrics**                                                                                  | `uc-deny-all-button`                     | `UC_UI.denyAllConsents()` |
@@ -81,7 +81,7 @@ Auto-decline and hide are implemented for common CMPs, including:
 | **Didomi**                                                                                        | disagree / continue-without              | `setUserDisagreeToAll()`  |
 | **iubenda**                                                                                       | `.iubenda-cs-reject-btn`                 | `_iub.cs.api.reject()`    |
 | **Ketch**                                                                                         | `#ketch-banner-button-secondary`         | `ketch('deny')`           |
-| **Termly**, **Borlabs**, **Complianz**, **consentmanager.net**, **Moove GDPR**, **Cookie Notice** | vendor decline selectors                 | —                         |
+| **Termly**, **Borlabs**, **Complianz**, **consentmanager.net**, **Moove GDPR**, **Cookie Notice** | vendor decline selectors                 | -                         |
 
 Generic cookie-banner heuristics still catch long-tail CMPs not listed above.
 
@@ -98,6 +98,16 @@ When **Block newsletter overlays** is enabled, ByeBar removes fixed/sticky overl
 | Safari (macOS / iOS) | 16.4+           | [SAFARI.md](SAFARI.md)                          |
 
 ## Install (Chrome / Edge / Firefox)
+
+### Chrome Web Store
+
+Publishing checklist and store listing copy: [CHROME_WEB_STORE.md](CHROME_WEB_STORE.md). Build the upload zip with:
+
+```bash
+npm run build:store
+```
+
+### Load unpacked (development)
 
 1. Clone and prepare assets:
 
@@ -140,7 +150,7 @@ Expected for late-injected modals. ByeBar retries at 500 ms, 1.5 s, 4 s, and 8 s
 Check that **Enabled on this site** is on in the popup. The host may be in `siteOverrides` from a prior disable.
 
 **Cookie banner keeps returning**  
-Some CMPs re-inject on interaction. Ensure **Auto-decline cookie banners** is on. Didomi/Usercentrics sites may need a new rule — see [Contributing](#contributing).
+Some CMPs re-inject on interaction. Ensure **Auto-decline cookie banners** is on. Didomi/Usercentrics sites may need a new rule ; see [Contributing](#contributing).
 
 **Page scroll is stuck after a modal**  
 ByeBar unlocks `overflow: hidden` and `didomi-popup-open` / `modal-open` body classes when removing overlays. Reload if a site uses a non-standard scroll lock.
@@ -215,5 +225,6 @@ ByeBar is **not an ad blocker**. It does not filter network traffic, block track
 
 ## Related docs
 
-- [STANDARDS.md](STANDARDS.md) — architecture, quality gates, adding rules
-- [SAFARI.md](SAFARI.md) — Xcode build and App Store distribution
+- [CHROME_WEB_STORE.md](CHROME_WEB_STORE.md) ; Chrome Web Store publishing
+- [STANDARDS.md](STANDARDS.md) ; architecture, quality gates, adding rules
+- [SAFARI.md](SAFARI.md) ; Xcode build and App Store distribution

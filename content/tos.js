@@ -1,5 +1,5 @@
 /**
- * ByeBar terms-of-service modals — auto-accept, then remove.
+ * ByeBar terms-of-service modals ; auto-accept, then remove.
  */
 (() => {
   const BYEBAR = window.ByeBar;

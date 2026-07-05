@@ -1,5 +1,5 @@
 /**
- * ByeBar — coupon spinner / lottery wheel overlays on Chinese commerce sites.
+ * ByeBar ; coupon spinner / lottery wheel overlays on Chinese commerce sites.
  */
 (() => {
   const BYEBAR = window.ByeBar;

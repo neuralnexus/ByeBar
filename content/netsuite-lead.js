@@ -1,5 +1,5 @@
 /**
- * ByeBar — redirect broken NetSuite external lead forms to the brand site.
+ * ByeBar ; redirect broken NetSuite external lead forms to the brand site.
  */
 (() => {
   if (window.__byeBarNetSuiteLead) return;

@@ -1,5 +1,5 @@
 /**
- * ByeBar engine — settings, DOM removal, mutation observer.
+ * ByeBar engine ; settings, DOM removal, mutation observer.
  */
 (() => {
   const BYEBAR = window.ByeBar;
