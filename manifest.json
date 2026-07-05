@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ByeBar — Overlay & Popup Blocker",
   "short_name": "ByeBar",
-  "description": "Removes newsletter nags, subscribe overlays, email capture popups, and auto-declines cookie consent banners. Not an ad blocker.",
+  "description": "Remove intrusive popups. Browse in peace. Blocks newsletter nags, subscribe overlays, cookie banners, and more. Not an ad blocker.",
   "version": "0.2.0",
   "icons": {
     "48": "icons/icon-48.png",

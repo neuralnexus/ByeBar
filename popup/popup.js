@@ -17,6 +17,7 @@ const tosAcceptEl = document.getElementById('tos-accept');
 const locationDeclineEl = document.getElementById('location-decline');
 const bypassLeadFormsEl = document.getElementById('bypass-lead-forms');
 const hostLabelEl = document.getElementById('host-label');
+const statusPillEl = document.getElementById('status-pill');
 
 let host = '';
 let settings = { ...DEFAULTS };
@@ -34,6 +35,12 @@ function siteEnabledForHost() {
   return settings.enabled;
 }
 
+function renderStatusPill() {
+  const on = siteEnabledForHost();
+  statusPillEl.textContent = on ? 'No more distractions' : 'Paused on this site';
+  statusPillEl.className = on ? 'status-pill status-pill--on' : 'status-pill status-pill--off';
+}
+
 function render() {
   siteEnabledEl.checked = siteEnabledForHost();
   genericBlockingEl.checked = settings.genericBlocking;
@@ -42,6 +49,7 @@ function render() {
   locationDeclineEl.checked = settings.locationDecline;
   bypassLeadFormsEl.checked = settings.netsuiteLeadRedirect;
   hostLabelEl.textContent = host ? `Current site: ${host}` : '';
+  renderStatusPill();
 }
 
 async function save(partial) {
@@ -64,6 +72,7 @@ siteEnabledEl.addEventListener('change', () => {
     overrides[host] = false;
   }
   void save({ siteOverrides: overrides });
+  renderStatusPill();
 });
 
 genericBlockingEl.addEventListener('change', () => {

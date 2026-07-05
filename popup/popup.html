@@ -8,46 +8,50 @@
   </head>
   <body>
     <header class="brand">
-      <img class="logo" src="../icons/icon-48.png" width="32" height="32" alt="" />
+      <img class="logo" src="../icons/icon-48.png" width="36" height="36" alt="" />
       <div>
         <h1>ByeBar</h1>
-        <p class="tagline">Overlay &amp; Popup Blocker</p>
+        <p class="tagline">Remove intrusive popups. Browse in peace.</p>
       </div>
     </header>
 
-    <p class="pitch">
-      Removes newsletter nags, subscribe overlays, and email capture popups. Not an ad blocker.
-    </p>
+    <section class="hero">
+      <p class="hero-title">Popup gone.</p>
+      <p class="hero-sub">Focus on what matters.</p>
+      <p class="status-pill" id="status-pill">No more distractions</p>
+    </section>
 
-    <label class="row">
-      <span>Enabled on this site</span>
-      <input type="checkbox" id="site-enabled" checked />
-    </label>
+    <section class="settings">
+      <label class="row">
+        <span>Enabled on this site</span>
+        <input type="checkbox" id="site-enabled" checked />
+      </label>
 
-    <label class="row">
-      <span>Generic blocking (all sites)</span>
-      <input type="checkbox" id="generic-blocking" checked />
-    </label>
+      <label class="row">
+        <span>Generic blocking (all sites)</span>
+        <input type="checkbox" id="generic-blocking" checked />
+      </label>
 
-    <label class="row">
-      <span>Auto-decline cookie banners</span>
-      <input type="checkbox" id="cookie-decline" checked />
-    </label>
+      <label class="row">
+        <span>Auto-decline cookie banners</span>
+        <input type="checkbox" id="cookie-decline" checked />
+      </label>
 
-    <label class="row">
-      <span>Auto-accept terms &amp; legal modals</span>
-      <input type="checkbox" id="tos-accept" checked />
-    </label>
+      <label class="row">
+        <span>Auto-accept terms &amp; legal modals</span>
+        <input type="checkbox" id="tos-accept" checked />
+      </label>
 
-    <label class="row">
-      <span>Auto-decline location requests</span>
-      <input type="checkbox" id="location-decline" checked />
-    </label>
+      <label class="row">
+        <span>Auto-decline location requests</span>
+        <input type="checkbox" id="location-decline" checked />
+      </label>
 
-    <label class="row">
-      <span>Bypass lead forms</span>
-      <input type="checkbox" id="bypass-lead-forms" checked />
-    </label>
+      <label class="row">
+        <span>Bypass lead forms</span>
+        <input type="checkbox" id="bypass-lead-forms" checked />
+      </label>
+    </section>
 
     <p class="host" id="host-label"></p>
 
