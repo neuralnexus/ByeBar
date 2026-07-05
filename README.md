@@ -2,6 +2,8 @@
 
 **Overlay & popup blocker for Chrome, Firefox, and Safari.**
 
+Website: [neuralnexus.github.io/ByeBar](https://neuralnexus.github.io/ByeBar/)
+
 ByeBar removes the UI clutter that gets between you and the page: newsletter modals, subscribe bars, email-capture overlays, cookie consent walls, coupon spinners, and similar interruptions. It works entirely in the DOM — it does not block ads, trackers, or network requests.
 
 ## Table of contents

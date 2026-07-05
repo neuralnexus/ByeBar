@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ByeBar — Overlay &amp; Popup Blocker</title>
+    <meta
+      name="description"
+      content="Remove distracting popups and make webpages easier to browse. Newsletter overlays, cookie banners, and more — not an ad blocker."
+    />
+    <link rel="icon" href="icon-128.png" type="image/png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <img class="logo" src="logo.svg" width="80" height="80" alt="" />
+      <h1>ByeBar</h1>
+      <p class="tagline">Remove distracting popups and make webpages easier to browse. Not an ad-blocker.</p>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>What it does</h2>
+        <p>
+          ByeBar clears the clutter between you and the page: newsletter modals, subscribe bars, cookie
+          consent walls, terms popups, and broken lead forms. It works in the DOM on your machine — it does
+          not block ads or network requests.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Features</h2>
+        <ul class="features">
+          <li>Block newsletter &amp; subscribe overlays on any site</li>
+          <li>Auto-decline cookie banners when possible</li>
+          <li>Auto-accept terms &amp; legal modals</li>
+          <li>Auto-decline location requests</li>
+          <li>Bypass broken external lead forms</li>
+          <li>Targeted rules for Substack, Bloomberg, and more</li>
+        </ul>
+      </section>
+
+      <section class="card card--privacy">
+        <p class="privacy">Data stays local</p>
+        <p class="privacy-sub">Everything runs in your browser. No telemetry.</p>
+      </section>
+
+      <section class="card">
+        <h2>Install</h2>
+        <p>ByeBar supports Chrome, Edge, Firefox, and Safari.</p>
+        <ol class="install-steps">
+          <li>
+            <a href="https://github.com/neuralnexus/ByeBar">Clone the repo</a> and run
+            <code>npm ci &amp;&amp; npm run icons</code>
+          </li>
+          <li>
+            <strong>Chrome / Edge:</strong> open <code>chrome://extensions</code>, enable Developer mode, then
+            <strong>Load unpacked</strong>
+          </li>
+          <li>
+            <strong>Firefox:</strong> open <code>about:debugging</code>, then
+            <strong>Load Temporary Add-on</strong>
+          </li>
+        </ol>
+        <p class="install-note">
+          Full instructions and Safari steps are in the
+          <a href="https://github.com/neuralnexus/ByeBar#install-chrome--edge--firefox">README</a>.
+        </p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p class="footer-links">
+        <a href="https://github.com/neuralnexus/ByeBar">GitHub</a>
+        ·
+        <a href="https://github.com/neuralnexus/ByeBar/issues/new?labels=bug">Report a bug</a>
+        ·
+        <a href="https://github.com/neuralnexus/ByeBar/issues/new?labels=enhancement">Request a feature</a>
+      </p>
+      <p class="credit">Made by <a href="https://mattivan.com">Matt Ivan</a></p>
+    </footer>
+  </body>
+</html>
