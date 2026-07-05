@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../lib/constants.mjs';
 import {
+  isExternalLeadContext,
+  isExternalLeadUrl,
   isNetSuiteExtLeadUrl,
   isNetSuiteScriptAlert,
+  isSearchReferrer,
   looksLikeLeadCaptureHtml,
   normalizeRedirectTarget,
   resolveBaseDomainFromHtml,
@@ -18,13 +21,36 @@ const ORACLE_LEAD_FORM_HTML = `
   <input name="email" id="email" data-fieldtype="email">
 </form>`;
 
+const GENERIC_LP_FORM_HTML = `
+<html><head><link rel="canonical" href="https://www.wrike.com/request-demo"></head>
+<body><form class="hs-form" action="/submit"><input type="email" name="email"><button type="submit">Go</button></form></body></html>`;
+
 describe('isNetSuiteExtLeadUrl', () => {
   it('matches extforms external lead pages', () => {
     expect(isNetSuiteExtLeadUrl(SAMPLE_URL)).toBe(true);
+    expect(isExternalLeadUrl(SAMPLE_URL)).toBe(true);
   });
 
   it('skips unrelated NetSuite hosts', () => {
     expect(isNetSuiteExtLeadUrl('https://www.netsuite.com/portal/home.shtml')).toBe(false);
+  });
+});
+
+describe('isExternalLeadUrl', () => {
+  it('matches marketing subdomains', () => {
+    expect(isExternalLeadUrl('https://lp.example.com/contact')).toBe(true);
+    expect(isExternalLeadUrl('https://go.vendor.com/demo')).toBe(true);
+  });
+
+  it('skips normal site pages', () => {
+    expect(isExternalLeadUrl('https://www.example.com/pricing')).toBe(false);
+  });
+});
+
+describe('isSearchReferrer', () => {
+  it('detects common search engines', () => {
+    expect(isSearchReferrer('https://www.google.com/search?q=acme')).toBe(true);
+    expect(isSearchReferrer('https://www.bing.com/search?q=acme')).toBe(true);
   });
 });
 
@@ -59,6 +85,11 @@ describe('normalizeRedirectTarget', () => {
   it('blocks ad and form hosts', () => {
     expect(normalizeRedirectTarget('https://www.google.com/search?q=test')).toBe(null);
     expect(normalizeRedirectTarget(SAMPLE_URL)).toBe(null);
+    expect(normalizeRedirectTarget('https://lp.example.com/demo')).toBe(null);
+  });
+
+  it('blocks the current page host', () => {
+    expect(normalizeRedirectTarget('https://lp.example.com/demo', 'lp.example.com')).toBe(null);
   });
 });
 
@@ -76,6 +107,34 @@ describe('isNetSuiteScriptAlert', () => {
 describe('looksLikeLeadCaptureHtml', () => {
   it('detects NetSuite lead forms with email fields', () => {
     expect(looksLikeLeadCaptureHtml(ORACLE_LEAD_FORM_HTML)).toBe(true);
+  });
+
+  it('detects generic marketing forms', () => {
+    expect(looksLikeLeadCaptureHtml(GENERIC_LP_FORM_HTML)).toBe(true);
+  });
+});
+
+describe('isExternalLeadContext', () => {
+  it('accepts search traffic to thin lead forms', () => {
+    expect(
+      isExternalLeadContext({
+        html: GENERIC_LP_FORM_HTML,
+        url: 'https://lp.example.com/contact',
+        referrer: 'https://www.google.com/search?q=wrike',
+        currentHostname: 'lp.example.com'
+      })
+    ).toBe(true);
+  });
+
+  it('skips normal on-site contact pages', () => {
+    expect(
+      isExternalLeadContext({
+        html: '<form><input type="email" name="email"><button type="submit">Send</button></form>',
+        url: 'https://www.example.com/contact',
+        referrer: 'https://www.example.com/about',
+        currentHostname: 'www.example.com'
+      })
+    ).toBe(false);
   });
 });
 
@@ -96,5 +155,9 @@ describe('resolveBaseDomainFromHtml', () => {
     const html =
       '<html><head><link rel="canonical" href="https://acme.example.com/demo"></head><body></body></html>';
     expect(resolveBaseDomainFromHtml(html)).toBe('https://acme.example.com/');
+  });
+
+  it('returns null when no brand target is found', () => {
+    expect(resolveBaseDomainFromHtml('<html><body></body></html>')).toBe(null);
   });
 });

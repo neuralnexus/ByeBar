@@ -35,7 +35,7 @@ Early scripts (`geolocation.js`, `netsuite-lead.js`) patch browser APIs or redir
 document_start
   ├── styles.css          (instant hide)
   ├── geolocation.js      (patch navigator.geolocation)
-  ├── netsuite-lead.js    (redirect broken NetSuite forms)
+  ├── netsuite-lead.js    (redirect broken external lead forms)
   └── main.js → engine, cookies, tos, china-commerce
         └── MutationObserver + timed retries
 ```
@@ -48,7 +48,7 @@ document_start
 | **Auto-decline cookie banners**    | Clicks reject/deny when possible, calls CMP APIs, then hides the banner                              |
 | **Auto-accept terms modals**       | Dismisses legal/TOS popups (e.g. Bloomberg consent)                                                  |
 | **Auto-decline location requests** | Denies `navigator.geolocation` without a browser prompt                                              |
-| **Bypass lead forms**              | Leaves broken external lead forms (e.g. NetSuite `extforms`) for the brand site                      |
+| **Bypass lead forms**              | Leaves broken external lead forms (NetSuite `extforms`, `lp.*`, `forms.*`, etc.) for the brand site  |
 | **Site-specific rules**            | Targeted CSS + selectors + heuristics for known offenders                                            |
 
 Open the toolbar popup to toggle behavior globally or per-site.
@@ -57,12 +57,12 @@ Open the toolbar popup to toggle behavior globally or per-site.
 
 ### Dedicated site modules
 
-| Sites                                     | Module                                 | Examples handled                                                            |
-| ----------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
-| `*.substack.com`                          | `substack.css`, `engine.js`            | Subscribe modals, Radix/pencraft “Join … on Substack” dialogs, modal scrims |
-| `*.bloomberg.*`                           | `bloomberg.css`, `engine.js`, `tos.js` | TOS consent modal, flash-sale promo strips                                  |
-| Temu, Shein, AliExpress, Taobao, JD, etc. | `china-commerce.js`                    | Coupon wheels, lottery spinners, `react-responsive-modal` overlays          |
-| `*.extforms.netsuite.com`                 | `netsuite-lead.js`                     | Broken external lead forms with SuiteScript errors                          |
+| Sites                                        | Module                                 | Examples handled                                                            |
+| -------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
+| `*.substack.com`                             | `substack.css`, `engine.js`            | Subscribe modals, Radix/pencraft “Join … on Substack” dialogs, modal scrims |
+| `*.bloomberg.*`                              | `bloomberg.css`, `engine.js`, `tos.js` | TOS consent modal, flash-sale promo strips                                  |
+| Temu, Shein, AliExpress, Taobao, JD, etc.    | `china-commerce.js`                    | Coupon wheels, lottery spinners, `react-responsive-modal` overlays          |
+| `*.extforms.netsuite.com`, `lp.*`, `forms.*` | `netsuite-lead.js`                     | Broken external lead forms; search landing pages redirect to the brand site |
 
 ### Cookie / consent platforms (global)
 
