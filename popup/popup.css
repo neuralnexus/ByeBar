@@ -16,6 +16,18 @@ body {
   background: #faf9f7;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  flex: none;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgb(26 26 26 / 8%);
+}
+
 header h1 {
   margin: 0;
   font-size: 18px;
@@ -64,4 +76,23 @@ input[type='checkbox'] {
   width: 16px;
   height: 16px;
   accent-color: #c45c26;
+}
+
+.credit {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #ece8e3;
+  font-size: 11px;
+  color: #888;
+  text-align: center;
+}
+
+.credit a {
+  color: #c45c26;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.credit a:hover {
+  text-decoration: underline;
 }

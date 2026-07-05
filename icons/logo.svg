@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ByeBar">
+  <rect width="64" height="64" rx="14" fill="#FAF9F7" />
+  <rect x="13" y="17" width="38" height="26" rx="5" fill="#FFFFFF" stroke="#E8E4DF" stroke-width="2" />
+  <rect x="17" y="22" width="18" height="3" rx="1.5" fill="#E8E4DF" />
+  <rect x="17" y="28" width="28" height="2.5" rx="1.25" fill="#F0ECE7" />
+  <rect x="17" y="33" width="22" height="2.5" rx="1.25" fill="#F0ECE7" />
+  <circle cx="46" cy="40" r="11" fill="#C45C26" />
+  <path
+    d="M41.5 35.5 L50.5 44.5 M50.5 35.5 L41.5 44.5"
+    stroke="#FFFFFF"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+</svg>
