@@ -8,21 +8,18 @@
   </head>
   <body>
     <header class="brand">
-      <img class="logo" src="../icons/icon-48.png" width="48" height="48" alt="" />
+      <img class="logo" src="../icons/icon-48.png" width="40" height="40" alt="" />
       <h1>ByeBar</h1>
-      <p class="tagline">Remove intrusive popups. Browse in peace. Not an ad blocker.</p>
+      <p class="tagline">Remove distracting popups and make webpages easier to browse.</p>
     </header>
 
     <main class="content">
-      <section class="hero">
-        <p class="hero-title">Popup gone.</p>
-        <p class="hero-sub">Focus on what matters.</p>
-        <p class="status-pill" id="status-pill">No more distractions</p>
-      </section>
-
       <section class="settings">
-        <label class="row">
-          <span>Enabled on this site</span>
+        <label class="row row--site">
+          <span class="row-copy">
+            <span class="row-title">Enabled on this site</span>
+            <span class="row-host" id="host-label"></span>
+          </span>
           <input type="checkbox" id="site-enabled" checked />
         </label>
 
@@ -52,13 +49,8 @@
         </label>
       </section>
 
-      <p class="host" id="host-label"></p>
-
       <footer class="footer">
-        <p class="privacy-note">
-          <span class="privacy-label">Data stays local</span>
-          Runs in your browser only — no telemetry.
-        </p>
+        <p class="privacy-note">Data stays local · in-browser only, no telemetry.</p>
         <p class="credit">
           Made by <a href="https://mattivan.com" target="_blank" rel="noopener noreferrer">Matt Ivan</a>
         </p>
