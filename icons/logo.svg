@@ -1,30 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="ByeBar">
   <rect width="128" height="128" rx="26" fill="#FFFFFF" />
-  <rect x="48" y="34" width="11" height="30" rx="5.5" fill="#00BFA5" />
-  <rect x="60" y="28" width="11" height="36" rx="5.5" fill="#00BFA5" />
-  <rect x="72" y="32" width="11" height="32" rx="5.5" fill="#00BFA5" />
-  <rect x="84" y="40" width="10" height="24" rx="5" fill="#00BFA5" />
-  <rect x="38" y="62" width="58" height="28" rx="14" fill="#00BFA5" />
-  <ellipse cx="34" cy="74" rx="12" ry="11" fill="#00BFA5" />
-  <path
-    d="M 44 26 C 56 18 68 16 80 20"
-    stroke="#4A9EE8"
-    stroke-width="5"
-    stroke-linecap="round"
-    fill="none"
-  />
-  <path
-    d="M 40 18 C 56 8 72 6 88 12"
-    stroke="#4A9EE8"
-    stroke-width="5"
-    stroke-linecap="round"
-    fill="none"
-  />
-  <path
-    d="M 36 10 C 56 0 76 -2 96 6"
-    stroke="#4A9EE8"
-    stroke-width="5"
-    stroke-linecap="round"
-    fill="none"
-  />
+  <g transform="translate(66 76)">
+    <rect x="-28" y="-10" width="56" height="28" rx="14" fill="#00BFA5" />
+    <ellipse cx="-22" cy="2" rx="11" ry="10" fill="#00BFA5" />
+    <rect x="-17" y="-42" width="10" height="32" rx="5" fill="#00BFA5" />
+    <rect x="-5" y="-48" width="10" height="38" rx="5" fill="#00BFA5" />
+    <rect x="7" y="-44" width="10" height="34" rx="5" fill="#00BFA5" />
+    <rect x="18" y="-36" width="9" height="24" rx="4.5" fill="#00BFA5" />
+    <path
+      d="M -18 -50 C -6 -58 6 -58 18 -50"
+      stroke="#4A9EE8"
+      stroke-width="5"
+      stroke-linecap="round"
+      fill="none"
+    />
+    <path
+      d="M -22 -58 C -4 -70 14 -70 22 -62"
+      stroke="#4A9EE8"
+      stroke-width="5"
+      stroke-linecap="round"
+      fill="none"
+    />
+    <path
+      d="M -26 -66 C -2 -78 18 -80 26 -72"
+      stroke="#4A9EE8"
+      stroke-width="5"
+      stroke-linecap="round"
+      fill="none"
+    />
+  </g>
 </svg>
