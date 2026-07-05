@@ -85,6 +85,47 @@
     }
   }
 
+  function hasUsercentricsBanner(root = document) {
+    return (
+      queryAll(
+        '#usercentrics-root, #usercentrics-cmp-ui, [data-testid="uc-banner"], [data-testid="uc-first-layer"]',
+        root
+      ).length > 0
+    );
+  }
+
+  function declineViaUsercentricsApi() {
+    if (!hasUsercentricsBanner()) return false;
+
+    try {
+      const ui = window.UC_UI;
+      if (ui) {
+        if (typeof ui.denyAllConsents === 'function') {
+          ui.denyAllConsents();
+          return true;
+        }
+        if (typeof ui.denyAllServices === 'function') {
+          ui.denyAllServices();
+          return true;
+        }
+        if (typeof ui.rejectAllConsents === 'function') {
+          ui.rejectAllConsents();
+          return true;
+        }
+      }
+
+      const cmp = window.__ucCmp;
+      if (cmp && typeof cmp.denyAllConsents === 'function') {
+        cmp.denyAllConsents();
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return false;
+  }
+
   function declineViaTrustArcApi() {
     const truste = window.truste;
     if (!truste) return false;
@@ -133,7 +174,13 @@
       cls.includes('cky-banner') ||
       cls.includes('cky-overlay') ||
       cls.startsWith('cky-') ||
-      el.hasAttribute?.('data-cky-tag')
+      el.hasAttribute?.('data-cky-tag') ||
+      id === 'usercentrics-root' ||
+      id.includes('usercentrics') ||
+      cls.includes('usercentrics') ||
+      cls.includes('uc-banner') ||
+      cls.startsWith('uc-') ||
+      el.getAttribute?.('data-testid')?.startsWith('uc-')
     ) {
       return true;
     }
@@ -142,11 +189,11 @@
     if (text.length < 40) return false;
 
     const hasCookieLanguage =
-      /about cookies on this site|to opt-?out of us sharing|third parties for advertising|your privacy rights|cookie preferences|privacy law|personal information|opt-?out|do not sell|similar technologies|required\)\.|we use cookies|continuing to use this website|condition of use|privacy notice/i.test(
+      /about cookies on this site|to opt-?out of us sharing|third parties for advertising|your privacy rights|cookie preferences|privacy law|personal information|opt-?out|do not sell|similar technologies|required\)\.|we use cookies|continuing to use this website|condition of use|privacy notice|uses cookies for various purposes|mercedes-benz ag uses cookies/i.test(
         text
       );
     const hasBannerActions =
-      /accept( and proceed| all)?|opt-?out|more info|reject|decline|manage preferences|do not sell or share/i.test(
+      /accept( and proceed| all)?|opt-?out|more info|reject|decline|manage preferences|do not sell or share|ablehnen|akzeptieren|nur technisch|einstellungen/i.test(
         text
       );
     const hasImpliedConsent =
@@ -236,6 +283,7 @@
     const clicked =
       declineViaSelectors(root) ||
       declineViaTextScan(root) ||
+      (hasUsercentricsBanner(root) && declineViaUsercentricsApi()) ||
       (queryAll('#truste-consent-track, #consent_blackbar, #truste-ccpa-optout', root).length > 0 &&
         declineViaTrustArcApi());
 

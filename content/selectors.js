@@ -207,6 +207,15 @@
   BYEBAR.COOKIE_HIDE = [
     '#onetrust-banner-sdk',
     '#onetrust-consent-sdk',
+    '#usercentrics-root',
+    '#usercentrics-cmp-ui',
+    'usercentrics-root',
+    '[data-testid="uc-banner"]',
+    '[data-testid="uc-overlay"]',
+    '[data-testid="uc-first-layer"]',
+    '.uc-banner-root',
+    '.uc-overlay',
+    'iframe[src*="usercentrics.eu" i]',
     '.ot-sdk-container',
     '#CybotCookiebotDialog',
     '#CybotCookiebotDialogBody',
@@ -285,6 +294,10 @@
     '#truste-ccpa-optout',
     '#onetrust-reject-all-handler',
     '#onetrust-pc-btn-handler',
+    'button[data-testid="uc-deny-all-button"]',
+    'button[data-testid="uc-reject-all-button"]',
+    '#uc-deny-all-button',
+    '#uc-reject-all-button',
     '.ot-pc-refuse-all-handler',
     '#CybotCookiebotDialogBodyButtonDecline',
     '#CybotCookiebotDialogBodyLevelButtonLevelOptinDeclineAll',
@@ -361,7 +374,11 @@
     /^necessary\s+only$/i,
     /^no\s+thanks$/i,
     /^dismiss$/i,
-    /^close$/i
+    /^close$/i,
+    /^ablehnen$/i,
+    /^alle ablehnen$/i,
+    /^nur technisch notwendige/i,
+    /^nur erforderliche cookies/i
   ];
 
   BYEBAR.isSubstack = () => BYEBAR.SITE_RULES.substack.hosts.some((re) => re.test(location.hostname));
