@@ -16,7 +16,13 @@
 [class*='cookie-consent'],
 [class*='CookieConsent'],
 [class*='truste-consent'],
-[class*='trustarc'] {
+[class*='trustarc'],
+.cky-consent-container,
+.cky-banner-element,
+.cky-overlay,
+[class*='cky-consent'],
+[class*='cky-banner'],
+[data-cky-tag='notice'] {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;

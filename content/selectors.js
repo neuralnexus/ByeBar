@@ -152,6 +152,16 @@
     '.cookie-banner',
     '.cookie-consent',
     '.cookies-banner',
+    '.cky-consent-container',
+    '.cky-banner-element',
+    '.cky-overlay',
+    '[class*="cky-consent" i]',
+    '[class*="cky-banner" i]',
+    '[data-cky-tag="notice"]',
+    '[data-cky-tag="detail"]',
+    '[data-cky-tag="optout-popup"]',
+    '[data-cky-tag="revisit-consent"]',
+    'iframe[src*="cookieyes.com" i]',
     '#consent_blackbar',
     '#trustarc-banner-overlay',
     '#truste-consent-track',
@@ -189,10 +199,13 @@
 
   BYEBAR.COOKIE_BANNER_ANCESTORS =
     BYEBAR.COOKIE_HIDE.join(',') +
-    ',[class*="cookie" i],[class*="consent" i],[class*="gdpr" i],[id*="cookie" i],[id*="truste" i],[class*="trustarc" i]';
+    ',[class*="cookie" i],[class*="consent" i],[class*="gdpr" i],[id*="cookie" i],[id*="truste" i],[class*="trustarc" i],[class*="cky-" i],[data-cky-tag]';
 
   // Known decline / reject buttons (clicked before hide).
   BYEBAR.COOKIE_DECLINE_SELECTORS = [
+    '[data-cky-tag="reject-button"]',
+    '[data-cky-tag="detail-reject-button"]',
+    '[data-cky-tag="optout-cancel-button"]',
     '#truste-ccpa-optout',
     '#onetrust-reject-all-handler',
     '#onetrust-pc-btn-handler',

@@ -128,7 +128,12 @@
       id === 'truste-repop-msg' ||
       cls.includes('truste-consent') ||
       cls.includes('truste-banner') ||
-      cls.includes('opt-out-button')
+      cls.includes('opt-out-button') ||
+      cls.includes('cky-consent') ||
+      cls.includes('cky-banner') ||
+      cls.includes('cky-overlay') ||
+      cls.startsWith('cky-') ||
+      el.hasAttribute?.('data-cky-tag')
     ) {
       return true;
     }
@@ -137,14 +142,16 @@
     if (text.length < 40) return false;
 
     const hasCookieLanguage =
-      /about cookies on this site|to opt-?out of us sharing|third parties for advertising|your privacy rights|cookie preferences|privacy law|personal information|opt-?out|do not sell|similar technologies|required\)\./i.test(
+      /about cookies on this site|to opt-?out of us sharing|third parties for advertising|your privacy rights|cookie preferences|privacy law|personal information|opt-?out|do not sell|similar technologies|required\)\.|we use cookies|continuing to use this website|condition of use|privacy notice/i.test(
         text
       );
     const hasBannerActions =
       /accept( and proceed| all)?|opt-?out|more info|reject|decline|manage preferences|do not sell or share/i.test(
         text
       );
-    if (!hasCookieLanguage || !hasBannerActions) return false;
+    const hasImpliedConsent =
+      /continuing to use|by continuing|agree to this condition|you agree to this/i.test(text);
+    if (!hasCookieLanguage || (!hasBannerActions && !hasImpliedConsent)) return false;
 
     if (closestBanner(el)) return true;
 
@@ -204,7 +211,7 @@
     let removedAny = false;
 
     queryAll(
-      '#consent_blackbar, #trustarc-banner-overlay, #truste-consent-track, #truste-consent-content, [role="dialog"], [aria-modal="true"], div, section, aside',
+      '.cky-consent-container, .cky-banner-element, .cky-overlay, [data-cky-tag="notice"], #consent_blackbar, #trustarc-banner-overlay, #truste-consent-track, #truste-consent-content, [role="dialog"], [aria-modal="true"], div, section, aside',
       root
     ).forEach((el) => {
       if (!looksLikeCookieBanner(el)) return;
