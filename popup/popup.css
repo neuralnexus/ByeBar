@@ -1,10 +1,25 @@
+:root {
+  --teal-900: #134e4a;
+  --teal-800: #115e59;
+  --teal-700: #0f766e;
+  --teal-600: #0d9488;
+  --teal-500: #14b8a6;
+  --teal-100: #ccfbf1;
+  --teal-50: #f0fdfa;
+  --blue-500: #3b82f6;
+  --slate-700: #334155;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --surface: #ffffff;
+  --border: #d1fae5;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  padding: 16px;
   width: 320px;
   font:
     13px/1.45 -apple-system,
@@ -12,55 +27,68 @@ body {
     'Segoe UI',
     Roboto,
     sans-serif;
-  color: #1e293b;
-  background: #eef2f6;
+  color: var(--slate-700);
+  background: var(--teal-50);
 }
 
 .brand {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  padding: 20px 20px 18px;
+  text-align: center;
+  background: linear-gradient(165deg, var(--teal-700) 0%, var(--teal-900) 100%);
+  color: #fff;
 }
 
 .logo {
-  flex: none;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgb(15 23 42 / 10%);
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 22%);
 }
 
-header h1 {
-  margin: 0;
-  font-size: 20px;
+.brand h1 {
+  margin: 10px 0 0;
+  font-size: 22px;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: #00bfa5;
+  letter-spacing: -0.03em;
+  color: #fff;
 }
 
 .tagline {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
+  max-width: 220px;
   font-size: 12px;
-  color: #64748b;
+  line-height: 1.4;
+  color: var(--teal-100);
+}
+
+.content {
+  padding: 14px 16px 16px;
 }
 
 .hero {
-  margin: 14px 0 12px;
-  padding: 14px 16px;
-  background: #fff;
+  margin-bottom: 12px;
+  padding: 16px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgb(15 23 42 / 6%);
+  box-shadow: 0 2px 8px rgb(19 78 74 / 5%);
 }
 
 .hero-title {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--teal-900);
 }
 
 .hero-sub {
-  margin: 4px 0 10px;
+  margin: 4px 0 12px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--slate-500);
 }
 
 .status-pill {
@@ -80,13 +108,13 @@ header h1 {
 }
 
 .status-pill--on {
-  background: #d1fae5;
-  color: #047857;
+  background: var(--teal-100);
+  color: var(--teal-800);
 }
 
 .status-pill--off {
   background: #f1f5f9;
-  color: #64748b;
+  color: var(--slate-500);
 }
 
 .status-pill--off::before {
@@ -95,9 +123,10 @@ header h1 {
 
 .settings {
   padding: 4px 14px;
-  background: #fff;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgb(15 23 42 / 6%);
+  box-shadow: 0 2px 8px rgb(19 78 74 / 5%);
 }
 
 .row {
@@ -106,7 +135,7 @@ header h1 {
   justify-content: space-between;
   gap: 12px;
   padding: 9px 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
 
@@ -121,20 +150,21 @@ header h1 {
 .host {
   margin: 12px 4px 0;
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--slate-400);
+  text-align: center;
   word-break: break-all;
 }
 
 input[type='checkbox'] {
   width: 16px;
   height: 16px;
-  accent-color: #00bfa5;
+  accent-color: var(--teal-600);
 }
 
 .footer {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border);
   text-align: center;
 }
 
@@ -142,7 +172,7 @@ input[type='checkbox'] {
   margin: 0 0 10px;
   font-size: 11px;
   line-height: 1.5;
-  color: #94a3b8;
+  color: var(--slate-400);
 }
 
 .privacy-label {
@@ -150,21 +180,22 @@ input[type='checkbox'] {
   margin-bottom: 2px;
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--teal-800);
 }
 
 .credit {
   margin: 0;
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--slate-400);
 }
 
 .credit a {
-  color: #00bfa5;
+  color: var(--teal-600);
   font-weight: 600;
   text-decoration: none;
 }
 
 .credit a:hover {
+  color: var(--teal-700);
   text-decoration: underline;
 }
