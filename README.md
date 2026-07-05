@@ -85,7 +85,7 @@ Generic cookie-banner heuristics still catch long-tail CMPs not listed above.
 
 ### Generic heuristics (all sites)
 
-When **Generic blocking** is enabled, ByeBar removes fixed/sticky overlays and `role="dialog"` elements whose text matches subscribe/newsletter/signup patterns. Substack-style copy (“Join … on Substack”, “Get the app”) is detected on custom domains too.
+When **Block newsletter overlays** is enabled, ByeBar removes fixed/sticky overlays and `role="dialog"` elements whose text matches subscribe/newsletter/signup patterns. Substack-style copy (“Join … on Substack”, “Get the app”) is detected on custom domains too.
 
 ## Browser support
 
@@ -121,7 +121,7 @@ Open the popup from the toolbar:
 | Setting                          | Default | Description                                                             |
 | -------------------------------- | ------- | ----------------------------------------------------------------------- |
 | Enabled on this site             | On      | Per-site override; turning off adds the current host to `siteOverrides` |
-| Generic blocking                 | On      | Newsletter/subscribe overlay heuristics on all sites                    |
+| Block newsletter overlays        | On      | Newsletter/subscribe overlay heuristics on all sites                    |
 | Auto-decline cookie banners      | On      | Reject cookies and hide consent UI                                      |
 | Auto-accept terms & legal modals | On      | Click through TOS/legal modals                                          |
 | Auto-decline location requests   | On      | Block geolocation prompts                                               |
