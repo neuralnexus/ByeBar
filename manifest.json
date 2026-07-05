@@ -3,9 +3,10 @@
   "name": "ByeBar — Overlay & Popup Blocker",
   "short_name": "ByeBar",
   "description": "Removes newsletter nags, subscribe overlays, email capture popups, and auto-declines cookie consent banners. Not an ad blocker.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "icons": {
     "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
     "128": "icons/icon-128.png"
   },
   "action": {
@@ -24,13 +25,15 @@
     {
       "matches": ["<all_urls>"],
       "js": [
+        "shared/browser.js",
+        "content/safari-compat.js",
         "content/selectors.js",
         "content/shadow.js",
         "content/engine.js",
         "content/cookies.js",
         "content/main.js"
       ],
-      "css": ["content/styles.css"],
+      "css": ["content/styles.css", "content/styles-safari.css"],
       "run_at": "document_start",
       "all_frames": true
     },
@@ -49,6 +52,9 @@
         "required": ["none"],
         "optional": []
       }
+    },
+    "safari": {
+      "strict_min_version": "16.4"
     }
   }
 }

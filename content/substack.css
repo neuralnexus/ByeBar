@@ -1,13 +1,13 @@
 /* Substack-only: modal scrims/backdrops (e.g. background-qPxN3C). */
 
-[class^="background-"],
-[class*=" background-"],
-[class*="modalViewer"] [class^="background-"],
-[class*="modalViewer"] [class^="overlay-"],
-[class*="modalViewer"] [class*=" overlay-"],
-[class*="modalScrim"],
-[class*="modal-scrim"],
-[class*="ModalScrim"] {
+[class^='background-'],
+[class*=' background-'],
+[class*='modalViewer'] [class^='background-'],
+[class*='modalViewer'] [class^='overlay-'],
+[class*='modalViewer'] [class*=' overlay-'],
+[class*='modalScrim'],
+[class*='modal-scrim'],
+[class*='ModalScrim'] {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;

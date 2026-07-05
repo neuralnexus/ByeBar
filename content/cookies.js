@@ -35,11 +35,7 @@
     if (el.disabled || el.getAttribute('aria-disabled') === 'true') return false;
 
     const label =
-      el.getAttribute('aria-label') ||
-      el.getAttribute('title') ||
-      el.textContent ||
-      el.value ||
-      '';
+      el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || el.value || '';
 
     if (!textMatchesDecline(label)) return false;
 
@@ -145,7 +141,9 @@
         text
       );
     const hasBannerActions =
-      /accept( and proceed| all)?|opt-?out|more info|reject|decline|manage preferences|do not sell or share/i.test(text);
+      /accept( and proceed| all)?|opt-?out|more info|reject|decline|manage preferences|do not sell or share/i.test(
+        text
+      );
     if (!hasCookieLanguage || !hasBannerActions) return false;
 
     if (closestBanner(el)) return true;
@@ -178,12 +176,13 @@
   function declineViaTextScan(root = document) {
     let clickedAny = false;
 
-    queryAll('button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]', root).forEach(
-      (el) => {
-        if (!closestBanner(el)) return;
-        if (clickIfDecline(el)) clickedAny = true;
-      }
-    );
+    queryAll(
+      'button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]',
+      root
+    ).forEach((el) => {
+      if (!closestBanner(el)) return;
+      if (clickIfDecline(el)) clickedAny = true;
+    });
 
     return clickedAny;
   }

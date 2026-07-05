@@ -1,3 +1,5 @@
+const { storageGet, storageSet, api } = window.ByeBar.browser;
+
 const DEFAULTS = {
   enabled: true,
   genericBlocking: true,
@@ -33,18 +35,16 @@ function render() {
   hostLabelEl.textContent = host ? `Current site: ${host}` : '';
 }
 
-function save(partial) {
+async function save(partial) {
   settings = { ...settings, ...partial };
-  chrome.storage.sync.set(settings);
+  await storageSet(settings);
 }
 
 async function init() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await api.tabs.query({ active: true, currentWindow: true });
   host = normalizeHost(tab?.url || '');
-  chrome.storage.sync.get(DEFAULTS, (stored) => {
-    settings = { ...DEFAULTS, ...stored };
-    render();
-  });
+  settings = { ...DEFAULTS, ...(await storageGet(DEFAULTS)) };
+  render();
 }
 
 siteEnabledEl.addEventListener('change', () => {
@@ -54,15 +54,15 @@ siteEnabledEl.addEventListener('change', () => {
   } else {
     overrides[host] = false;
   }
-  save({ siteOverrides: overrides });
+  void save({ siteOverrides: overrides });
 });
 
 genericBlockingEl.addEventListener('change', () => {
-  save({ genericBlocking: genericBlockingEl.checked });
+  void save({ genericBlocking: genericBlockingEl.checked });
 });
 
 cookieDeclineEl.addEventListener('change', () => {
-  save({ cookieDecline: cookieDeclineEl.checked });
+  void save({ cookieDecline: cookieDeclineEl.checked });
 });
 
-init();
+void init();

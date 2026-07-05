@@ -1,5 +1,8 @@
 .DS_Store
 node_modules/
 dist/
+safari/
 web-ext-artifacts/
+coverage/
 *.zip
+*.xcuserstate

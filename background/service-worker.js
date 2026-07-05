@@ -1,3 +1,6 @@
+importScripts('../shared/browser.js');
+
+const { storageGet, storageSet } = self.ByeBar.browser;
 const DEFAULTS = {
   enabled: true,
   genericBlocking: true,
@@ -5,17 +8,14 @@ const DEFAULTS = {
   siteOverrides: {}
 };
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.sync.get(DEFAULTS, (stored) => {
-    chrome.storage.sync.set({ ...DEFAULTS, ...stored });
-  });
+self.ByeBar.browser.api.runtime.onInstalled.addListener(async () => {
+  const stored = await storageGet(DEFAULTS);
+  await storageSet({ ...DEFAULTS, ...stored });
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+self.ByeBar.browser.api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== 'getSettings') return;
 
-  chrome.storage.sync.get(DEFAULTS, (settings) => {
-    sendResponse(settings);
-  });
+  storageGet(DEFAULTS).then(sendResponse);
   return true;
 });

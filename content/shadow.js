@@ -18,11 +18,16 @@
     });
   }
 
+  function normalizeSelector(selector) {
+    return BYEBAR.safari?.normalizeSelector?.(selector) || selector;
+  }
+
   function queryAll(selector, root = document) {
+    const safeSelector = normalizeSelector(selector);
     const matches = [];
     walkRoots(root, (scope) => {
       try {
-        scope.querySelectorAll(selector).forEach((el) => matches.push(el));
+        scope.querySelectorAll(safeSelector).forEach((el) => matches.push(el));
       } catch {
         /* ignore invalid selectors in older roots */
       }
@@ -36,7 +41,9 @@
 
   function matchesAny(el, selector) {
     if (!el || el.nodeType !== 1) return false;
-    const selectors = String(selector).split(',').map((s) => s.trim());
+    const selectors = String(selector)
+      .split(',')
+      .map((s) => s.trim());
     return selectors.some((sel) => {
       try {
         return el.matches(sel);

@@ -16,7 +16,7 @@
   let observer = null;
   let pending = false;
 
-  const storage = chrome.storage?.sync || chrome.storage?.local;
+  const { storageGet, onStorageChanged } = BYEBAR.browser;
 
   function hostKey() {
     return location.hostname.replace(/^www\./i, '');
@@ -76,8 +76,7 @@
     if (/\bbackground-[A-Za-z0-9_-]+\b/.test(cls)) return true;
 
     const hasBackdropClass =
-      /\boverlay-[A-Za-z0-9_-]+\b/.test(cls) ||
-      /modalScrim|modal-scrim|ModalScrim/i.test(cls);
+      /\boverlay-[A-Za-z0-9_-]+\b/.test(cls) || /modalScrim|modal-scrim|ModalScrim/i.test(cls);
     if (!hasBackdropClass) return false;
 
     const style = getComputedStyle(el);
@@ -141,7 +140,8 @@
     const fixed = style.position === 'fixed' || style.position === 'sticky';
     const highZ = parseInt(style.zIndex, 10) >= 100 || style.zIndex === 'auto';
     const text = (el.textContent || '').toLowerCase();
-    const keywords = /subscribe|newsletter|sign\s*up|email\s*list|get\s+\d+%|discount|coupon|off\s+your|join\s+our/i;
+    const keywords =
+      /subscribe|newsletter|sign\s*up|email\s*list|get\s+\d+%|discount|coupon|off\s+your|join\s+our/i;
 
     if (el.getAttribute('role') === 'dialog' || el.getAttribute('aria-modal') === 'true') {
       return keywords.test(text) || keywords.test(el.className) || keywords.test(el.id || '');
@@ -160,9 +160,15 @@
   function heuristicScan(root) {
     if (!settings.genericBlocking || !siteEnabled()) return;
 
-    const candidates = root.querySelectorAll(
+    const heuristicSelector = BYEBAR.safari?.normalizeSelector?.(
       '[role="dialog"], [aria-modal="true"], [class*="popup" i], [class*="modal" i], [class*="overlay" i]'
     );
+    let candidates = [];
+    try {
+      candidates = root.querySelectorAll(heuristicSelector);
+    } catch {
+      return;
+    }
 
     candidates.forEach((el) => {
       if (el.getAttribute('data-byebar-hidden')) return;
@@ -216,7 +222,15 @@
           childList: true,
           subtree: true,
           attributes: true,
-          attributeFilter: ['class', 'style', 'aria-label', 'aria-modal', 'aria-hidden', 'data-intro-popup', 'open']
+          attributeFilter: [
+            'class',
+            'style',
+            'aria-label',
+            'aria-modal',
+            'aria-hidden',
+            'data-intro-popup',
+            'open'
+          ]
         });
       }
     };
@@ -246,17 +260,13 @@
     startObserver();
   }
 
-  function loadSettings() {
-    return new Promise((resolve) => {
-      storage.get(DEFAULTS, (stored) => {
-        applySettings(stored);
-        resolve(settings);
-      });
-    });
+  async function loadSettings() {
+    const stored = await storageGet(DEFAULTS);
+    applySettings(stored);
+    return settings;
   }
 
-  storage.onChanged.addListener((changes, area) => {
-    if (area !== 'sync' && area !== 'local') return;
+  onStorageChanged((changes) => {
     const next = { ...settings };
     for (const [key, change] of Object.entries(changes)) {
       next[key] = change.newValue;

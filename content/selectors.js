@@ -229,7 +229,7 @@
     /^decline(\s+all)?$/i,
     /^deny(\s+all)?$/i,
     /^refuse(\s+all)?$/i,
-    /^opt-?out$/i,
+    /^opt[-\s]?out$/i,
     /^do not sell/i,
     /^required cookies only$/i,
     /^only\s+(essential|necessary|required)(\s+cookies)?$/i,
@@ -240,6 +240,5 @@
     /^close$/i
   ];
 
-  BYEBAR.isSubstack = () =>
-    BYEBAR.SITE_RULES.substack.hosts.some((re) => re.test(location.hostname));
+  BYEBAR.isSubstack = () => BYEBAR.SITE_RULES.substack.hosts.some((re) => re.test(location.hostname));
 })();

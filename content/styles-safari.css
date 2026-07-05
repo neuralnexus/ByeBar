@@ -1,0 +1,24 @@
+/* WebKit fallback for selectors without CSS Level 4 case-insensitive matching (pre-Safari 16.4). */
+
+[role='dialog'][aria-label*='subscribe'],
+[role='dialog'][aria-label*='Subscribe'],
+[role='dialog'][aria-label*='newsletter'],
+[role='dialog'][aria-label*='Newsletter'],
+[aria-modal='true'][class*='newsletter'],
+[aria-modal='true'][class*='Newsletter'],
+[aria-modal='true'][class*='subscribe'],
+[aria-modal='true'][class*='Subscribe'],
+[class*='newsletter-popup'],
+[class*='newsletterPopup'],
+[class*='subscribe-popup'],
+[class*='subscribePopup'],
+[class*='cookieConsent'],
+[class*='cookie-consent'],
+[class*='CookieConsent'],
+[class*='truste-consent'],
+[class*='trustarc'] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}

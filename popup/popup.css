@@ -6,7 +6,12 @@ body {
   margin: 0;
   padding: 14px 16px 16px;
   width: 300px;
-  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font:
+    13px/1.45 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   color: #1a1a1a;
   background: #faf9f7;
 }
@@ -55,7 +60,7 @@ header h1 {
   word-break: break-all;
 }
 
-input[type="checkbox"] {
+input[type='checkbox'] {
   width: 16px;
   height: 16px;
   accent-color: #c45c26;
