@@ -2,7 +2,7 @@
 
 **Overlay & popup blocker for Chrome, Firefox, and Safari.**
 
-Website: [neuralnexus.github.io/ByeBar](https://neuralnexus.github.io/ByeBar/)
+Website: [byebar.mattivan.com](https://byebar.mattivan.com/)
 
 ByeBar removes the UI clutter that gets between you and the page: newsletter modals, subscribe bars, email-capture overlays, cookie consent walls, coupon spinners, and similar interruptions. It works entirely in the DOM ; it does not block ads, trackers, or network requests.
 
@@ -225,6 +225,7 @@ ByeBar is **not an ad blocker**. It does not filter network traffic, block track
 
 ## Related docs
 
+- [DOMAIN.md](DOMAIN.md) ; custom domain setup for the landing site
 - [CHROME_WEB_STORE.md](CHROME_WEB_STORE.md) ; Chrome Web Store publishing
 - [STANDARDS.md](STANDARDS.md) ; architecture, quality gates, adding rules
 - [SAFARI.md](SAFARI.md) ; Xcode build and App Store distribution
