@@ -134,10 +134,27 @@ input[type='checkbox'] {
 }
 
 .privacy-note {
-  margin: 0 0 6px;
+  margin: 0 0 5px;
   font-size: 10px;
   line-height: 1.4;
   color: var(--slate-400);
+}
+
+.footer-links {
+  margin: 0 0 5px;
+  font-size: 10px;
+  color: var(--slate-400);
+}
+
+.footer-links a {
+  color: var(--teal-600);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  color: var(--teal-700);
+  text-decoration: underline;
 }
 
 .credit {

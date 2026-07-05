@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest an idea for ByeBar
+title: '[Feature] '
+labels:
+  - enhancement
+body:
+  - type: input
+    id: version
+    attributes:
+      label: ByeBar version
+      placeholder: e.g. 0.2.0
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+    validations:
+      required: true

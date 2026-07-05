@@ -1,5 +1,7 @@
 const { storageGet, storageSet, api } = window.ByeBar.browser;
 
+const ISSUES_BASE = 'https://github.com/neuralnexus/ByeBar/issues/new';
+
 const DEFAULTS = {
   enabled: true,
   genericBlocking: true,
@@ -17,6 +19,8 @@ const tosAcceptEl = document.getElementById('tos-accept');
 const locationDeclineEl = document.getElementById('location-decline');
 const bypassLeadFormsEl = document.getElementById('bypass-lead-forms');
 const hostLabelEl = document.getElementById('host-label');
+const reportBugEl = document.getElementById('report-bug');
+const requestFeatureEl = document.getElementById('request-feature');
 
 let host = '';
 let settings = { ...DEFAULTS };
@@ -34,6 +38,31 @@ function siteEnabledForHost() {
   return settings.enabled;
 }
 
+function buildIssueUrl(kind) {
+  const version = api.runtime.getManifest().version;
+  const isBug = kind === 'bug';
+  const title = isBug ? '[Bug] ' : '[Feature] ';
+  const body = [
+    `**ByeBar version:** ${version}`,
+    host ? `**Site:** ${host}` : null,
+    '',
+    isBug ? '### What happened?' : '### What would you like?',
+    '',
+    '',
+    isBug ? '### Steps to reproduce' : '### Why is this useful?',
+    '1. '
+  ]
+    .filter((line) => line !== null)
+    .join('\n');
+
+  return `${ISSUES_BASE}?${new URLSearchParams({ title, body })}`;
+}
+
+function renderFeedbackLinks() {
+  reportBugEl.href = buildIssueUrl('bug');
+  requestFeatureEl.href = buildIssueUrl('feature');
+}
+
 function render() {
   siteEnabledEl.checked = siteEnabledForHost();
   genericBlockingEl.checked = settings.genericBlocking;
@@ -42,6 +71,7 @@ function render() {
   locationDeclineEl.checked = settings.locationDecline;
   bypassLeadFormsEl.checked = settings.netsuiteLeadRedirect;
   hostLabelEl.textContent = host || 'Unknown site';
+  renderFeedbackLinks();
 }
 
 async function save(partial) {
