@@ -84,7 +84,7 @@
 
   const SUBSTACK_MODAL_TEXT_RE =
     /join\s+.+\s+on\s+substack|the home for great writing|get the app|sign in.*get the app/i;
-  const SUBSTACK_PANEL_CLASS_RE = /\bpanel-[A-Za-z0-9_-]+\b/;
+  const SUBSTACK_SCRIM_CLASS_RE = /\b(?:background|overlay)-[A-Za-z0-9_-]+\b/;
 
   function matchesSubstackSignupText(text) {
     const sample = (text || '').replace(/\s+/g, ' ').trim();
@@ -92,35 +92,36 @@
     return SUBSTACK_MODAL_TEXT_RE.test(sample);
   }
 
-  function isSubstackRadixDialog(el) {
-    if (!el || el.nodeType !== 1) return false;
-    if (el.getAttribute('role') !== 'dialog') return false;
+  function hasSubstackSignupActions(el) {
+    if (!el?.querySelector) return false;
+    const text = el.textContent || '';
+    return Boolean(el.querySelector('button, a[role="button"]') && /get the app|sign in/i.test(text));
+  }
 
-    const id = el.id || '';
+  function isInsideSubstackModalViewer(el) {
+    if (!el?.closest) return false;
     const cls = typeof el.className === 'string' ? el.className : '';
-
-    if (el.getAttribute('data-testid') === 'modal') return true;
-    if (id.startsWith('radix-')) return true;
-    if (SUBSTACK_PANEL_CLASS_RE.test(cls)) return true;
-    if (el.querySelector?.('[data-modal-role="header"], [data-modal-role="footer"]')) return true;
-
-    return false;
+    if (cls.includes('modalViewer')) return true;
+    return Boolean(el.closest('[class*="modalViewer"]'));
   }
 
   function looksLikeSubstackSignupModal(el) {
     if (!el || el.nodeType !== 1) return false;
-
-    if (isSubstackRadixDialog(el)) {
-      const text = el.textContent || '';
-      if (matchesSubstackSignupText(text)) return true;
-      return Boolean(el.querySelector?.('button, a[role="button"]') && /get the app|sign in/i.test(text));
-    }
-
     if (el.getAttribute('role') !== 'dialog' && el.getAttribute('aria-modal') !== 'true') {
-      return false;
+      if (el.getAttribute('data-testid') !== 'modal') {
+        return false;
+      }
     }
 
-    return matchesSubstackSignupText(el.textContent || '');
+    const hasModalChrome =
+      el.getAttribute('data-testid') === 'modal' ||
+      Boolean(el.querySelector?.('[data-modal-role="header"], [data-modal-role="footer"]'));
+
+    if (!hasModalChrome) {
+      return matchesSubstackSignupText(el.textContent || '');
+    }
+
+    return matchesSubstackSignupText(el.textContent || '') || hasSubstackSignupActions(el);
   }
 
   function isSubstackScrim(el) {
@@ -128,29 +129,21 @@
     const cls = typeof el.className === 'string' ? el.className : '';
     const id = el.id || '';
 
-    if (
-      id.startsWith('radix-') &&
-      el.getAttribute('data-state') === 'open' &&
-      el.getAttribute('role') !== 'dialog'
-    ) {
+    if (el.getAttribute('role') === 'dialog') return false;
+    if ((el.textContent || '').trim().length > 0) return false;
+
+    if (id.startsWith('radix-') && el.getAttribute('data-state') === 'open') {
       return true;
     }
 
-    if ((el.textContent || '').trim().length > 0) return false;
+    if (!SUBSTACK_SCRIM_CLASS_RE.test(cls) && !/modalScrim|modal-scrim|ModalScrim/i.test(cls)) {
+      return false;
+    }
 
-    // Substack modal dimmer, e.g. <div class="background-qPxN3C" style="opacity: 0.5">
-    if (/\bbackground-[A-Za-z0-9_-]+\b/.test(cls)) return true;
-
-    const hasBackdropClass =
-      /\boverlay-[A-Za-z0-9_-]+\b/.test(cls) || /modalScrim|modal-scrim|ModalScrim/i.test(cls);
-    if (!hasBackdropClass) return false;
+    if (!isInsideSubstackModalViewer(el)) return false;
 
     const style = getComputedStyle(el);
-    const fixed = style.position === 'fixed' || style.position === 'absolute';
-    if (!fixed) return false;
-
-    const rect = el.getBoundingClientRect();
-    return rect.width >= window.innerWidth * 0.5 && rect.height >= window.innerHeight * 0.5;
+    return style.position === 'fixed' || style.position === 'absolute';
   }
 
   function unlockPageScroll() {
@@ -287,35 +280,29 @@
 
     if (BYEBAR.isSubstack()) {
       root.querySelectorAll('[class*="modalViewer"]').forEach((viewer) => {
-        Array.from(viewer.children).forEach(nukeModal);
-        if (!viewer.children.length && viewer.parentNode) {
-          nukeModal(viewer);
-        }
+        Array.from(viewer.children).forEach((child) => {
+          if (looksLikeSubstackSignupModal(child) || isSubstackScrim(child)) {
+            nukeModal(child);
+          }
+        });
       });
     }
 
-    queryMatches(
-      '[role="dialog"][data-testid="modal"], [role="dialog"][id^="radix-"], [role="dialog"][class*="panel-"], [data-radix-portal] [role="dialog"], [role="dialog"], [aria-modal="true"]',
-      root
-    ).forEach((el) => {
-      if (
-        BYEBAR.isSubstack()
-          ? looksLikeSubstackSignupModal(el) || isSubstackRadixDialog(el)
-          : looksLikeSubstackSignupModal(el)
-      ) {
-        nukeModal(el);
+    queryMatches('[role="dialog"][data-testid="modal"], [role="dialog"], [aria-modal="true"]', root).forEach(
+      (el) => {
+        if (looksLikeSubstackSignupModal(el)) {
+          nukeModal(el);
+        }
       }
-    });
+    );
 
     root
-      .querySelectorAll('[class^="background-"], [class^="overlay-"], [id^="radix-"][data-state="open"]')
+      .querySelectorAll(
+        '[class*="modalViewer"] [class^="background-"], [class*="modalViewer"] [class^="overlay-"], [class*="modalViewer"] [id^="radix-"][data-state="open"]'
+      )
       .forEach((el) => {
         if (isSubstackScrim(el)) nukeModal(el);
       });
-
-    root.querySelectorAll('body > div, body > div > div').forEach((el) => {
-      if (isSubstackScrim(el)) nukeModal(el);
-    });
 
     unlockPageScroll();
   }

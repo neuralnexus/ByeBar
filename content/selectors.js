@@ -101,18 +101,11 @@
         '[class*="emailPopup"]',
         '[class*="subscribe-overlay"]',
         '[class*="SubscribeOverlay"]',
-        '[class*="modalViewer"] > *:not(:empty)',
-        '[class*="modalViewer"][class*="-show"]',
-        '[class*="modalViewer"][class*="active"]',
-        '[class^="background-"]',
         '[class*=" modalViewer"] [class^="background-"]',
-        '[class^="overlay-"]',
+        '[class*=" modalViewer"] [class^="overlay-"]',
         '[class*="modalScrim"]',
         '[class*="modal-scrim"]',
-        '[role="dialog"][data-testid="modal"]',
-        '[role="dialog"][id^="radix-"]',
-        '[role="dialog"][class*="panel-"]',
-        '[data-radix-portal] [role="dialog"]'
+        '[role="dialog"][data-testid="modal"]'
       ],
       remove: [
         '[role="dialog"][aria-label="Subscribe modal"]',
@@ -133,16 +126,13 @@
         '[class*="emailPopup"]',
         '[class*="subscribe-overlay"]',
         '[class*="SubscribeOverlay"]',
-        '[class^="background-"]',
-        '[class^="overlay-"]',
+        '[class*=" modalViewer"] [class^="background-"]',
+        '[class*=" modalViewer"] [class^="overlay-"]',
         '[class*="modalScrim"]',
         '[class*="modal-scrim"]',
         '[class*="ModalScrim"]',
         '[role="dialog"][data-testid="modal"]',
-        '[role="dialog"][id^="radix-"]',
-        '[role="dialog"][class*="panel-"]',
-        '[data-radix-portal] [role="dialog"]',
-        '[id^="radix-"][data-state="open"]:not([role="dialog"])'
+        '[class*="modalViewer"] [id^="radix-"][data-state="open"]:not([role="dialog"])'
       ]
     }
   };

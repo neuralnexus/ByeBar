@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isInsideModalViewer,
+  isSubstackModalScrim,
   isSubstackRadixBackdrop,
   isSubstackRadixDialog,
   looksLikeSubstackSignupModal,
@@ -27,7 +29,23 @@ const SIGNUP_MODAL = {
     if (sel.includes('data-modal-role')) return { nodeType: 1 };
     if (sel.includes('button')) return { nodeType: 1 };
     return null;
+  },
+  closest() {
+    return null;
   }
+};
+
+const GENERIC_RADIX_DIALOG = {
+  nodeType: 1,
+  tagName: 'DIV',
+  id: 'radix-P0-999',
+  className: 'panel-abc123',
+  getAttribute(name) {
+    return name === 'role' ? 'dialog' : name === 'data-testid' ? null : null;
+  },
+  textContent: 'Account settings and preferences',
+  querySelector: () => null,
+  closest: () => null
 };
 
 describe('matchesSubstackSignupText', () => {
@@ -38,8 +56,12 @@ describe('matchesSubstackSignupText', () => {
 });
 
 describe('isSubstackRadixDialog', () => {
-  it('detects radix pencraft signup dialogs', () => {
+  it('detects signup modals with modal chrome', () => {
     expect(isSubstackRadixDialog(SIGNUP_MODAL)).toBe(true);
+  });
+
+  it('ignores unrelated radix dialogs', () => {
+    expect(isSubstackRadixDialog(GENERIC_RADIX_DIALOG)).toBe(false);
   });
 });
 
@@ -47,21 +69,85 @@ describe('looksLikeSubstackSignupModal', () => {
   it('flags join/get-the-app modals', () => {
     expect(looksLikeSubstackSignupModal(SIGNUP_MODAL)).toBe(true);
   });
+
+  it('does not flag unrelated dialogs', () => {
+    expect(looksLikeSubstackSignupModal(GENERIC_RADIX_DIALOG)).toBe(false);
+  });
 });
 
 describe('isSubstackRadixBackdrop', () => {
-  it('detects radix scrims and background layers', () => {
+  it('detects radix scrims', () => {
     expect(
       isSubstackRadixBackdrop({
         nodeType: 1,
         id: 'radix-P0-1',
         role: null,
-        className: 'background-qPxN3C',
+        className: '',
+        textContent: '',
         getAttribute(name) {
           if (name === 'data-state') return 'open';
           return null;
         }
       })
     ).toBe(true);
+  });
+
+  it('ignores background layers outside modal viewers', () => {
+    expect(
+      isSubstackRadixBackdrop({
+        nodeType: 1,
+        id: '',
+        role: null,
+        className: 'background-qPxN3C',
+        textContent: '',
+        getAttribute: () => null,
+        closest: () => null
+      })
+    ).toBe(false);
+  });
+});
+
+describe('isInsideModalViewer', () => {
+  it('detects modal viewer ancestors', () => {
+    expect(
+      isInsideModalViewer({
+        className: 'post-content',
+        closest(sel) {
+          return sel.includes('modalViewer') ? { nodeType: 1 } : null;
+        }
+      })
+    ).toBe(true);
+  });
+});
+
+describe('isSubstackModalScrim', () => {
+  it('requires modal viewer context for hashed scrim classes', () => {
+    expect(
+      isSubstackModalScrim(
+        {
+          nodeType: 1,
+          className: 'background-qPxN3C',
+          textContent: '',
+          getAttribute: () => null,
+          closest(sel) {
+            return sel.includes('modalViewer') ? { nodeType: 1 } : null;
+          }
+        },
+        () => ({ position: 'fixed' })
+      )
+    ).toBe(true);
+
+    expect(
+      isSubstackModalScrim(
+        {
+          nodeType: 1,
+          className: 'background-qPxN3C',
+          textContent: '',
+          getAttribute: () => null,
+          closest: () => null
+        },
+        () => ({ position: 'fixed' })
+      )
+    ).toBe(false);
   });
 });

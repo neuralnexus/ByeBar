@@ -1,27 +1,14 @@
-/* Substack-only: modal scrims/backdrops (e.g. background-qPxN3C). */
+/* Substack-only: signup modals and modal scrims — never unscoped background-* rules. */
 
-[class^='background-'],
-[class*=' background-'],
 [class*='modalViewer'] [class^='background-'],
+[class*='modalViewer'] [class*=' background-'],
 [class*='modalViewer'] [class^='overlay-'],
 [class*='modalViewer'] [class*=' overlay-'],
 [class*='modalScrim'],
 [class*='modal-scrim'],
-[class*='ModalScrim'] {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  width: 0 !important;
-}
-
-/* Substack Radix / pencraft signup modals (e.g. "Join … on Substack", "Get the app") */
+[class*='ModalScrim'],
 [role='dialog'][data-testid='modal'],
-[role='dialog'][id^='radix-'],
-[role='dialog'][class*='panel-'],
-[data-radix-portal] [role='dialog'],
-[id^='radix-'][data-state='open']:not([role='dialog']) {
+[class*='modalViewer'] [id^='radix-'][data-state='open']:not([role='dialog']) {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
