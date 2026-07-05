@@ -1,4 +1,4 @@
-importScripts('../shared/browser.js');
+importScripts('../shared/settings.js', '../shared/browser.js');
 
 const { storageGet, storageSet } = self.ByeBar.browser;
 const DEFAULTS = {

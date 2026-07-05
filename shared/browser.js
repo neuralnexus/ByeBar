@@ -13,29 +13,41 @@
     return api.storage?.sync || api.storage?.local;
   }
 
+  function normalizeStored(stored, defaults) {
+    const settingsApi = globalScope.ByeBar?.settings;
+    if (settingsApi?.normalizeSettings) {
+      return settingsApi.normalizeSettings(stored, defaults ?? settingsApi.DEFAULT_SETTINGS);
+    }
+    const defs = defaults ?? {};
+    return stored && typeof stored === 'object' && !Array.isArray(stored)
+      ? { ...defs, ...stored }
+      : { ...defs };
+  }
+
   function storageGet(defaults) {
     const area = getStorageArea();
     return new Promise((resolve) => {
       try {
         area.get(defaults, (stored) => {
           if (api.runtime?.lastError) {
-            api.storage.local.get(defaults, (localStored) => resolve({ ...defaults, ...localStored }));
+            api.storage.local.get(defaults, (localStored) => resolve(normalizeStored(localStored, defaults)));
             return;
           }
-          resolve({ ...defaults, ...stored });
+          resolve(normalizeStored(stored, defaults));
         });
       } catch {
-        resolve({ ...defaults });
+        resolve(normalizeStored({}, defaults));
       }
     });
   }
 
   function storageSet(values) {
+    const normalized = normalizeStored(values);
     const area = getStorageArea();
     return new Promise((resolve) => {
-      area.set(values, () => {
+      area.set(normalized, () => {
         if (api.runtime?.lastError) {
-          api.storage.local.set(values, resolve);
+          api.storage.local.set(normalized, resolve);
           return;
         }
         resolve();

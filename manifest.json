@@ -26,6 +26,7 @@
     {
       "matches": ["<all_urls>"],
       "js": [
+        "shared/settings.js",
         "shared/browser.js",
         "content/safari-compat.js",
         "content/geolocation.js",

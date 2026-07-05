@@ -8,9 +8,10 @@ describe('manifest.json', () => {
     expect(manifest.manifest_version).toBe(3);
   });
 
-  it('loads browser polyfill before content scripts', () => {
+  it('loads settings schema before browser polyfill', () => {
     const scripts = manifest.content_scripts[0].js;
-    expect(scripts[0]).toBe('shared/browser.js');
+    expect(scripts[0]).toBe('shared/settings.js');
+    expect(scripts[1]).toBe('shared/browser.js');
     expect(scripts).toContain('content/safari-compat.js');
   });
 
