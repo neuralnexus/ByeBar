@@ -6,13 +6,27 @@
   const clicked = new WeakSet();
   const removed = new WeakSet();
 
+  function queryAll(selector, root = document) {
+    return BYEBAR.shadow?.queryAll(selector, root) || Array.from(root.querySelectorAll(selector));
+  }
+
+  function closestBanner(el) {
+    if (!el) return null;
+    return (
+      BYEBAR.shadow?.closestDeep(el, BYEBAR.COOKIE_BANNER_ANCESTORS) ||
+      el.closest?.(BYEBAR.COOKIE_BANNER_ANCESTORS) ||
+      BYEBAR.shadow?.closestDeep(el, '#consent_blackbar, #truste-consent-track, #trustarc-banner-overlay') ||
+      el.closest?.('#consent_blackbar, #truste-consent-track, #trustarc-banner-overlay')
+    );
+  }
+
   function normalizeText(text) {
     return (text || '').replace(/\s+/g, ' ').trim();
   }
 
   function textMatchesDecline(text) {
     const normalized = normalizeText(text);
-    if (!normalized || normalized.length > 80) return false;
+    if (!normalized || normalized.length > 120) return false;
     return BYEBAR.COOKIE_DECLINE_TEXT.some((re) => re.test(normalized));
   }
 
@@ -83,26 +97,34 @@
     if (
       id === 'consent_blackbar' ||
       id === 'truste-consent-track' ||
+      id === 'trustarc-banner-overlay' ||
+      id === 'truste-consent-content' ||
       cls.includes('truste-consent') ||
+      cls.includes('truste-banner') ||
       cls.includes('opt-out-button')
     ) {
       return true;
     }
 
-    const text = (el.textContent || '').slice(0, 2500);
+    const text = (el.textContent || '').slice(0, 3000);
     if (text.length < 40) return false;
 
     const hasCookieLanguage =
-      /cookie|consent|privacy law|personal information|opt-?out|do not sell|similar technologies/i.test(text);
-    const hasBannerActions = /accept|opt-?out|more info|reject|decline|manage preferences/i.test(text);
+      /about cookies on this site|cookie preferences|privacy law|personal information|opt-?out|do not sell|similar technologies|required\)\./i.test(
+        text
+      );
+    const hasBannerActions =
+      /accept( all)?|opt-?out|more info|reject|decline|manage preferences|do not sell or share/i.test(text);
     if (!hasCookieLanguage || !hasBannerActions) return false;
+
+    if (closestBanner(el)) return true;
 
     const style = getComputedStyle(el);
     const positioned =
       style.position === 'fixed' ||
       style.position === 'sticky' ||
       style.position === 'absolute' ||
-      el.closest('#consent_blackbar, #onetrust-banner-sdk, [class*="cookie" i], [class*="consent" i]');
+      parseInt(style.zIndex, 10) >= 100;
 
     if (!positioned) return false;
 
@@ -110,17 +132,11 @@
     return rect.width >= 200 && rect.height >= 40;
   }
 
-  function declineViaSelectors(root) {
+  function declineViaSelectors(root = document) {
     let clickedAny = false;
 
     for (const selector of BYEBAR.COOKIE_DECLINE_SELECTORS) {
-      let nodes = [];
-      try {
-        nodes = root.querySelectorAll(selector);
-      } catch {
-        continue;
-      }
-      nodes.forEach((el) => {
+      queryAll(selector, root).forEach((el) => {
         if (clickElement(el)) clickedAny = true;
       });
     }
@@ -128,32 +144,24 @@
     return clickedAny;
   }
 
-  function declineViaTextScan(root) {
-    const buttons = root.querySelectorAll(
-      'button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]'
-    );
+  function declineViaTextScan(root = document) {
     let clickedAny = false;
 
-    buttons.forEach((el) => {
-      const inBanner = el.closest(BYEBAR.COOKIE_BANNER_ANCESTORS);
-      if (!inBanner && !el.closest('#consent_blackbar, #truste-consent-track')) return;
-      if (clickIfDecline(el)) clickedAny = true;
-    });
+    queryAll('button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]', root).forEach(
+      (el) => {
+        if (!closestBanner(el)) return;
+        if (clickIfDecline(el)) clickedAny = true;
+      }
+    );
 
     return clickedAny;
   }
 
-  function removeViaSelectors(root) {
+  function removeViaSelectors(root = document) {
     let removedAny = false;
 
     for (const selector of BYEBAR.COOKIE_HIDE) {
-      let nodes = [];
-      try {
-        nodes = root.querySelectorAll(selector);
-      } catch {
-        continue;
-      }
-      nodes.forEach((el) => {
+      queryAll(selector, root).forEach((el) => {
         removeElement(el);
         removedAny = true;
       });
@@ -162,13 +170,13 @@
     return removedAny;
   }
 
-  function removeViaHeuristic(root) {
+  function removeViaHeuristic(root = document) {
     let removedAny = false;
-    const candidates = root.querySelectorAll(
-      '#consent_blackbar, #truste-consent-track, [role="dialog"], [aria-modal="true"], div, section, aside'
-    );
 
-    candidates.forEach((el) => {
+    queryAll(
+      '#consent_blackbar, #trustarc-banner-overlay, #truste-consent-track, #truste-consent-content, [role="dialog"], [aria-modal="true"], div, section, aside',
+      root
+    ).forEach((el) => {
       if (!looksLikeCookieBanner(el)) return;
       removeElement(el);
       removedAny = true;

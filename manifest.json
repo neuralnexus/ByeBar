@@ -25,6 +25,7 @@
       "matches": ["<all_urls>"],
       "js": [
         "content/selectors.js",
+        "content/shadow.js",
         "content/engine.js",
         "content/cookies.js",
         "content/main.js"

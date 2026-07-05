@@ -170,17 +170,21 @@
     });
   }
 
+  function queryMatches(selector, root = document) {
+    if (BYEBAR.shadow?.queryAll) return BYEBAR.shadow.queryAll(selector, root);
+    try {
+      return Array.from(root.querySelectorAll(selector));
+    } catch {
+      return [];
+    }
+  }
+
   function nukeAll(root = document) {
     if (!siteEnabled() || !combinedSelector) return;
 
-    let matches = [];
-    try {
-      matches = root.querySelectorAll(combinedSelector);
-    } catch {
-      return;
-    }
-
-    matches.forEach(removeElement);
+    activeSelectors.forEach((selector) => {
+      queryMatches(selector, root).forEach(removeElement);
+    });
     nukeSubstackLayers();
     heuristicScan(root);
   }
@@ -193,6 +197,9 @@
       pending = true;
       requestAnimationFrame(() => {
         pending = false;
+        if (BYEBAR.shadow?.watchShadowRoots) {
+          BYEBAR.shadow.watchShadowRoots(observer, document.documentElement);
+        }
         nukeAll(document);
         if (settings.cookieDecline && BYEBAR.cookies) {
           BYEBAR.cookies.decline(document);
@@ -201,12 +208,20 @@
       });
     });
 
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style', 'aria-label', 'aria-modal', 'aria-hidden', 'data-intro-popup', 'open']
-    });
+    const observe = () => {
+      if (BYEBAR.shadow?.watchShadowRoots) {
+        BYEBAR.shadow.watchShadowRoots(observer, document.documentElement);
+      } else if (document.documentElement) {
+        observer.observe(document.documentElement, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['class', 'style', 'aria-label', 'aria-modal', 'aria-hidden', 'data-intro-popup', 'open']
+        });
+      }
+    };
+
+    observe();
   }
 
   function stopObserver() {
