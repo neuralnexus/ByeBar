@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ByeBar</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>ByeBar</h1>
+      <p class="tagline">Overlay &amp; Popup Blocker</p>
+    </header>
+
+    <p class="pitch">
+      Removes newsletter nags, subscribe overlays, and email capture popups.
+      Not an ad blocker.
+    </p>
+
+    <label class="row">
+      <span>Enabled on this site</span>
+      <input type="checkbox" id="site-enabled" checked />
+    </label>
+
+    <label class="row">
+      <span>Generic blocking (all sites)</span>
+      <input type="checkbox" id="generic-blocking" checked />
+    </label>
+
+    <label class="row">
+      <span>Auto-decline cookie banners</span>
+      <input type="checkbox" id="cookie-decline" checked />
+    </label>
+
+    <p class="host" id="host-label"></p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

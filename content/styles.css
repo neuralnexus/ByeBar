@@ -1,0 +1,107 @@
+/* ByeBar — hide overlays instantly before JS removes them from the DOM. */
+
+[data-byebar-hidden="true"],
+.byebar-hidden {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  left: -99999px !important;
+  top: -99999px !important;
+}
+
+/* Substack */
+[role="dialog"][aria-label="Subscribe modal"],
+[class*="subscribeDialog"],
+[class*="subscribeModal"],
+[class*="subscribeWidget"],
+[class*="subscribe-widget"],
+.intro-popup,
+[class*="intro-popup"],
+[class*="IntroPopup"],
+[data-intro-popup],
+[class*="popup-root"],
+[class*="popupRoot"],
+[class*="paywall"],
+[class*="Paywall"],
+[class*="modalViewer"] > *:not(:empty),
+[class*="modalViewer"][class*="-show"],
+[class*="modalViewer"][class*="active"],
+[class*="signupDialog"],
+[class*="signupPopup"],
+[class*="emailPopup"],
+[class*="subscribe-overlay"],
+[class*="SubscribeOverlay"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+/* Generic newsletter / subscribe / email / discount overlays */
+[role="dialog"][aria-label*="subscribe" i],
+[role="dialog"][aria-label*="newsletter" i],
+[role="dialog"][aria-label*="sign up" i],
+[role="dialog"][aria-label*="signup" i],
+[role="dialog"][aria-label*="email" i],
+[aria-modal="true"][class*="newsletter" i],
+[aria-modal="true"][class*="subscribe" i],
+[class*="newsletter-popup" i],
+[class*="newsletterPopup" i],
+[class*="newsletter-modal" i],
+[class*="newsletterModal" i],
+[class*="newsletter-overlay" i],
+[class*="subscribe-popup" i],
+[class*="subscribePopup" i],
+[class*="subscribe-modal" i],
+[class*="subscribe-overlay" i],
+[class*="subscribe-bar" i],
+[class*="subscribeBar" i],
+[class*="email-popup" i],
+[class*="emailPopup" i],
+[class*="email-capture" i],
+[class*="emailCapture" i],
+[class*="exit-intent" i],
+[class*="exitIntent" i],
+[class*="discount-popup" i],
+[class*="discountPopup" i],
+[class*="promo-popup" i],
+[class*="promoPopup" i],
+[class*="coupon-popup" i],
+.klaviyo-form,
+[class*="klaviyo" i][class*="modal" i],
+[class*="mailchimp" i][class*="popup" i],
+[class*="om-holder" i],
+[class*="optinmonster" i] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+/* Cookie consent banners */
+#onetrust-banner-sdk,
+#onetrust-consent-sdk,
+#CybotCookiebotDialog,
+.qc-cmp2-container,
+#cookieConsent,
+#cookie-consent,
+#cookie-banner,
+.cc-window,
+.cookie-banner,
+.cookie-consent,
+[class*="cookieConsent" i],
+[class*="cookie-consent" i],
+[class*="cookieBanner" i],
+[class*="consent-banner" i],
+[aria-label*="cookie" i][role="dialog"],
+[aria-label*="consent" i][role="dialog"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}

@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "ByeBar — Overlay & Popup Blocker",
+  "short_name": "ByeBar",
+  "description": "Removes newsletter nags, subscribe overlays, email capture popups, and auto-declines cookie consent banners. Not an ad blocker.",
+  "version": "0.1.0",
+  "icons": {
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "ByeBar",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "48": "icons/icon-48.png"
+    }
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "content/selectors.js",
+        "content/engine.js",
+        "content/cookies.js",
+        "content/main.js"
+      ],
+      "css": ["content/styles.css"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "byebar@neuralnexus.dev",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "optional": []
+      }
+    }
+  }
+}

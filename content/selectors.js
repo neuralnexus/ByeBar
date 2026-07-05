@@ -1,0 +1,197 @@
+/**
+ * ByeBar selector registry.
+ * Site-specific rules run first; generic rules are optional (user setting).
+ */
+(() => {
+  const BYEBAR = (window.ByeBar = window.ByeBar || {});
+
+  BYEBAR.SITE_RULES = {
+    substack: {
+      hosts: [/\.substack\.com$/i, /^substack\.com$/i],
+      hide: [
+        '[role="dialog"][aria-label="Subscribe modal"]',
+        '[class*="subscribeDialog"]',
+        '[class*="subscribeModal"]',
+        '[class*="subscribeWidget"]',
+        '[class*="subscribe-widget"]',
+        '.intro-popup',
+        '[class*="intro-popup"]',
+        '[class*="IntroPopup"]',
+        '[data-intro-popup]',
+        '[class*="popup-root"]',
+        '[class*="popupRoot"]',
+        '[class*="signupDialog"]',
+        '[class*="signupPopup"]',
+        '[class*="emailPopup"]',
+        '[class*="subscribe-overlay"]',
+        '[class*="SubscribeOverlay"]',
+        '[class*="modalViewer"] > *:not(:empty)',
+        '[class*="modalViewer"][class*="-show"]',
+        '[class*="modalViewer"][class*="active"]'
+      ],
+      remove: [
+        '[role="dialog"][aria-label="Subscribe modal"]',
+        '[class*="subscribeDialog"]',
+        '[class*="subscribeModal"]',
+        '[class*="subscribeWidget"]',
+        '[class*="subscribe-widget"]',
+        '.intro-popup',
+        '[class*="intro-popup"]',
+        '[class*="IntroPopup"]',
+        '[data-intro-popup]',
+        '[class*="paywall"]',
+        '[class*="Paywall"]',
+        '[class*="popup-root"]',
+        '[class*="popupRoot"]',
+        '[class*="signupDialog"]',
+        '[class*="signupPopup"]',
+        '[class*="emailPopup"]',
+        '[class*="subscribe-overlay"]',
+        '[class*="SubscribeOverlay"]'
+      ]
+    }
+  };
+
+  // Generic overlay / newsletter / email / discount patterns (inferred defaults).
+  BYEBAR.GENERIC_HIDE = [
+    '[role="dialog"][aria-label*="subscribe" i]',
+    '[role="dialog"][aria-label*="newsletter" i]',
+    '[role="dialog"][aria-label*="sign up" i]',
+    '[role="dialog"][aria-label*="signup" i]',
+    '[role="dialog"][aria-label*="email" i]',
+    '[aria-modal="true"][class*="newsletter" i]',
+    '[aria-modal="true"][class*="subscribe" i]',
+    '[aria-modal="true"][class*="popup" i]',
+    '[class*="newsletter-popup" i]',
+    '[class*="newsletterPopup" i]',
+    '[class*="newsletter-modal" i]',
+    '[class*="newsletterModal" i]',
+    '[class*="newsletter-overlay" i]',
+    '[class*="newsletterOverlay" i]',
+    '[class*="subscribe-popup" i]',
+    '[class*="subscribePopup" i]',
+    '[class*="subscribe-modal" i]',
+    '[class*="subscribeModal" i]',
+    '[class*="subscribe-overlay" i]',
+    '[class*="subscribeOverlay" i]',
+    '[class*="subscribe-bar" i]',
+    '[class*="subscribeBar" i]',
+    '[class*="subscribe-widget" i]',
+    '[class*="subscribeWidget" i]',
+    '[class*="email-popup" i]',
+    '[class*="emailPopup" i]',
+    '[class*="email-capture" i]',
+    '[class*="emailCapture" i]',
+    '[class*="email-signup" i]',
+    '[class*="emailSignup" i]',
+    '[class*="exit-intent" i]',
+    '[class*="exitIntent" i]',
+    '[class*="optin" i]',
+    '[class*="opt-in" i]',
+    '[class*="discount-popup" i]',
+    '[class*="discountPopup" i]',
+    '[class*="promo-popup" i]',
+    '[class*="promoPopup" i]',
+    '[class*="coupon-popup" i]',
+    '[class*="couponPopup" i]',
+    '[id*="newsletter-popup" i]',
+    '[id*="newsletter_popup" i]',
+    '[id*="subscribe-popup" i]',
+    '[id*="email-popup" i]',
+    '[data-testid*="newsletter" i]',
+    '[data-testid*="subscribe-modal" i]',
+    '.klaviyo-form',
+    '[class*="klaviyo" i][class*="modal" i]',
+    '[class*="mailchimp" i][class*="popup" i]',
+    '[class*="om-holder" i]',
+    '[class*="optinmonster" i]',
+    '[class*="poptin" i]',
+    '[class*="privy" i][class*="popup" i]',
+    '[class*="sumo" i][class*="popup" i]'
+  ];
+
+  BYEBAR.GENERIC_REMOVE = BYEBAR.GENERIC_HIDE.concat([
+    '[class*="bottom-bar" i][class*="subscribe" i]',
+    '[class*="bottomBar" i][class*="subscribe" i]',
+    '[class*="sticky-bar" i][class*="email" i]',
+    '[class*="stickyBar" i][class*="email" i]'
+  ]);
+
+  // Cookie consent banners / overlays (hidden; cookies.js clicks decline when possible).
+  BYEBAR.COOKIE_HIDE = [
+    '#onetrust-banner-sdk',
+    '#onetrust-consent-sdk',
+    '.ot-sdk-container',
+    '#CybotCookiebotDialog',
+    '#CybotCookiebotDialogBody',
+    '.qc-cmp2-container',
+    '#sp-cc',
+    '#cookieConsent',
+    '#cookie-consent',
+    '#cookie-banner',
+    '#cookieBanner',
+    '#gdpr-cookie-message',
+    '#gdpr-consent',
+    '#cookiescript_injected',
+    '#cookiescript_injected_wrapper',
+    '#cookie-law-info-bar',
+    '.cc-window',
+    '.cc-banner',
+    '.cookie-notice',
+    '.cookie-notice-container',
+    '.cookie-banner',
+    '.cookie-consent',
+    '.cookies-banner',
+    '[class*="cookieConsent" i]',
+    '[class*="cookie-consent" i]',
+    '[class*="cookieBanner" i]',
+    '[class*="cookie-banner" i]',
+    '[class*="CookieBanner" i]',
+    '[class*="gdpr" i][class*="banner" i]',
+    '[class*="gdpr" i][class*="modal" i]',
+    '[class*="consent-banner" i]',
+    '[class*="consentBanner" i]',
+    '[aria-label*="cookie" i][role="dialog"]',
+    '[aria-label*="consent" i][role="dialog"]'
+  ];
+
+  // Known decline / reject buttons (clicked before hide).
+  BYEBAR.COOKIE_DECLINE_SELECTORS = [
+    '#onetrust-reject-all-handler',
+    '#onetrust-pc-btn-handler',
+    '.ot-pc-refuse-all-handler',
+    '#CybotCookiebotDialogBodyButtonDecline',
+    '#CybotCookiebotDialogBodyLevelButtonLevelOptinDeclineAll',
+    'button[data-cookiefirst-action="decline"]',
+    'button[data-testid="cookie-decline"]',
+    'button[data-testid="reject-all"]',
+    '.qc-cmp2-summary-buttons button[mode="secondary"]',
+    '.qc-cmp2-summary-buttons button:first-of-type',
+    '#cookiescript_reject',
+    '#cookie_action_close_header_reject',
+    '#cookie_action_close_header_decline',
+    '.cc-deny',
+    '.cc-reject',
+    '.cc-dismiss',
+    '[class*="reject" i][class*="cookie" i]',
+    '[class*="decline" i][class*="cookie" i]',
+    '[id*="reject" i][id*="cookie" i]',
+    '[id*="decline" i][id*="cookie" i]'
+  ];
+
+  BYEBAR.COOKIE_DECLINE_TEXT = [
+    /^reject(\s+all)?$/i,
+    /^decline(\s+all)?$/i,
+    /^deny(\s+all)?$/i,
+    /^refuse(\s+all)?$/i,
+    /^only\s+(essential|necessary|required)(\s+cookies)?$/i,
+    /^essential\s+only$/i,
+    /^necessary\s+only$/i,
+    /^no\s+thanks$/i,
+    /^dismiss$/i,
+    /^close$/i
+  ];
+
+  BYEBAR.isSubstack = () =>
+    BYEBAR.SITE_RULES.substack.hosts.some((re) => re.test(location.hostname));
+})();
