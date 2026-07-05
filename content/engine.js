@@ -82,9 +82,60 @@
     }
   }
 
+  const SUBSTACK_MODAL_TEXT_RE =
+    /join\s+.+\s+on\s+substack|the home for great writing|get the app|sign in.*get the app/i;
+  const SUBSTACK_PANEL_CLASS_RE = /\bpanel-[A-Za-z0-9_-]+\b/;
+
+  function matchesSubstackSignupText(text) {
+    const sample = (text || '').replace(/\s+/g, ' ').trim();
+    if (!sample || sample.length > 2000) return false;
+    return SUBSTACK_MODAL_TEXT_RE.test(sample);
+  }
+
+  function isSubstackRadixDialog(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (el.getAttribute('role') !== 'dialog') return false;
+
+    const id = el.id || '';
+    const cls = typeof el.className === 'string' ? el.className : '';
+
+    if (el.getAttribute('data-testid') === 'modal') return true;
+    if (id.startsWith('radix-')) return true;
+    if (SUBSTACK_PANEL_CLASS_RE.test(cls)) return true;
+    if (el.querySelector?.('[data-modal-role="header"], [data-modal-role="footer"]')) return true;
+
+    return false;
+  }
+
+  function looksLikeSubstackSignupModal(el) {
+    if (!el || el.nodeType !== 1) return false;
+
+    if (isSubstackRadixDialog(el)) {
+      const text = el.textContent || '';
+      if (matchesSubstackSignupText(text)) return true;
+      return Boolean(el.querySelector?.('button, a[role="button"]') && /get the app|sign in/i.test(text));
+    }
+
+    if (el.getAttribute('role') !== 'dialog' && el.getAttribute('aria-modal') !== 'true') {
+      return false;
+    }
+
+    return matchesSubstackSignupText(el.textContent || '');
+  }
+
   function isSubstackScrim(el) {
     if (!el || el.nodeType !== 1) return false;
     const cls = typeof el.className === 'string' ? el.className : '';
+    const id = el.id || '';
+
+    if (
+      id.startsWith('radix-') &&
+      el.getAttribute('data-state') === 'open' &&
+      el.getAttribute('role') !== 'dialog'
+    ) {
+      return true;
+    }
+
     if ((el.textContent || '').trim().length > 0) return false;
 
     // Substack modal dimmer, e.g. <div class="background-qPxN3C" style="opacity: 0.5">
@@ -223,22 +274,47 @@
     );
   }
 
-  function nukeSubstackLayers() {
-    if (!BYEBAR.isSubstack()) return;
+  function nukeSubstackLayers(root = document) {
+    if (!BYEBAR.isSubstack() && !settings.genericBlocking) return;
 
-    document.querySelectorAll('[class*="modalViewer"]').forEach((viewer) => {
-      Array.from(viewer.children).forEach(removeElement);
-      if (!viewer.children.length && viewer.parentNode) {
-        removeElement(viewer);
+    const seen = new Set();
+
+    const nukeModal = (el) => {
+      if (!el || seen.has(el)) return;
+      seen.add(el);
+      removeElement(el);
+    };
+
+    if (BYEBAR.isSubstack()) {
+      root.querySelectorAll('[class*="modalViewer"]').forEach((viewer) => {
+        Array.from(viewer.children).forEach(nukeModal);
+        if (!viewer.children.length && viewer.parentNode) {
+          nukeModal(viewer);
+        }
+      });
+    }
+
+    queryMatches(
+      '[role="dialog"][data-testid="modal"], [role="dialog"][id^="radix-"], [role="dialog"][class*="panel-"], [data-radix-portal] [role="dialog"], [role="dialog"], [aria-modal="true"]',
+      root
+    ).forEach((el) => {
+      if (
+        BYEBAR.isSubstack()
+          ? looksLikeSubstackSignupModal(el) || isSubstackRadixDialog(el)
+          : looksLikeSubstackSignupModal(el)
+      ) {
+        nukeModal(el);
       }
     });
 
-    document.querySelectorAll('[class^="background-"], [class^="overlay-"]').forEach((el) => {
-      if (isSubstackScrim(el)) removeElement(el);
-    });
+    root
+      .querySelectorAll('[class^="background-"], [class^="overlay-"], [id^="radix-"][data-state="open"]')
+      .forEach((el) => {
+        if (isSubstackScrim(el)) nukeModal(el);
+      });
 
-    document.querySelectorAll('body > div, body > div > div').forEach((el) => {
-      if (isSubstackScrim(el)) removeElement(el);
+    root.querySelectorAll('body > div, body > div > div').forEach((el) => {
+      if (isSubstackScrim(el)) nukeModal(el);
     });
 
     unlockPageScroll();
@@ -257,9 +333,10 @@
     const highZ = parseInt(style.zIndex, 10) >= 100 || style.zIndex === 'auto';
     const text = (el.textContent || '').toLowerCase();
     const keywords =
-      /subscribe|newsletter|sign\s*up|email\s*list|get\s+\d+%|discount|coupon|off\s+your|join\s+our/i;
+      /subscribe|newsletter|sign\s*up|email\s*list|get\s+\d+%|discount|coupon|off\s+your|join\s+our|join\s+.+\s+on\s+substack|get the app|great writing/i;
 
     if (el.getAttribute('role') === 'dialog' || el.getAttribute('aria-modal') === 'true') {
+      if (looksLikeSubstackSignupModal(el)) return true;
       return keywords.test(text) || keywords.test(el.className) || keywords.test(el.id || '');
     }
 
@@ -307,7 +384,7 @@
     activeSelectors.forEach((selector) => {
       queryMatches(selector, root).forEach(removeElement);
     });
-    nukeSubstackLayers();
+    nukeSubstackLayers(root);
     nukeBloombergPromos(root);
     BYEBAR.chinaCommerce?.nukeSpinners?.(root);
     heuristicScan(root);

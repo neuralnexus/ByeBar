@@ -108,7 +108,11 @@
         '[class*=" modalViewer"] [class^="background-"]',
         '[class^="overlay-"]',
         '[class*="modalScrim"]',
-        '[class*="modal-scrim"]'
+        '[class*="modal-scrim"]',
+        '[role="dialog"][data-testid="modal"]',
+        '[role="dialog"][id^="radix-"]',
+        '[role="dialog"][class*="panel-"]',
+        '[data-radix-portal] [role="dialog"]'
       ],
       remove: [
         '[role="dialog"][aria-label="Subscribe modal"]',
@@ -133,7 +137,12 @@
         '[class^="overlay-"]',
         '[class*="modalScrim"]',
         '[class*="modal-scrim"]',
-        '[class*="ModalScrim"]'
+        '[class*="ModalScrim"]',
+        '[role="dialog"][data-testid="modal"]',
+        '[role="dialog"][id^="radix-"]',
+        '[role="dialog"][class*="panel-"]',
+        '[data-radix-portal] [role="dialog"]',
+        '[id^="radix-"][data-state="open"]:not([role="dialog"])'
       ]
     }
   };

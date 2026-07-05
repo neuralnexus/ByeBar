@@ -15,3 +15,15 @@
   height: 0 !important;
   width: 0 !important;
 }
+
+/* Substack Radix / pencraft signup modals (e.g. "Join … on Substack", "Get the app") */
+[role='dialog'][data-testid='modal'],
+[role='dialog'][id^='radix-'],
+[role='dialog'][class*='panel-'],
+[data-radix-portal] [role='dialog'],
+[id^='radix-'][data-state='open']:not([role='dialog']) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}

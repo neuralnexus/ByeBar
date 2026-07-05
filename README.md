@@ -17,11 +17,11 @@ Click the toolbar icon to toggle behavior globally or per-site.
 
 ## Browser support
 
-| Browser | Minimum version | Install |
-| --- | --- | --- |
-| Chrome / Edge | 109+ | Load unpacked (see below) |
-| Firefox | 109+ | Load temporary add-on or signed build |
-| Safari (macOS / iOS) | 16.4+ | [Build via Xcode](SAFARI.md) |
+| Browser              | Minimum version | Install                               |
+| -------------------- | --------------- | ------------------------------------- |
+| Chrome / Edge        | 109+            | Load unpacked (see below)             |
+| Firefox              | 109+            | Load temporary add-on or signed build |
+| Safari (macOS / iOS) | 16.4+           | [Build via Xcode](SAFARI.md)          |
 
 ## Install (Chrome / Edge / Firefox)
 
@@ -44,14 +44,14 @@ For Safari, see [SAFARI.md](SAFARI.md).
 
 Open the popup from the toolbar:
 
-| Setting | Default | Description |
-| --- | --- | --- |
-| Enabled on this site | On | Per-site override; disabling adds the current host to an allowlist |
-| Generic blocking | On | Newsletter/subscribe overlay heuristics on all sites |
-| Auto-decline cookie banners | On | Reject cookies and hide consent UI |
-| Auto-accept terms & legal modals | On | Click through TOS/legal modals |
-| Auto-decline location requests | On | Block geolocation prompts |
-| Redirect broken NetSuite lead forms | On | Leave broken NetSuite external lead pages |
+| Setting                             | Default | Description                                                        |
+| ----------------------------------- | ------- | ------------------------------------------------------------------ |
+| Enabled on this site                | On      | Per-site override; disabling adds the current host to an allowlist |
+| Generic blocking                    | On      | Newsletter/subscribe overlay heuristics on all sites               |
+| Auto-decline cookie banners         | On      | Reject cookies and hide consent UI                                 |
+| Auto-accept terms & legal modals    | On      | Click through TOS/legal modals                                     |
+| Auto-decline location requests      | On      | Block geolocation prompts                                          |
+| Redirect broken NetSuite lead forms | On      | Leave broken NetSuite external lead pages                          |
 
 ## Development
 
