@@ -92,18 +92,19 @@ describe('isSubstackRadixBackdrop', () => {
     ).toBe(true);
   });
 
-  it('ignores background layers outside modal viewers', () => {
-    expect(
-      isSubstackRadixBackdrop({
-        nodeType: 1,
-        id: '',
-        role: null,
-        className: 'background-qPxN3C',
-        textContent: '',
-        getAttribute: () => null,
-        closest: () => null
-      })
-    ).toBe(false);
+  it('ignores background layers outside modal viewers unless on a substack page', () => {
+    const scrim = {
+      nodeType: 1,
+      id: '',
+      role: null,
+      className: 'background-qPxN3C',
+      textContent: '',
+      getAttribute: () => null,
+      closest: () => null
+    };
+
+    expect(isSubstackRadixBackdrop(scrim)).toBe(false);
+    expect(isSubstackRadixBackdrop(scrim, true)).toBe(true);
   });
 });
 
@@ -121,33 +122,32 @@ describe('isInsideModalViewer', () => {
 });
 
 describe('isSubstackModalScrim', () => {
-  it('requires modal viewer context for hashed scrim classes', () => {
-    expect(
-      isSubstackModalScrim(
-        {
-          nodeType: 1,
-          className: 'background-qPxN3C',
-          textContent: '',
-          getAttribute: () => null,
-          closest(sel) {
-            return sel.includes('modalViewer') ? { nodeType: 1 } : null;
-          }
-        },
-        () => ({ position: 'fixed' })
-      )
-    ).toBe(true);
+  const SCRIM = {
+    nodeType: 1,
+    className: 'background-qPxN3C',
+    textContent: '',
+    getAttribute: () => null,
+    getBoundingClientRect: () => ({ width: 1200, height: 900 }),
+    closest(sel) {
+      return sel.includes('modalViewer') ? { nodeType: 1 } : null;
+    }
+  };
 
-    expect(
-      isSubstackModalScrim(
-        {
-          nodeType: 1,
-          className: 'background-qPxN3C',
-          textContent: '',
-          getAttribute: () => null,
-          closest: () => null
-        },
-        () => ({ position: 'fixed' })
-      )
-    ).toBe(false);
+  const ORPHAN_SCRIM = {
+    nodeType: 1,
+    className: 'background-qPxN3C',
+    textContent: '',
+    getAttribute: () => null,
+    getBoundingClientRect: () => ({ width: 1200, height: 900 }),
+    closest: () => null
+  };
+
+  it('requires modal viewer context for hashed scrim classes by default', () => {
+    expect(isSubstackModalScrim(SCRIM, () => ({ position: 'fixed' }))).toBe(true);
+    expect(isSubstackModalScrim(ORPHAN_SCRIM, () => ({ position: 'fixed' }))).toBe(false);
+  });
+
+  it('accepts portaled scrims on substack pages', () => {
+    expect(isSubstackModalScrim(ORPHAN_SCRIM, () => ({ position: 'fixed' }), true)).toBe(true);
   });
 });

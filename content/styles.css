@@ -39,6 +39,10 @@
 [class*='modalViewer'] [class*=' background-'],
 [class*='modalViewer'] [class^='overlay-'],
 [class*='modalViewer'] [class*=' overlay-'],
+html[data-byebar-substack] div[class^='background-'],
+html[data-byebar-substack] div[class*=' background-'],
+html[data-byebar-substack] div[class^='overlay-'],
+html[data-byebar-substack] div[class*=' overlay-'],
 html[data-byebar-substack] [id^='radix-'][data-state='open']:not([role='dialog']) {
   display: none !important;
   visibility: hidden !important;

@@ -18,6 +18,8 @@
   let combinedSelector = '';
   let observer = null;
   let pending = false;
+  let scrollPending = false;
+  let scrollListenerAttached = false;
 
   const { storageGet, onStorageChanged } = BYEBAR.browser;
 
@@ -131,7 +133,16 @@
     return matchesSubstackSignupText(el.textContent || '') || hasSubstackSignupActions(el);
   }
 
-  function isSubstackScrim(el) {
+  function isPositionedScrim(el) {
+    const style = getComputedStyle(el);
+    if (style.position === 'fixed' || style.position === 'absolute') return true;
+
+    const rect = el.getBoundingClientRect?.();
+    if (!rect) return false;
+    return rect.width >= window.innerWidth * 0.85 && rect.height >= window.innerHeight * 0.85;
+  }
+
+  function isSubstackScrim(el, onSubstack = BYEBAR.isSubstack()) {
     if (!el || el.nodeType !== 1) return false;
     const cls = typeof el.className === 'string' ? el.className : '';
     const id = el.id || '';
@@ -147,10 +158,9 @@
       return false;
     }
 
-    if (!isInsideSubstackModalViewer(el)) return false;
+    if (!onSubstack && !isInsideSubstackModalViewer(el)) return false;
 
-    const style = getComputedStyle(el);
-    return style.position === 'fixed' || style.position === 'absolute';
+    return isPositionedScrim(el);
   }
 
   function unlockPageScroll() {
@@ -310,11 +320,11 @@
     );
 
     const scrimSelector = onSubstack
-      ? '[class*="modalViewer"] [class^="background-"], [class*="modalViewer"] [class^="overlay-"], [class*="modalViewer"] [id^="radix-"][data-state="open"], [id^="radix-"][data-state="open"]:not([role="dialog"])'
+      ? 'div[class^="background-"], div[class*=" background-"], div[class^="overlay-"], div[class*=" overlay-"], [class*="modalViewer"] [class^="background-"], [class*="modalViewer"] [class^="overlay-"], [class*="modalViewer"] [id^="radix-"][data-state="open"], [id^="radix-"][data-state="open"]:not([role="dialog"])'
       : '[class*="modalViewer"] [class^="background-"], [class*="modalViewer"] [class^="overlay-"], [class*="modalViewer"] [id^="radix-"][data-state="open"]';
 
     root.querySelectorAll(scrimSelector).forEach((el) => {
-      if (isSubstackScrim(el)) nukeModal(el);
+      if (isSubstackScrim(el, onSubstack)) nukeModal(el);
     });
 
     unlockPageScroll();
@@ -436,6 +446,23 @@
     };
 
     observe();
+
+    if (!scrollListenerAttached) {
+      scrollListenerAttached = true;
+      window.addEventListener(
+        'scroll',
+        () => {
+          if (scrollPending || !siteEnabled() || !BYEBAR.isSubstack()) return;
+          scrollPending = true;
+          requestAnimationFrame(() => {
+            scrollPending = false;
+            maybeRefreshSubstackDetection();
+            nukeSubstackLayers(document);
+          });
+        },
+        { passive: true, capture: true }
+      );
+    }
   }
 
   function stopObserver() {

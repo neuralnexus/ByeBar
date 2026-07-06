@@ -49,21 +49,28 @@
 
   let cached = null;
 
-  function detectSubstackPage({ force = false } = {}) {
-    if (!force && cached !== null) return cached;
+  function detectSubstackPage() {
+    if (cached === true) return true;
 
-    cached = isSubstackSite(location.hostname, {
+    const detected = isSubstackSite(location.hostname, {
       html: collectSubstackHtmlSample(),
       root: document
     });
 
-    if (cached) markSubstackPage();
-    return cached;
+    if (detected) {
+      cached = true;
+      markSubstackPage();
+    }
+
+    return detected;
   }
 
   function recheckSubstackPage() {
-    if (cached === true) return true;
-    return detectSubstackPage({ force: true });
+    return detectSubstackPage();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', detectSubstackPage, { once: true });
   }
 
   const globalScope = typeof globalThis !== 'undefined' ? globalThis : window;
