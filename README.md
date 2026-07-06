@@ -221,7 +221,7 @@ Pull requests welcome at [github.com/neuralnexus/ByeBar](https://github.com/neur
 
 ## What ByeBar is not
 
-ByeBar is **not an ad blocker**. It does not filter network traffic, block trackers, or remove on-page ads. It only removes or dismisses overlay UI: modals, banners, nags, and consent popups.
+ByeBar is **not an ad blocker**. It does not filter network traffic, block trackers, or remove on-page ads. It is a focused tool that removes or dismisses annoying overlay UIs: modals, banners, nags, and consent popups, etc (things normal ad-blockers allow through, but are still annoying!)
 
 ## Related docs
 
