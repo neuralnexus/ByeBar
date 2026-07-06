@@ -10,7 +10,30 @@ The site in `docs/` deploys via GitHub Pages. `docs/CNAME` tells GitHub which ho
 Default project URL: `https://neuralnexus.github.io/ByeBar/`  
 Custom domain URL: `https://byebar.mattivan.com/` (no `/ByeBar` path)
 
-## DNS
+## Why deploys fail (fix this first)
+
+If the **Deploy GitHub Pages** workflow fails with `Deployment failed, try again later`, GitHub cannot publish a new build for the custom domain. The usual cause is **Cloudflare proxying without a CNAME to GitHub**.
+
+Check:
+
+```bash
+gh api repos/neuralnexus/ByeBar/pages/health --jq '.domain | {is_https_eligible, is_cname_to_github_user_domain, is_proxied, has_cname_record}'
+```
+
+You want:
+
+```json
+{
+  "is_https_eligible": true,
+  "is_cname_to_github_user_domain": true,
+  "is_proxied": false,
+  "has_cname_record": true
+}
+```
+
+If `is_proxied` is `true` and `has_cname_record` is `false`, fix DNS below before redeploying.
+
+## DNS (Cloudflare)
 
 At your DNS host for `mattivan.com`:
 
@@ -18,27 +41,32 @@ At your DNS host for `mattivan.com`:
 | ----- | -------- | ----------------------- | --------------------- |
 | CNAME | `byebar` | `neuralnexus.github.io` | DNS only (grey cloud) |
 
-Do **not** use A records for `byebar` unless you know you need them. GitHub expects a CNAME to `neuralnexus.github.io` for project sites.
+Do **not** use A records for `byebar`. Delete any `byebar` A/AAAA records.
 
-### Cloudflare
+### Cloudflare steps
 
-If you see Cloudflare IPs (`104.21.x.x`, `172.67.x.x`) and `dig byebar.mattivan.com CNAME` is empty, the record is wrong or proxied without a CNAME target.
+1. **DNS → Records**
+2. Delete all `byebar` **A** and **AAAA** records
+3. Add **CNAME** `byebar` → `neuralnexus.github.io`
+4. Set proxy to **DNS only** (grey cloud) until GitHub verifies the domain and issues HTTPS
+5. Wait 5–30 minutes
 
-Fix:
+SSL/TLS mode: **Full** or **Full (strict)** (after GitHub cert exists)
 
-1. Delete any `byebar` A records
-2. Add CNAME `byebar` → `neuralnexus.github.io`
-3. Turn proxy **off** (grey cloud) until GitHub shows the domain as verified and HTTPS works
-4. Optional: re-enable orange cloud after HTTPS is live
-
-SSL/TLS mode: **Full** or **Full (strict)**
+Optional: re-enable orange-cloud proxy only **after** GitHub Pages shows the domain as verified and **Enforce HTTPS** works.
 
 ## GitHub
 
 1. Repo **Settings → Pages**
 2. Custom domain: `byebar.mattivan.com`
-3. Wait for DNS check to pass
-4. Enable **Enforce HTTPS**
+3. Wait for DNS check to pass (green)
+4. Enable **Enforce HTTPS** (only after DNS is correct)
+
+Redeploy after DNS is fixed:
+
+```bash
+gh workflow run pages.yml
+```
 
 ## Verify
 
@@ -46,19 +74,15 @@ SSL/TLS mode: **Full** or **Full (strict)**
 dig byebar.mattivan.com CNAME +short
 # should show: neuralnexus.github.io
 
+gh api repos/neuralnexus/ByeBar/pages/health --jq '.domain.is_https_eligible'
+# should show: true
+
 curl -sI https://byebar.mattivan.com/
 # should return HTTP 200
 ```
 
-GitHub DNS health (repo admin):
-
-```bash
-gh api repos/neuralnexus/ByeBar/pages/health
-```
-
-Look for `"is_cname_to_github_user_domain": true` and `"is_https_eligible": true`.
-
 ## After DNS propagates
 
 - https://byebar.mattivan.com/
+- https://byebar.mattivan.com/support.html
 - https://byebar.mattivan.com/privacy.html
