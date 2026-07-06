@@ -3,9 +3,6 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [main]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -35,18 +32,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          health=$(gh api "repos/${{ github.repository }}/pages/health" --jq '.domain')
-          eligible=$(echo "$health" | jq -r '.is_https_eligible')
-          cname_ok=$(echo "$health" | jq -r '.is_cname_to_github_user_domain')
-          proxied=$(echo "$health" | jq -r '.is_proxied')
+          set +e
+          health=$(gh api "repos/${{ github.repository }}/pages/health" --jq '.domain' 2>/dev/null)
+          if [ -z "$health" ] || [ "$health" = "null" ]; then
+            echo "::warning::Could not read Pages domain health. See DOMAIN.md if deploys fail."
+            exit 0
+          fi
           echo "$health" | jq '{host, is_https_eligible, is_cname_to_github_user_domain, is_proxied, has_cname_record}'
+          eligible=$(echo "$health" | jq -r '.is_https_eligible // false')
+          cname_ok=$(echo "$health" | jq -r '.is_cname_to_github_user_domain // false')
+          proxied=$(echo "$health" | jq -r '.is_proxied // false')
           if [ "$eligible" != "true" ] || [ "$cname_ok" != "true" ]; then
             echo "::warning::Custom domain DNS is not GitHub-eligible. Set Cloudflare CNAME byebar -> neuralnexus.github.io (DNS only / grey cloud). See DOMAIN.md."
           fi
           if [ "$proxied" = "true" ]; then
             echo "::warning::Domain is Cloudflare-proxied without a public CNAME to GitHub. Deploy may fail until DNS is fixed."
           fi
-          exit 0
 
       - uses: actions/configure-pages@v5
 
