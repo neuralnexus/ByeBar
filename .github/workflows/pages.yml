@@ -24,8 +24,7 @@ jobs:
         run: |
           test -f docs/.nojekyll
           test -f docs/index.html
-          test -f docs/CNAME
-          grep -q 'byebar.mattivan.com' docs/CNAME
+          test ! -f docs/CNAME
 
       - name: Check custom-domain DNS
         continue-on-error: true
