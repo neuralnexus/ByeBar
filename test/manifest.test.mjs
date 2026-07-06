@@ -23,4 +23,9 @@ describe('manifest.json', () => {
   it('keeps description within Chrome Web Store limit', () => {
     expect(manifest.description.length).toBeLessThanOrEqual(132);
   });
+
+  it('matches package version', () => {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    expect(manifest.version).toBe(pkg.version);
+  });
 });
