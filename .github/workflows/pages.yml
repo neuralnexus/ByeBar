@@ -46,6 +46,7 @@ jobs:
           if [ "$proxied" = "true" ]; then
             echo "::warning::Domain is Cloudflare-proxied without a public CNAME to GitHub. Deploy may fail until DNS is fixed."
           fi
+          exit 0
 
       - uses: actions/configure-pages@v5
 
