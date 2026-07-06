@@ -34,7 +34,12 @@
 [class*='subscribe-overlay'],
 [class*='SubscribeOverlay'],
 [class*='modalScrim'],
-[class*='modal-scrim'] {
+[class*='modal-scrim'],
+[class*='modalViewer'] [class^='background-'],
+[class*='modalViewer'] [class*=' background-'],
+[class*='modalViewer'] [class^='overlay-'],
+[class*='modalViewer'] [class*=' overlay-'],
+html[data-byebar-substack] [id^='radix-'][data-state='open']:not([role='dialog']) {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;

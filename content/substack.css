@@ -8,7 +8,8 @@
 [class*='modal-scrim'],
 [class*='ModalScrim'],
 [role='dialog'][data-testid='modal'],
-[class*='modalViewer'] [id^='radix-'][data-state='open']:not([role='dialog']) {
+[class*='modalViewer'] [id^='radix-'][data-state='open']:not([role='dialog']),
+html[data-byebar-substack] [id^='radix-'][data-state='open']:not([role='dialog']) {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;

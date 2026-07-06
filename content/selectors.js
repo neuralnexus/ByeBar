@@ -459,7 +459,31 @@
     /^ne pas accepter$/i
   ];
 
-  BYEBAR.isSubstack = () => BYEBAR.SITE_RULES.substack.hosts.some((re) => re.test(location.hostname));
+  let substackCached = null;
+
+  function detectSubstackPage() {
+    if (BYEBAR.SITE_RULES.substack.hosts.some((re) => re.test(location.hostname))) {
+      return true;
+    }
+
+    const headHtml = document.head?.innerHTML || '';
+    const earlyHtml = document.documentElement?.innerHTML?.slice(0, 100000) || '';
+    const sample = `${headHtml}${earlyHtml}`;
+    return /substackcdn\.com/i.test(sample) || /\b[a-z0-9-]+\.substack\.com\b/i.test(sample);
+  }
+
+  function markSubstackPage() {
+    document.documentElement?.setAttribute('data-byebar-substack', '');
+  }
+
+  BYEBAR.isSubstack = () => {
+    if (substackCached !== null) return substackCached;
+    substackCached = detectSubstackPage();
+    if (substackCached) markSubstackPage();
+    return substackCached;
+  };
+
+  BYEBAR.isSubstack();
 
   BYEBAR.isBloomberg = () => BYEBAR.SITE_RULES.bloomberg.hosts.some((re) => re.test(location.hostname));
 })();

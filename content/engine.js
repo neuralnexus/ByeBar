@@ -278,7 +278,9 @@
       removeElement(el);
     };
 
-    if (BYEBAR.isSubstack()) {
+    const onSubstack = BYEBAR.isSubstack();
+
+    if (onSubstack) {
       root.querySelectorAll('[class*="modalViewer"]').forEach((viewer) => {
         Array.from(viewer.children).forEach((child) => {
           if (looksLikeSubstackSignupModal(child) || isSubstackScrim(child)) {
@@ -290,19 +292,23 @@
 
     queryMatches('[role="dialog"][data-testid="modal"], [role="dialog"], [aria-modal="true"]', root).forEach(
       (el) => {
+        if (onSubstack && el.getAttribute('data-testid') === 'modal') {
+          nukeModal(el);
+          return;
+        }
         if (looksLikeSubstackSignupModal(el)) {
           nukeModal(el);
         }
       }
     );
 
-    root
-      .querySelectorAll(
-        '[class*="modalViewer"] [class^="background-"], [class*="modalViewer"] [class^="overlay-"], [class*="modalViewer"] [id^="radix-"][data-state="open"]'
-      )
-      .forEach((el) => {
-        if (isSubstackScrim(el)) nukeModal(el);
-      });
+    const scrimSelector = onSubstack
+      ? '[class*="modalViewer"] [class^="background-"], [class*="modalViewer"] [class^="overlay-"], [class*="modalViewer"] [id^="radix-"][data-state="open"], [id^="radix-"][data-state="open"]:not([role="dialog"])'
+      : '[class*="modalViewer"] [class^="background-"], [class*="modalViewer"] [class^="overlay-"], [class*="modalViewer"] [id^="radix-"][data-state="open"]';
+
+    root.querySelectorAll(scrimSelector).forEach((el) => {
+      if (isSubstackScrim(el)) nukeModal(el);
+    });
 
     unlockPageScroll();
   }
