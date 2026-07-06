@@ -35,9 +35,9 @@ describe('isSubstackPageHtml', () => {
 describe('isSubstackSite', () => {
   it('accepts native and custom substack hosts', () => {
     expect(isSubstackSite('matthewivan.substack.com')).toBe(true);
-    expect(isSubstackSite('noahpinion.blog', '<link href="https://substackcdn.com/bundle/main.css">')).toBe(
-      true
-    );
+    expect(
+      isSubstackSite('noahpinion.blog', { html: '<link href="https://substackcdn.com/bundle/main.css">' })
+    ).toBe(true);
     expect(isSubstackSite('example.com')).toBe(false);
   });
 });

@@ -59,7 +59,7 @@ Open the toolbar popup to toggle behavior globally or per-site.
 
 | Sites                                        | Module                                 | Examples handled                                                            |
 | -------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
-| `*.substack.com`                             | `substack.css`, `engine.js`            | Subscribe modals, Radix/pencraft “Join … on Substack” dialogs, modal scrims |
+| `*.substack.com` and Substack custom domains | `substack.css`, `engine.js`            | Subscribe modals, Radix/pencraft “Join … on Substack” dialogs, modal scrims |
 | `*.bloomberg.*`                              | `bloomberg.css`, `engine.js`, `tos.js` | TOS consent modal, flash-sale promo strips                                  |
 | Temu, Shein, AliExpress, Taobao, JD, etc.    | `china-commerce.js`                    | Coupon wheels, lottery spinners, `react-responsive-modal` overlays          |
 | `*.extforms.netsuite.com`, `lp.*`, `forms.*` | `netsuite-lead.js`                     | Broken external lead forms; search landing pages redirect to the brand site |

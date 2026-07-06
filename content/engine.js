@@ -68,6 +68,13 @@
     combinedSelector = activeSelectors.join(',');
   }
 
+  function maybeRefreshSubstackDetection() {
+    const wasSubstack = BYEBAR.isSubstack();
+    const isSubstack = BYEBAR.substackDetect?.recheckSubstackPage?.() ?? wasSubstack;
+    if (!wasSubstack && isSubstack) refreshSelectors();
+    return isSubstack;
+  }
+
   function removeElement(el) {
     if (!el?.parentNode) return;
     try {
@@ -394,6 +401,7 @@
         if (BYEBAR.shadow?.watchShadowRoots) {
           BYEBAR.shadow.watchShadowRoots(observer, document.documentElement);
         }
+        maybeRefreshSubstackDetection();
         nukeAll(document);
         if (settings.cookieDecline && BYEBAR.cookies) {
           BYEBAR.cookies.decline(document);

@@ -14,8 +14,8 @@ Custom domain URL: `https://byebar.mattivan.com/` (no `/ByeBar` path)
 
 At your DNS host for `mattivan.com`:
 
-| Type  | Name     | Target                  | Proxy (Cloudflare) |
-| ----- | -------- | ----------------------- | ------------------ |
+| Type  | Name     | Target                  | Proxy (Cloudflare)    |
+| ----- | -------- | ----------------------- | --------------------- |
 | CNAME | `byebar` | `neuralnexus.github.io` | DNS only (grey cloud) |
 
 Do **not** use A records for `byebar` unless you know you need them. GitHub expects a CNAME to `neuralnexus.github.io` for project sites.
