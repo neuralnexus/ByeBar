@@ -2,12 +2,9 @@
 
 The site in `docs/` deploys via GitHub Pages.
 
-**Custom domain setup** (after DNS is correct):
+**Custom domain in GitHub:** repo **Settings → Pages** → `byebar.mattivan.com`
 
-1. Create `docs/CNAME` containing one line: `byebar.mattivan.com`
-2. Set custom domain under repo **Settings → Pages**
-
-`docs/CNAME` is **not** committed by default. It triggers GitHub's DNS check on every deploy; with Cloudflare A records (orange cloud) deploys fail intermittently. Add it only after DNS below is green.
+Do **not** commit `docs/CNAME`. When that file is bundled in the Pages artifact, GitHub validates DNS on every deploy and rejects the build while Cloudflare uses proxied A records instead of a CNAME to `neuralnexus.github.io`.
 
 Default project URL: `https://neuralnexus.github.io/ByeBar/`  
 Custom domain URL: `https://byebar.mattivan.com/` (no `/ByeBar` path)
