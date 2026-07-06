@@ -5,4 +5,7 @@ safari/
 web-ext-artifacts/
 coverage/
 *.zip
+*.crx
+*.pem
+store/signing/
 *.xcuserstate

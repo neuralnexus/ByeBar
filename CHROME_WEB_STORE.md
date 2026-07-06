@@ -7,7 +7,56 @@ npm run validate
 npm run build:store
 ```
 
-Upload `dist/byebar-chrome.zip` in the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+Upload a package in the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole):
+
+| Mode         | File                     | When                                              |
+| ------------ | ------------------------ | ------------------------------------------------- |
+| Default      | `dist/byebar-chrome.zip` | Before opting in to verified CRX uploads          |
+| Verified CRX | `dist/byebar-chrome.crx` | After opting in (required for all future uploads) |
+
+## Verified CRX uploads (optional security)
+
+Chrome can require that **only you** can upload new versions, by verifying uploads against an RSA public key you register. Google still re-signs the extension for users; your key only gates who may upload.
+
+**Before opting in:** you can upload `.zip` files (current `npm run build:store` flow).
+
+**After opting in:** every upload must be a `.crx` signed with your private key. If you lose the private key, you cannot publish updates until Chrome Web Store support helps (can take ~1 week).
+
+### 1. Generate a key pair (once, on your machine)
+
+```bash
+mkdir -p store/signing
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out store/signing/privatekey.pem
+chmod 600 store/signing/privatekey.pem
+```
+
+`store/signing/` is gitignored. **Never commit `privatekey.pem`.** Back it up somewhere safe (password manager, encrypted backup).
+
+### 2. Copy the public key into the dashboard
+
+```bash
+openssl rsa -in store/signing/privatekey.pem -pubout
+```
+
+Paste the **entire** output into **Package → Verified CRX uploads → Public key**, including:
+
+```
+-----BEGIN PUBLIC KEY-----
+...
+-----END PUBLIC KEY-----
+```
+
+Then click opt in.
+
+### 3. Build and upload signed CRX
+
+```bash
+npm run build:store:crx
+```
+
+Upload `dist/byebar-chrome.crx` with **Upload New Package** (not the zip).
+
+Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem`. Set `CHROME_PATH` if Chrome is not in the default macOS location.
 
 ## Store listing
 
