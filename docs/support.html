@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ByeBar Support</title>
+    <link rel="icon" href="icon-128.png" type="image/png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="hero hero--compact">
+      <img class="logo" src="logo.svg" width="56" height="56" alt="" />
+      <h1>Support</h1>
+      <p class="tagline">ByeBar; Overlay &amp; Popup Blocker</p>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Report a bug</h2>
+        <p>
+          Include your browser, ByeBar version, the site URL, and steps to reproduce. Screenshots help if an
+          overlay is not being removed.
+        </p>
+        <p id="bug-context" class="privacy-sub" hidden></p>
+        <p>
+          <a id="bug-contact" href="https://mattivan.com" target="_blank" rel="noopener noreferrer"
+            >Contact Matt Ivan</a
+          >
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Request a feature</h2>
+        <p>Describe the site or overlay type and what you would like ByeBar to do differently.</p>
+        <p id="feature-context" class="privacy-sub" hidden></p>
+        <p>
+          <a id="feature-contact" href="https://mattivan.com" target="_blank" rel="noopener noreferrer"
+            >Contact Matt Ivan</a
+          >
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Privacy</h2>
+        <p>ByeBar does not collect or transmit personal data. Settings stay on your device.</p>
+        <p><a href="privacy.html">Read the privacy policy</a></p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p class="footer-links">
+        <a href="index.html">Home</a>
+        ·
+        <a href="privacy.html">Privacy</a>
+      </p>
+      <p class="credit">Made by <a href="https://mattivan.com">Matt Ivan</a></p>
+    </footer>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const version = params.get('v') || params.get('version') || '';
+      const site = params.get('site') || '';
+      const kind = params.get('kind') || params.get('type') || '';
+
+      function contextLine() {
+        const parts = [];
+        if (version) parts.push(`ByeBar ${version}`);
+        if (site) parts.push(site);
+        return parts.join(' · ');
+      }
+
+      const line = contextLine();
+      if (line) {
+        const target = kind === 'feature' ? 'feature-context' : 'bug-context';
+        const el = document.getElementById(target);
+        if (el) {
+          el.textContent = line;
+          el.hidden = false;
+        }
+      }
+
+      if (kind === 'feature') {
+        document.getElementById('feature-context')?.scrollIntoView({ block: 'nearest' });
+      }
+    </script>
+  </body>
+</html>

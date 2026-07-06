@@ -3,31 +3,58 @@
 ## Package
 
 ```bash
+npm run validate
 npm run build:store
 ```
 
 Upload `dist/byebar-chrome.zip` in the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 
-## Listing copy
+## Store listing
 
-| Field              | Text                                                                                                                                                                                                                                                                                  |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Name**           | ByeBar                                                                                                                                                                                                                                                                                |
-| **Summary**        | Remove distracting popups and make webpages easier to browse.                                                                                                                                                                                                                         |
-| **Description**    | ByeBar removes newsletter modals, subscribe overlays, cookie consent banners, terms popups, and broken lead forms. It works entirely in your browser on the pages you visit. Not an ad blocker; it does not block ads, trackers, or network requests. Data stays local; no telemetry. |
-| **Category**       | Productivity                                                                                                                                                                                                                                                                          |
-| **Language**       | English                                                                                                                                                                                                                                                                               |
-| **Homepage**       | https://byebar.mattivan.com/                                                                                                                                                                                                                                                          |
-| **Privacy policy** | https://byebar.mattivan.com/privacy.html                                                                                                                                                                                                                                              |
-| **Support**        | https://github.com/neuralnexus/ByeBar/issues                                                                                                                                                                                                                                          |
+| Field              | Value                                                         |
+| ------------------ | ------------------------------------------------------------- |
+| **Name**           | ByeBar                                                        |
+| **Summary**        | Remove distracting popups and make webpages easier to browse. |
+| **Description**    | See below                                                     |
+| **Category**       | Productivity                                                  |
+| **Language**       | English                                                       |
+| **Homepage**       | https://byebar.mattivan.com/                                  |
+| **Privacy policy** | https://byebar.mattivan.com/privacy.html                      |
+| **Support**        | https://byebar.mattivan.com/support.html                      |
 
-## Permission justifications
+**Description (listing tab):**
 
-| Permission   | Why                                                                                                                         |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `storage`    | Saves your on/off toggles and per-site preferences locally.                                                                 |
-| `activeTab`  | Shows the current site hostname in the popup.                                                                               |
-| `<all_urls>` | Injects content scripts on pages you open so overlays and popups can be removed. No browsing data is sent to the developer. |
+> ByeBar removes newsletter modals, subscribe overlays, cookie consent banners, terms popups, and broken lead forms. It works entirely in your browser on the pages you visit. Not an ad blocker; it does not block ads, trackers, or network requests. Data stays local; no telemetry.
+
+## Privacy practices tab (copy-paste)
+
+Open your item → **Privacy practices** → fill every required field → **Save draft**.
+
+### Single purpose description
+
+> ByeBar has one purpose: remove intrusive on-page overlays and popups (newsletter modals, subscribe bars, cookie consent banners, terms dialogs, and similar page chrome) from websites the user visits, so pages are easier to read and browse. It is not an ad blocker and does not block network requests, ads, or trackers.
+
+### Permission justifications
+
+| Field                              | Justification                                                                                                                                                                                                                                              |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **storage**                        | Saves the user's extension settings locally: global on/off toggles (cookie decline, newsletter blocking, etc.) and per-site enable overrides. Data stays on the device via chrome.storage; nothing is sent to the developer.                               |
+| **activeTab**                      | Reads the active tab's URL hostname so the toolbar popup can show whether ByeBar is enabled on the current site and let the user set a per-site override. No page content is collected or transmitted.                                                     |
+| **Host permission** (`<all_urls>`) | Injects content scripts on pages the user opens to detect and remove intrusive overlays and popups in the page DOM. Host access is required because these overlays appear on many different websites. ByeBar does not send browsing data to the developer. |
+| **Remote code**                    | ByeBar does not use remote code. All JavaScript and CSS are bundled in the published package. The extension does not fetch, load, or execute scripts from external servers at runtime.                                                                     |
+
+### Data usage certification
+
+Answer **No** to collecting user data. Typical answers:
+
+| Question                                                                          | Answer |
+| --------------------------------------------------------------------------------- | ------ |
+| Does your extension collect user data?                                            | **No** |
+| Is data sold to third parties?                                                    | **No** |
+| Is data used for purposes unrelated to the extension's single purpose?            | **No** |
+| Is data transferred to third parties (except as required for core functionality)? | **No** |
+
+Then check the box certifying compliance with the [Developer Program Policies](https://developer.chrome.com/docs/webstore/program-policies/).
 
 ## Required assets
 
@@ -42,11 +69,11 @@ Add screenshots to `store/screenshots/` before publishing (not bundled in the zi
 
 ## Pre-submit checklist
 
-- [ ] Run `npm run validate` and `npm run build:store`
-- [ ] Load `dist/byebar-chrome.zip` contents unpacked in Chrome and smoke-test
-- [ ] Privacy policy URL live at `/privacy.html`
-- [ ] Single-purpose description matches behavior (overlay/popup removal only)
-- [ ] Declare **no user data collection** in the dashboard privacy section
+- [ ] `npm run validate` and `npm run build:store`
+- [ ] Support URL live: https://byebar.mattivan.com/support.html
+- [ ] Privacy policy live: https://byebar.mattivan.com/privacy.html
+- [ ] Privacy practices tab: all justifications + single purpose + data certification
+- [ ] Load unpacked zip in Chrome and smoke-test
 - [ ] Account: one-time $5 developer registration fee (if not already enrolled)
 
 ## After approval
