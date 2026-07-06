@@ -16,28 +16,36 @@
 
     <main>
       <section class="card">
-        <h2>Report a bug</h2>
+        <h2>GitHub Issues</h2>
         <p>
-          Include your browser, ByeBar version, the site URL, and steps to reproduce. Screenshots help if an
-          overlay is not being removed.
+          Bug reports and feature requests are tracked on GitHub. You will need a free GitHub account to open
+          an issue.
         </p>
-        <p id="bug-context" class="privacy-sub" hidden></p>
-        <p>
-          <a id="bug-contact" href="https://mattivan.com" target="_blank" rel="noopener noreferrer"
-            >Contact Matt Ivan</a
-          >
+        <ol class="install-steps">
+          <li>Sign in at <a href="https://github.com">github.com</a> (or create an account).</li>
+          <li>
+            Open the link for your request type below. GitHub will open a pre-filled issue form in a new tab.
+          </li>
+          <li>Fill in the details, then click <strong>Submit new issue</strong>.</li>
+        </ol>
+        <p class="footer-links">
+          <a id="bug-link" href="https://github.com/neuralnexus/ByeBar/issues/new">Report a bug</a>
+          ·
+          <a id="feature-link" href="https://github.com/neuralnexus/ByeBar/issues/new">Request a feature</a>
+          ·
+          <a href="https://github.com/neuralnexus/ByeBar/issues">View all issues</a>
         </p>
       </section>
 
       <section class="card">
-        <h2>Request a feature</h2>
-        <p>Describe the site or overlay type and what you would like ByeBar to do differently.</p>
-        <p id="feature-context" class="privacy-sub" hidden></p>
-        <p>
-          <a id="feature-contact" href="https://mattivan.com" target="_blank" rel="noopener noreferrer"
-            >Contact Matt Ivan</a
-          >
-        </p>
+        <h2>What to include</h2>
+        <ul class="features">
+          <li>ByeBar version (shown in the extension popup)</li>
+          <li>Browser and OS</li>
+          <li>The site URL where the problem happens</li>
+          <li>Steps to reproduce, or a screenshot of the overlay</li>
+        </ul>
+        <p id="context-line" class="privacy-sub" hidden></p>
       </section>
 
       <section class="card">
@@ -52,35 +60,53 @@
         <a href="index.html">Home</a>
         ·
         <a href="privacy.html">Privacy</a>
+        ·
+        <a href="https://github.com/neuralnexus/ByeBar">GitHub</a>
       </p>
       <p class="credit">Made by <a href="https://mattivan.com">Matt Ivan</a></p>
     </footer>
 
     <script>
+      const ISSUES_BASE = 'https://github.com/neuralnexus/ByeBar/issues/new';
       const params = new URLSearchParams(location.search);
       const version = params.get('v') || params.get('version') || '';
       const site = params.get('site') || '';
       const kind = params.get('kind') || params.get('type') || '';
 
-      function contextLine() {
-        const parts = [];
-        if (version) parts.push(`ByeBar ${version}`);
-        if (site) parts.push(site);
-        return parts.join(' · ');
+      function buildIssueUrl(isBug) {
+        const title = isBug ? '[Bug] ' : '[Feature] ';
+        const body = [
+          version ? `**ByeBar version:** ${version}` : '**ByeBar version:** ',
+          site ? `**Site:** ${site}` : null,
+          '',
+          isBug ? '### What happened?' : '### What would you like?',
+          '',
+          '',
+          isBug ? '### Steps to reproduce' : '### Why is this useful?',
+          '1. '
+        ]
+          .filter((line) => line !== null)
+          .join('\n');
+
+        return `${ISSUES_BASE}?${new URLSearchParams({ title, body })}`;
       }
 
-      const line = contextLine();
-      if (line) {
-        const target = kind === 'feature' ? 'feature-context' : 'bug-context';
-        const el = document.getElementById(target);
-        if (el) {
-          el.textContent = line;
-          el.hidden = false;
-        }
+      document.getElementById('bug-link').href = buildIssueUrl(true);
+      document.getElementById('feature-link').href = buildIssueUrl(false);
+
+      const parts = [];
+      if (version) parts.push(`ByeBar ${version}`);
+      if (site) parts.push(site);
+      if (parts.length) {
+        const el = document.getElementById('context-line');
+        el.textContent = `From extension: ${parts.join(' · ')}`;
+        el.hidden = false;
       }
 
       if (kind === 'feature') {
-        document.getElementById('feature-context')?.scrollIntoView({ block: 'nearest' });
+        document.getElementById('feature-link').scrollIntoView({ block: 'nearest' });
+      } else if (kind === 'bug') {
+        document.getElementById('bug-link').scrollIntoView({ block: 'nearest' });
       }
     </script>
   </body>

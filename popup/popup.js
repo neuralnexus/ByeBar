@@ -1,6 +1,6 @@
 const { storageGet, storageSet, api } = window.ByeBar.browser;
 
-const SUPPORT_BASE = 'https://byebar.mattivan.com/support.html';
+const ISSUES_BASE = 'https://github.com/neuralnexus/ByeBar/issues/new';
 
 const DEFAULTS = {
   enabled: true,
@@ -41,11 +41,21 @@ function siteEnabledForHost() {
 function buildIssueUrl(kind) {
   const version = api.runtime.getManifest().version;
   const isBug = kind === 'bug';
-  return `${SUPPORT_BASE}?${new URLSearchParams({
-    kind: isBug ? 'bug' : 'feature',
-    v: version,
-    site: host
-  })}`;
+  const title = isBug ? '[Bug] ' : '[Feature] ';
+  const body = [
+    `**ByeBar version:** ${version}`,
+    host ? `**Site:** ${host}` : null,
+    '',
+    isBug ? '### What happened?' : '### What would you like?',
+    '',
+    '',
+    isBug ? '### Steps to reproduce' : '### Why is this useful?',
+    '1. '
+  ]
+    .filter((line) => line !== null)
+    .join('\n');
+
+  return `${ISSUES_BASE}?${new URLSearchParams({ title, body })}`;
 }
 
 function renderFeedbackLinks() {
