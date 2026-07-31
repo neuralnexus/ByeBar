@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Shadow DOM</title>
+  </head>
+  <body>
+    <main><shadow-fixture id="shadow"></shadow-fixture></main>
+    <script>
+      window.fixtureEvents = { shadowReject: 0 };
+      customElements.define(
+        'nested-fixture',
+        class extends HTMLElement {
+          connectedCallback() {
+            const root = this.attachShadow({ mode: 'open' });
+            root.innerHTML = `<aside id="nested-promo" class="newsletter-popup" style="display:block !important;position:fixed;bottom:90px;left:0;width:600px;height:80px;z-index:50">Subscribe to our newsletter</aside>`;
+          }
+        }
+      );
+      customElements.define(
+        'shadow-fixture',
+        class extends HTMLElement {
+          connectedCallback() {
+            const root = this.attachShadow({ mode: 'open' });
+            root.innerHTML = `
+              <aside id="shadow-promo" class="newsletter-popup" style="display:block !important;position:fixed;bottom:0;left:0;width:600px;height:80px;z-index:50">Subscribe to our newsletter</aside>
+              <section class="cookie-banner" style="position:fixed;right:0;top:0;width:400px;height:90px;background:white">
+                We use cookies. <button id="shadow-reject" data-testid="cookie-decline">Reject all</button>
+              </section>
+              <nested-fixture></nested-fixture>`;
+            root
+              .querySelector('#shadow-reject')
+              .addEventListener('click', () => window.fixtureEvents.shadowReject++);
+          }
+        }
+      );
+      window.overwriteShadowDisplay = () => {
+        document
+          .querySelector('#shadow')
+          .shadowRoot.querySelector('#shadow-promo')
+          .style.setProperty('display', 'flex', 'important');
+      };
+    </script>
+  </body>
+</html>

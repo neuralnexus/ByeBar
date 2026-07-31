@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  featureEnabledForHost,
   hostKey,
   isSubstackHost,
   isSubstackPageHtml,
@@ -57,5 +58,14 @@ describe('siteEnabledForHost', () => {
     };
     expect(siteEnabledForHost(settings, 'example.com')).toBe(false);
     expect(siteEnabledForHost(settings, 'other.com')).toBe(true);
+  });
+
+  it('resolves per-site feature overrides', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      siteFeatureOverrides: { 'example.com': { genericBlocking: false } }
+    };
+    expect(featureEnabledForHost(settings, 'example.com', 'genericBlocking')).toBe(false);
+    expect(featureEnabledForHost(settings, 'other.com', 'genericBlocking')).toBe(true);
   });
 });

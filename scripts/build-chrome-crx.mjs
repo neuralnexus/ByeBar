@@ -1,15 +1,15 @@
-import { execSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { basename, join } from 'node:path';
+import { projectRoot, stageExtension } from './stage-extension.mjs';
+import { validatePackage } from './validate-package.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const distDir = join(root, 'dist');
-const defaultKey = join(root, 'store', 'signing', 'privatekey.pem');
+const distDir = join(projectRoot, 'dist');
+const defaultKey = join(projectRoot, 'store', 'signing', 'privatekey.pem');
 const keyPath = process.env.BYEBAR_CRX_PRIVATE_KEY || defaultKey;
-
-const include = ['manifest.json', 'icons', 'popup', 'content', 'background', 'shared'];
+const version = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8')).version;
 
 function findChrome() {
   const candidates = [
@@ -22,16 +22,14 @@ function findChrome() {
   ].filter(Boolean);
 
   for (const candidate of candidates) {
-    if (candidate.includes('/') ? existsSync(candidate) : true) {
-      try {
-        execSync(`"${candidate}" --version`, { stdio: 'ignore' });
-        return candidate;
-      } catch {
-        /* try next */
-      }
+    if (candidate.includes('/') && !existsSync(candidate)) continue;
+    try {
+      execFileSync(candidate, ['--version'], { stdio: 'ignore' });
+      return candidate;
+    } catch {
+      /* try next executable */
     }
   }
-
   return null;
 }
 
@@ -41,12 +39,8 @@ if (!existsSync(keyPath)) {
   console.error(
     '  mkdir -p store/signing && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out store/signing/privatekey.pem'
   );
-  console.error('Public key for the dashboard:');
-  console.error('  openssl rsa -in store/signing/privatekey.pem -pubout');
   process.exit(1);
 }
-
-execSync('node scripts/validate-manifest.mjs', { cwd: root, stdio: 'inherit' });
 
 const chrome = findChrome();
 if (!chrome) {
@@ -54,40 +48,47 @@ if (!chrome) {
   process.exit(1);
 }
 
-const stageDir = mkdtempSync(join(tmpdir(), 'byebar-crx-'));
-const packRoot = join(stageDir, 'byebar');
-mkdirSync(packRoot, { recursive: true });
-
-for (const item of include) {
-  cpSync(join(root, item), join(packRoot, item), { recursive: true });
-}
-
-const quotedChrome = chrome.includes(' ') ? `"${chrome}"` : chrome;
-const quotedRoot = `"${packRoot}"`;
-const quotedKey = `"${keyPath}"`;
-
-execSync(`${quotedChrome} --pack-extension=${quotedRoot} --pack-extension-key=${quotedKey}`, {
-  stdio: 'inherit',
-  shell: true
-});
-
+const stageDir = await stageExtension('chrome');
+const tempDir = mkdtempSync(join(tmpdir(), 'byebar-crx-'));
+const packRoot = join(tempDir, 'byebar');
 const packedCrx = `${packRoot}.crx`;
 const packedPem = `${packRoot}.pem`;
 
-if (!existsSync(packedCrx)) {
-  console.error('pack failed: CRX not produced');
-  process.exit(1);
+try {
+  cpSync(stageDir, packRoot, { recursive: true });
+  execFileSync(chrome, [`--pack-extension=${packRoot}`, `--pack-extension-key=${keyPath}`], {
+    stdio: 'inherit'
+  });
+  if (!existsSync(packedCrx)) throw new Error('pack failed: CRX not produced');
+
+  const header = readFileSync(packedCrx);
+  if (
+    header.length <= 12 ||
+    header.subarray(0, 4).toString('ascii') !== 'Cr24' ||
+    header.readUInt32LE(4) !== 3
+  ) {
+    throw new Error('pack failed: output is not a valid CRX3 file');
+  }
+  const crxHeaderLength = header.readUInt32LE(8);
+  const zipOffset = 12 + crxHeaderLength;
+  if (crxHeaderLength === 0 || zipOffset >= header.length) {
+    throw new Error('pack failed: CRX3 header length is invalid');
+  }
+  const embeddedZip = join(tempDir, 'embedded.zip');
+  writeFileSync(embeddedZip, header.subarray(zipOffset));
+  await validatePackage(embeddedZip, stageDir);
+
+  mkdirSync(distDir, { recursive: true });
+  const outCrx = join(distDir, `byebar-chrome-${version}.crx`);
+  cpSync(packedCrx, outCrx);
+  const sha256 = createHash('sha256').update(header).digest('hex');
+  writeFileSync(`${outCrx}.sha256`, `${sha256}  ${basename(outCrx)}\n`);
+  console.log(`signed chrome package: ${outCrx}`);
+  console.log(`version: ${version}`);
+  console.log(`signed with: ${keyPath}`);
+  console.log(`sha256: ${sha256}`);
+} finally {
+  rmSync(tempDir, { recursive: true, force: true });
+  rmSync(packedCrx, { force: true });
+  rmSync(packedPem, { force: true });
 }
-
-mkdirSync(distDir, { recursive: true });
-const outCrx = join(distDir, 'byebar-chrome.crx');
-cpSync(packedCrx, outCrx);
-
-rmSync(stageDir, { recursive: true, force: true });
-rmSync(packedCrx, { force: true });
-if (existsSync(packedPem)) rmSync(packedPem, { force: true });
-
-const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
-console.log(`signed chrome package: ${outCrx}`);
-console.log(`version: ${manifest.version}`);
-console.log(`signed with: ${keyPath}`);

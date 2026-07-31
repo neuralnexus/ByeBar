@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Consent safety</title>
+    <style>
+      .cookie-banner {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        z-index: 250;
+        width: 500px;
+        min-height: 100px;
+        background: white;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <button id="outside" data-testid="cookie-decline">Reject outside banner</button>
+    </main>
+    <section id="visible-banner" class="cookie-banner">
+      We use cookies. <button id="visible-reject" data-testid="cookie-decline">Reject all</button>
+      <button id="visible-reject-duplicate" data-testid="cookie-decline">Reject all</button>
+      <button id="visible-accept">Accept all</button>
+    </section>
+    <section id="hidden-banner" class="cookie-banner" style="display: none">
+      We use cookies. <button data-testid="cookie-decline">Reject all</button>
+    </section>
+    <section id="offscreen-banner" class="cookie-banner offscreen">
+      We use cookies. <button data-testid="cookie-decline">Reject all</button>
+    </section>
+    <section id="aria-hidden-banner" class="cookie-banner" aria-hidden="true">
+      We use cookies. <button data-testid="cookie-decline">Reject all</button>
+    </section>
+    <div style="opacity: 0">
+      <section id="transparent-banner" class="cookie-banner">
+        We use cookies. <button data-testid="cookie-decline">Reject all</button>
+      </section>
+    </div>
+    <script>
+      window.fixtureEvents = { visibleReject: 0, hiddenReject: 0, accept: 0, outside: 0 };
+      document
+        .querySelector('#visible-reject')
+        .addEventListener('click', () => window.fixtureEvents.visibleReject++);
+      document
+        .querySelector('#visible-reject-duplicate')
+        .addEventListener('click', () => window.fixtureEvents.visibleReject++);
+      document
+        .querySelector('#visible-accept')
+        .addEventListener('click', () => window.fixtureEvents.accept++);
+      document.querySelector('#outside').addEventListener('click', () => window.fixtureEvents.outside++);
+      document
+        .querySelectorAll(
+          '#hidden-banner button, #offscreen-banner button, #aria-hidden-banner button, #transparent-banner button'
+        )
+        .forEach((button) => button.addEventListener('click', () => window.fixtureEvents.hiddenReject++));
+    </script>
+  </body>
+</html>

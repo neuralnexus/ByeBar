@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Late class activation</title>
+  </head>
+  <body>
+    <aside id="late" class="shell" style="position: fixed; bottom: 0; left: 0; width: 100%; height: 80px">
+      Subscribe to our newsletter
+    </aside>
+    <aside
+      id="late-style"
+      class="newsletter-popup"
+      style="position: fixed; bottom: 0; left: 0; width: 100%; height: 80px; display: none"
+    >
+      Subscribe to our newsletter
+    </aside>
+    <aside
+      id="post-retry-style"
+      class="newsletter-popup"
+      style="position: fixed; top: 0; left: 0; width: 100%; height: 80px; display: none"
+    >
+      Subscribe to our newsletter
+    </aside>
+    <late-shadow></late-shadow>
+    <deferred-shadow></deferred-shadow>
+    <div id="standard-shadow"></div>
+    <script>
+      customElements.define(
+        'late-shadow',
+        class extends HTMLElement {
+          connectedCallback() {
+            const root = this.attachShadow({ mode: 'open' });
+            root.innerHTML = `<aside id="late-shadow" class="shell" style="position:fixed;bottom:90px;left:0;width:600px;height:80px;z-index:50">Subscribe to our newsletter</aside>`;
+          }
+        }
+      );
+      window.revealLatePopups = () => {
+        document.querySelector('#late').className = 'newsletter-popup';
+        document.querySelector('late-shadow').shadowRoot.querySelector('#late-shadow').className =
+          'newsletter-popup';
+      };
+      window.revealStylePopup = () => {
+        document.querySelector('#late-style').style.display = 'block';
+      };
+      setTimeout(() => {
+        customElements.define(
+          'deferred-shadow',
+          class extends HTMLElement {
+            connectedCallback() {
+              const root = this.attachShadow({ mode: 'open' });
+              root.innerHTML = `<aside id="deferred-promo" class="newsletter-popup" style="position:fixed;top:0;left:0;width:600px;height:80px;z-index:50">Subscribe to our newsletter</aside>`;
+            }
+          }
+        );
+      }, 500);
+      setTimeout(() => {
+        const root = document.querySelector('#standard-shadow').attachShadow({ mode: 'open' });
+        root.innerHTML = `<aside id="standard-shadow-promo" class="newsletter-popup" style="position:fixed;top:90px;left:0;width:600px;height:80px;z-index:50">Subscribe to our newsletter</aside>`;
+        document.querySelector('#post-retry-style').style.display = 'block';
+      }, 8500);
+    </script>
+  </body>
+</html>

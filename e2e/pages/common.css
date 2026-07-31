@@ -1,0 +1,49 @@
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  font-family: sans-serif;
+}
+
+main {
+  padding: 32px;
+}
+
+.promo-bar,
+.newsletter-popup {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 200;
+  min-height: 72px;
+  padding: 20px;
+  background: #fff7d6;
+  border-top: 2px solid #8a6d00;
+}
+
+.fixture-dialog {
+  position: fixed;
+  top: 180px;
+  left: 440px;
+  z-index: 300;
+  width: 400px;
+  min-height: 180px;
+  padding: 24px;
+  background: white;
+  border: 2px solid #334155;
+}
+
+.offscreen {
+  position: fixed;
+  top: 0;
+  left: -3000px;
+  width: 400px;
+  height: 200px;
+}
+
+button,
+input {
+  min-width: 80px;
+  min-height: 32px;
+}

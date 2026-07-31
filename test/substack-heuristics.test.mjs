@@ -51,6 +51,8 @@ const GENERIC_RADIX_DIALOG = {
 describe('matchesSubstackSignupText', () => {
   it('detects join-on-substack copy', () => {
     expect(matchesSubstackSignupText('Join Aaron Parnas on Substack')).toBe(true);
+    expect(matchesSubstackSignupText('Sign in and get the app')).toBe(false);
+    expect(matchesSubstackSignupText('Sign in and get the app', true)).toBe(true);
     expect(matchesSubstackSignupText('Welcome to our blog.')).toBe(false);
   });
 });
@@ -143,11 +145,47 @@ describe('isSubstackModalScrim', () => {
   };
 
   it('requires modal viewer context for hashed scrim classes by default', () => {
-    expect(isSubstackModalScrim(SCRIM, () => ({ position: 'fixed' }))).toBe(true);
-    expect(isSubstackModalScrim(ORPHAN_SCRIM, () => ({ position: 'fixed' }))).toBe(false);
+    expect(
+      isSubstackModalScrim(SCRIM, () => ({ position: 'fixed' }), false, {
+        width: 1200,
+        height: 900
+      })
+    ).toBe(true);
+    expect(
+      isSubstackModalScrim(ORPHAN_SCRIM, () => ({ position: 'fixed' }), false, {
+        width: 1200,
+        height: 900
+      })
+    ).toBe(false);
   });
 
   it('accepts portaled scrims on substack pages', () => {
-    expect(isSubstackModalScrim(ORPHAN_SCRIM, () => ({ position: 'fixed' }), true)).toBe(true);
+    expect(
+      isSubstackModalScrim(ORPHAN_SCRIM, () => ({ position: 'fixed' }), true, {
+        width: 1200,
+        height: 900
+      })
+    ).toBe(true);
+  });
+
+  it('ignores small radix layers that are not full-page scrims', () => {
+    const radixLayer = {
+      nodeType: 1,
+      id: 'radix-menu-1',
+      className: '',
+      textContent: '',
+      getAttribute(name) {
+        return name === 'data-state' ? 'open' : null;
+      },
+      getBoundingClientRect: () => ({ width: 240, height: 320 }),
+      closest: () => null
+    };
+
+    expect(
+      isSubstackModalScrim(radixLayer, () => ({ position: 'fixed' }), true, {
+        width: 1200,
+        height: 900
+      })
+    ).toBe(false);
   });
 });

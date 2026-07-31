@@ -5,25 +5,26 @@
   if (window.__byeBarLoaded) return;
   window.__byeBarLoaded = true;
 
-  const { engine, cookies, tos, chinaCommerce } = window.ByeBar;
+  const { engine, cookies, tos } = window.ByeBar;
+  let settingsReady = null;
 
   const runPasses = () => {
-    engine.nukeAll(document);
-    cookies.decline(document);
-    cookies.removeBanners?.(document);
-    tos?.accept?.(document);
-    tos?.removeModals?.(document);
-    chinaCommerce?.nukeSpinners?.(document);
-  };
-
-  const boot = () => {
-    engine.loadSettings().then(runPasses);
+    settingsReady ||= Promise.all([window.ByeBar.actions.ready, engine.loadSettings()]);
+    void settingsReady
+      .then(() => {
+        engine.nukeAll(document);
+        cookies.decline(document);
+        tos?.accept?.(document);
+      })
+      .catch(() => {
+        settingsReady = null;
+      });
   };
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
+    document.addEventListener('DOMContentLoaded', runPasses, { once: true });
   } else {
-    boot();
+    runPasses();
   }
 
   window.addEventListener('load', runPasses, { once: true });

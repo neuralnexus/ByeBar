@@ -4,8 +4,15 @@ dist/
 safari/
 web-ext-artifacts/
 coverage/
+playwright-report/
+test-results/
 *.zip
 *.crx
+*.xpi
 *.pem
+*.p12
+*.mobileprovision
+DerivedData/
+*.xcarchive/
 store/signing/
 *.xcuserstate

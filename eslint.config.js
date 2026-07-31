@@ -4,7 +4,15 @@ import globals from 'globals';
 export default [
   js.configs.recommended,
   {
-    ignores: ['node_modules/**', 'safari/**', 'dist/**', 'coverage/**']
+    ignores: [
+      'node_modules/**',
+      'safari/**',
+      'dist/**',
+      'coverage/**',
+      'playwright-report/**',
+      'test-results/**',
+      'shared/runtime.generated.js'
+    ]
   },
   {
     files: ['**/*.{js,mjs}'],

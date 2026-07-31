@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Focus and inert safety</title>
+  </head>
+  <body>
+    <main id="app" inert aria-hidden="true"><button id="opener">Open newsletter</button></main>
+    <div id="dismissible" class="fixture-dialog newsletter-modal" role="dialog" aria-modal="true">
+      Sign up for our newsletter <button id="close-dialog" aria-label="Close">Close</button>
+    </div>
+    <div id="undismissible" class="fixture-dialog newsletter-modal" role="dialog" aria-modal="true">
+      Sign up for our newsletter
+    </div>
+    <script>
+      window.fixtureEvents = { close: 0 };
+      const close = document.querySelector('#close-dialog');
+      close.focus();
+      close.addEventListener('click', () => {
+        window.fixtureEvents.close++;
+        document.querySelector('#dismissible').remove();
+        const app = document.querySelector('#app');
+        app.inert = false;
+        app.removeAttribute('aria-hidden');
+        document.querySelector('#opener').focus();
+      });
+    </script>
+  </body>
+</html>

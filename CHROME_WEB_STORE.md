@@ -4,15 +4,18 @@
 
 ```bash
 npm run validate
+npm run test:e2e
 npm run build:store
 ```
 
+The build regenerates the canonical runtime and icons, stages only declared Chrome files, validates the target manifest, verifies the ZIP entry set and contents, and prints its SHA-256 digest.
+
 Upload a package in the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole):
 
-| Mode         | File                     | When                                              |
-| ------------ | ------------------------ | ------------------------------------------------- |
-| Default      | `dist/byebar-chrome.zip` | Before opting in to verified CRX uploads          |
-| Verified CRX | `dist/byebar-chrome.crx` | After opting in (required for all future uploads) |
+| Mode         | File                           | When                                              |
+| ------------ | ------------------------------ | ------------------------------------------------- |
+| Default      | `dist/byebar-chrome-0.7.0.zip` | Before opting in to verified CRX uploads          |
+| Verified CRX | `dist/byebar-chrome-0.7.0.crx` | After opting in (required for all future uploads) |
 
 ## Verified CRX uploads (optional security)
 
@@ -54,7 +57,7 @@ Then click opt in.
 npm run build:store:crx
 ```
 
-Upload `dist/byebar-chrome.crx` with **Upload New Package** (not the zip).
+Upload the versioned `.crx` in `dist/` with **Upload New Package** (not the zip).
 
 Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem`. Set `CHROME_PATH` if Chrome is not in the default macOS location.
 
@@ -73,7 +76,7 @@ Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem
 
 **Description (listing tab):**
 
-> ByeBar removes newsletter modals, subscribe overlays, cookie consent banners, terms popups, and broken lead forms. It works entirely in your browser on the pages you visit. Not an ad blocker; it does not block ads, trackers, or network requests. Data stays local; no telemetry.
+> ByeBar hides validated newsletter modals and subscribe bars, and can click confirmed cookie-reject or optional terms controls. It uses both content and layout checks, keeps marker-based hides reversible, and does not patch unrelated site APIs. Site control clicks are not reversible. Not an ad blocker; it does not block ads, trackers, or network requests. No telemetry.
 
 ## Privacy practices tab (copy-paste)
 
@@ -85,12 +88,12 @@ Open your item → **Privacy practices** → fill every required field → **Sav
 
 ### Permission justifications
 
-| Field                              | Justification                                                                                                                                                                                                                                              |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **storage**                        | Saves the user's extension settings locally: global on/off toggles (cookie decline, newsletter blocking, etc.) and per-site enable overrides. Data stays on the device via chrome.storage; nothing is sent to the developer.                               |
-| **activeTab**                      | Reads the active tab's URL hostname so the toolbar popup can show whether ByeBar is enabled on the current site and let the user set a per-site override. No page content is collected or transmitted.                                                     |
-| **Host permission** (`<all_urls>`) | Injects content scripts on pages the user opens to detect and remove intrusive overlays and popups in the page DOM. Host access is required because these overlays appear on many different websites. ByeBar does not send browsing data to the developer. |
-| **Remote code**                    | ByeBar does not use remote code. All JavaScript and CSS are bundled in the published package. The extension does not fetch, load, or execute scripts from external servers at runtime.                                                                     |
+| Field                              | Justification                                                                                                                                                                                                                          |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **storage**                        | Saves global defaults, hostname-keyed site overrides, and the diagnostics preference in device-local extension storage. Nothing is sent to the developer.                                                                              |
+| **activeTab**                      | Reads the active tab's URL hostname so the toolbar popup can show whether ByeBar is enabled on the current site and let the user set a local per-site override. No page content is collected or transmitted.                           |
+| **Host permission** (`<all_urls>`) | Injects content scripts into eligible top-level pages to detect and remove intrusive overlays in the page DOM. Embedded frame contents are not processed. ByeBar does not send browsing data or diagnostic decisions to the developer. |
+| **Remote code**                    | ByeBar does not use remote code. All JavaScript and CSS are bundled in the published package. The extension does not fetch, load, or execute scripts from external servers at runtime.                                                 |
 
 ### Data usage certification
 
@@ -111,18 +114,18 @@ Then check the box certifying compliance with the [Developer Program Policies](h
 | ---------------- | ------------------- | ------------------------------------------------------- |
 | Icon             | 128×128             | Included in the zip (`icons/icon-128.png`)              |
 | Screenshots      | 1280×800 or 640×400 | At least one; capture the popup and a before/after page |
-| Small promo tile | 440×280             | Optional                                                |
+| Small promo tile | 440×280             | Required                                                |
 | Marquee promo    | 1400×560            | Optional                                                |
 
 Add screenshots to `store/screenshots/` before publishing (not bundled in the zip).
 
 ## Pre-submit checklist
 
-- [ ] `npm run validate` and `npm run build:store`
+- [ ] `npm run validate`, `npm run test:e2e`, and `npm run build:store`
 - [ ] Support URL live: https://byebar.mattivan.com/support.html
 - [ ] Privacy policy live: https://byebar.mattivan.com/privacy.html
 - [ ] Privacy practices tab: all justifications + single purpose + data certification
-- [ ] Load unpacked zip in Chrome and smoke-test
+- [ ] Load `dist/stage/chrome`, or extract the ZIP and load the extracted directory, then smoke-test
 - [ ] Account: one-time $5 developer registration fee (if not already enrolled)
 
 ## After approval

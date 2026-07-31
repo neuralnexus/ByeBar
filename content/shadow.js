@@ -1,5 +1,5 @@
 /**
- * ByeBar shadow DOM helpers ; pierce open shadow roots (e.g. IBM c4d-legal-nav).
+ * ByeBar shadow DOM helpers: inspect open shadow roots without modifying their structure.
  */
 (() => {
   const BYEBAR = window.ByeBar;
@@ -7,7 +7,8 @@
   function walkRoots(root, visit) {
     if (!root) return;
     visit(root);
-    let nodes = [];
+    if (root.nodeType === 1 && root.shadowRoot) walkRoots(root.shadowRoot, visit);
+    let nodes;
     try {
       nodes = root.querySelectorAll ? root.querySelectorAll('*') : [];
     } catch {
@@ -23,10 +24,12 @@
   }
 
   function queryAll(selector, root = document) {
+    if (!selector || !root) return [];
     const safeSelector = normalizeSelector(selector);
     const matches = [];
     walkRoots(root, (scope) => {
       try {
+        if (scope.nodeType === 1 && scope.matches?.(safeSelector)) matches.push(scope);
         scope.querySelectorAll(safeSelector).forEach((el) => matches.push(el));
       } catch {
         /* ignore invalid selectors in older roots */
@@ -71,23 +74,71 @@
     return null;
   }
 
-  const watchedRoots = new WeakSet();
+  const watchedRoots = new WeakMap();
+  const pendingCustomHosts = new WeakSet();
 
-  function watchShadowRoots(observer, root = document.documentElement) {
+  function watchDeferredCustomHosts(observer, root, onShadowRoot) {
+    if (!globalThis.customElements || !root?.querySelectorAll) return;
+    const hosts = [
+      ...(root.nodeType === 1 && root.localName?.includes('-') ? [root] : []),
+      ...root.querySelectorAll('*')
+    ].filter((el) => el.localName?.includes('-') && !el.shadowRoot);
+
+    hosts.forEach((host) => {
+      if (pendingCustomHosts.has(host)) return;
+      pendingCustomHosts.add(host);
+      void customElements
+        .whenDefined(host.localName)
+        .then(() => {
+          const delays = [0, 100, 1000, 5000];
+          delays.forEach((delay, index) => {
+            setTimeout(() => {
+              if (!pendingCustomHosts.has(host)) return;
+              if (host.shadowRoot) {
+                pendingCustomHosts.delete(host);
+                watchShadowRoots(observer, host.shadowRoot, onShadowRoot);
+              } else if (index === delays.length - 1) {
+                pendingCustomHosts.delete(host);
+              }
+            }, delay);
+          });
+        })
+        .catch(() => pendingCustomHosts.delete(host));
+    });
+  }
+
+  function watchShadowRoots(observer, root = document.documentElement, onShadowRoot) {
+    const discovered = [];
     walkRoots(root, (scope) => {
-      if (!scope || watchedRoots.has(scope)) return;
-      watchedRoots.add(scope);
+      if (!scope || watchedRoots.get(scope) === observer) return;
+      watchedRoots.set(scope, observer);
+      if (scope.nodeType === 11) discovered.push(scope);
       try {
+        const attributeFilter = [
+          'class',
+          'style',
+          'hidden',
+          'aria-hidden',
+          'role',
+          'aria-label',
+          'aria-modal',
+          'open',
+          'data-state',
+          'data-testid'
+        ];
         observer.observe(scope, {
           childList: true,
           subtree: true,
           attributes: true,
-          attributeFilter: ['class', 'style', 'id', 'aria-label', 'aria-modal', 'open', 'hidden']
+          attributeOldValue: true,
+          attributeFilter
         });
       } catch {
         /* ignore */
       }
     });
+    watchDeferredCustomHosts(observer, root, onShadowRoot);
+    discovered.forEach((shadowRoot) => onShadowRoot?.(shadowRoot));
   }
 
   BYEBAR.shadow = { walkRoots, queryAll, query, closestDeep, watchShadowRoots };

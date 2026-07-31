@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Delayed consent hydration</title>
+  </head>
+  <body>
+    <section class="cookie-banner" style="position: fixed; bottom: 0; width: 500px; height: 100px">
+      We use cookies to manage your privacy preferences.
+      <button id="delayed-reject" data-testid="cookie-decline">Reject all</button>
+    </section>
+    <script>
+      window.fixtureEvents = { reject: 0 };
+      setTimeout(() => {
+        document.querySelector('#delayed-reject').addEventListener('click', () => {
+          window.fixtureEvents.reject++;
+          document.querySelector('.cookie-banner').remove();
+        });
+      }, 1000);
+    </script>
+  </body>
+</html>

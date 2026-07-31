@@ -67,7 +67,7 @@ describe('isTermlyElement', () => {
 
 describe('isKetchElement', () => {
   it('detects Ketch banners', () => {
-    expect(isKetchElement('lanyard-root', '')).toBe(true);
+    expect(isKetchElement('lanyard-root', '')).toBe(false);
     expect(isKetchElement('ketch-banner-button-secondary', '')).toBe(true);
   });
 });

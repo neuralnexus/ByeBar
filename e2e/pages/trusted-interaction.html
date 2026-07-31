@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Trusted interaction</title>
+  </head>
+  <body>
+    <main>
+      <button id="open-trusted">Open newsletter</button>
+      <button id="open-synthetic">Synthetic newsletter</button>
+      <button id="unrelated">Unrelated click</button>
+    </main>
+    <script>
+      function addPopup(id) {
+        const popup = document.createElement('aside');
+        popup.id = id;
+        popup.className = 'newsletter-popup';
+        popup.textContent = 'Subscribe to our newsletter';
+        document.body.append(popup);
+      }
+      document.querySelector('#open-trusted').addEventListener('click', () => addPopup('trusted-popup'));
+      document.querySelector('#open-synthetic').addEventListener('click', () => addPopup('synthetic-popup'));
+      document.querySelector('#unrelated').addEventListener('click', () => {
+        setTimeout(() => addPopup('unrelated-popup'), 100);
+      });
+    </script>
+  </body>
+</html>

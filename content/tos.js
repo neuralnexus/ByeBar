@@ -1,23 +1,50 @@
 /**
- * ByeBar terms-of-service modals ; auto-accept, then remove.
+ * ByeBar terms-of-service modals: auto-accept confirmed visible controls.
  */
 (() => {
   const BYEBAR = window.ByeBar;
   const clicked = new WeakSet();
-  const removed = new WeakSet();
+  const actedModals = new WeakSet();
 
   function queryAll(selector, root = document) {
     return BYEBAR.shadow?.queryAll(selector, root) || Array.from(root.querySelectorAll(selector));
   }
 
-  function normalizeText(text) {
-    return (text || '').replace(/\s+/g, ' ').trim();
+  function composedParent(el) {
+    return el?.parentElement || el?.getRootNode?.()?.host || null;
+  }
+
+  function hasHiddenAncestor(el) {
+    let node = el;
+    while (node?.nodeType === 1) {
+      if (node.hidden || node.hasAttribute('inert') || node.getAttribute('aria-hidden') === 'true')
+        return true;
+      const style = getComputedStyle(node);
+      if (
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        Number.parseFloat(style.opacity || '1') <= 0.01 ||
+        style.pointerEvents === 'none'
+      ) {
+        return true;
+      }
+      node = composedParent(node);
+    }
+    return false;
+  }
+
+  function isVisible(el) {
+    if (!el || BYEBAR.visibility.isHidden(el)) return false;
+    if (hasHiddenAncestor(el)) return false;
+    const rect = el.getBoundingClientRect?.();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return false;
+    const right = rect.right || rect.left + rect.width;
+    const bottom = rect.bottom || rect.top + rect.height;
+    return right > 0 && bottom > 0 && rect.left < window.innerWidth && rect.top < window.innerHeight;
   }
 
   function textMatchesAccept(text) {
-    const normalized = normalizeText(text);
-    if (!normalized || normalized.length > 80) return false;
-    return BYEBAR.TOS_ACCEPT_TEXT.some((re) => re.test(normalized));
+    return BYEBAR.lib.tos.textMatchesAccept(text, BYEBAR.TOS_ACCEPT_TEXT);
   }
 
   function closestTosModal(el) {
@@ -39,9 +66,15 @@
         el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
         return true;
       } catch {
+        clicked.delete(el);
         return false;
       }
     }
+  }
+
+  function recordAttempt(modal, meta) {
+    actedModals.add(modal);
+    BYEBAR.actions.recordIrreversible(meta);
   }
 
   function clickIfAccept(el) {
@@ -56,156 +89,80 @@
     return clickElement(el);
   }
 
-  function removeElement(el) {
-    if (!el?.parentNode || removed.has(el)) return;
-    removed.add(el);
-    try {
-      el.setAttribute('data-byebar-hidden', 'true');
-      el.remove();
-    } catch {
-      try {
-        el.parentNode.removeChild(el);
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-
-  function bloombergCookieDomain(hostname) {
-    const parts = (hostname || '').split('bloomberg.');
-    if (parts.length <= 1) return hostname;
-    return `.bloomberg.${parts[1]}`;
-  }
-
-  function setBloombergConsentCookie() {
-    if (!BYEBAR.isBloomberg?.()) return false;
-
-    const name = 'cmpconsentmodal';
-    if (document.cookie.includes(`${name}=consented`)) return true;
-
-    const expires = new Date();
-    expires.setTime(expires.getTime() + 864e5 * 365);
-    const domain = bloombergCookieDomain(location.hostname);
-    document.cookie = `${name}=consented;path=/;domain=${domain};expires=${expires.toUTCString()}`;
-    return true;
-  }
-
   function looksLikeTosModal(el) {
-    if (!el || el.nodeType !== 1 || removed.has(el)) return false;
+    if (!el || el.nodeType !== 1 || !isVisible(el)) return false;
 
     const id = (el.id || '').toLowerCase();
     const cls = typeof el.className === 'string' ? el.className.toLowerCase() : '';
 
-    if (id === 'cmp-consent-modal' || id.startsWith('sp_message_container')) return true;
-    if (cls.includes('tos-modal') || cls.includes('terms-modal')) return true;
+    if (id === 'cmp-consent-modal') return true;
 
     const text = (el.textContent || '').slice(0, 4000);
-    if (text.length < 40) return false;
-    if (!/updated our terms|terms of service|arbitration provision|class action waiver/i.test(text)) {
-      return false;
-    }
+    if (!BYEBAR.lib.tos.matchesTosModalText(text)) return false;
 
     const style = getComputedStyle(el);
+    const modal = el.getAttribute('role') === 'dialog' || el.getAttribute('aria-modal') === 'true';
+    const hasClassHint = cls.includes('tos-modal') || cls.includes('terms-modal');
     const positioned =
       style.position === 'fixed' ||
       style.position === 'sticky' ||
       style.position === 'absolute' ||
       parseInt(style.zIndex, 10) >= 100;
 
-    if (!positioned) return false;
+    if (!positioned && !modal && !hasClassHint) return false;
 
     const rect = el.getBoundingClientRect();
     return rect.width >= 200 && rect.height >= 80;
   }
 
   function acceptViaSelectors(root = document) {
-    let clickedAny = false;
-
-    for (const selector of BYEBAR.TOS_ACCEPT_SELECTORS) {
-      queryAll(selector, root).forEach((el) => {
-        if (clickElement(el)) clickedAny = true;
-      });
+    for (const el of queryAll(BYEBAR.TOS_ACCEPT_SELECTORS.join(','), root)) {
+      if (!isVisible(el)) continue;
+      const modal = closestTosModal(el);
+      if (!modal || actedModals.has(modal) || !looksLikeTosModal(modal)) continue;
+      if (clickElement(el)) {
+        recordAttempt(modal, {
+          feature: 'tosAccept',
+          rule: 'known-legal-dialog',
+          operation: 'accept',
+          reason: 'vendor-accept-selector'
+        });
+        return true;
+      }
     }
 
-    return clickedAny;
+    return false;
   }
 
   function acceptViaTextScan(root = document) {
-    let clickedAny = false;
-
-    queryAll(
+    const controls = queryAll(
       'button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]',
       root
-    ).forEach((el) => {
-      if (!closestTosModal(el)) return;
-      if (clickIfAccept(el)) clickedAny = true;
-    });
-
-    return clickedAny;
-  }
-
-  function removeViaSelectors(root = document) {
-    let removedAny = false;
-
-    for (const selector of BYEBAR.TOS_HIDE) {
-      queryAll(selector, root).forEach((el) => {
-        removeElement(el);
-        removedAny = true;
-      });
-    }
-
-    return removedAny;
-  }
-
-  function removeViaHeuristic(root = document) {
-    let removedAny = false;
-
-    queryAll(
-      '#cmp-consent-modal, [id^="sp_message_container"], [role="dialog"], [aria-modal="true"], div, section, aside',
-      root
-    ).forEach((el) => {
-      if (!looksLikeTosModal(el)) return;
-      removeElement(el);
-      removedAny = true;
-    });
-
-    return removedAny;
-  }
-
-  function removeModals(root = document) {
-    if (!BYEBAR.engine?.settings?.tosAccept) return false;
-    if (!BYEBAR.engine?.siteEnabled?.()) return false;
-
-    return removeViaSelectors(root) || removeViaHeuristic(root);
-  }
-
-  function unlockPageScroll() {
-    const html = document.documentElement;
-    const body = document.body;
-    if (!html || !body) return;
-
-    for (const el of [html, body]) {
-      if (el.style.overflow === 'hidden' || el.style.position === 'fixed') {
-        el.style.overflow = '';
-        el.style.position = '';
-        el.style.top = '';
-        el.style.width = '';
+    );
+    for (const el of controls) {
+      if (!isVisible(el)) continue;
+      const modal = closestTosModal(el);
+      if (!modal || actedModals.has(modal) || !looksLikeTosModal(modal)) continue;
+      if (clickIfAccept(el)) {
+        recordAttempt(modal, {
+          feature: 'tosAccept',
+          rule: 'confirmed-legal-dialog',
+          operation: 'accept',
+          reason: 'accept-label'
+        });
+        return true;
       }
     }
+
+    return false;
   }
 
   function accept(root = document) {
-    if (!BYEBAR.engine?.settings?.tosAccept) return false;
-    if (!BYEBAR.engine?.siteEnabled?.()) return false;
+    if (!BYEBAR.engine?.featureEnabled?.('tosAccept')) return false;
 
-    const hasBloombergModal = queryAll('#cmp-consent-modal, #cmp-consent-button', root).length > 0;
-    if (hasBloombergModal) setBloombergConsentCookie();
-
-    const clicked = acceptViaSelectors(root) || acceptViaTextScan(root) || hasBloombergModal;
-
-    if (removeModals(root)) unlockPageScroll();
-    return clicked;
+    const accepted = acceptViaSelectors(root) || acceptViaTextScan(root);
+    return accepted;
   }
 
-  BYEBAR.tos = { accept, removeModals };
+  BYEBAR.tos = { accept };
 })();

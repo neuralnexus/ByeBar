@@ -2,18 +2,33 @@ import { describe, expect, it } from 'vitest';
 import {
   findBloombergPromoRoot,
   hasBloombergModuleVisibilityClass,
+  looksLikeBloombergPromo,
   matchesBloombergPromoText
 } from '../lib/bloomberg-heuristics.mjs';
 
-function mockNode({ tagName, id = '', href = '', role = '', parentElement = null }) {
+function mockNode({
+  tagName,
+  id = '',
+  href = '',
+  role = '',
+  className = '',
+  textContent = '',
+  parentElement = null,
+  rect = { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 }
+}) {
   return {
     tagName,
     id,
+    className,
+    textContent,
     parentElement,
     getAttribute(name) {
       if (name === 'href') return href;
       if (name === 'role') return role;
       return null;
+    },
+    getBoundingClientRect() {
+      return rect;
     }
   };
 }
@@ -34,6 +49,22 @@ describe('matchesBloombergPromoText', () => {
 
   it('rejects unrelated article text', () => {
     expect(matchesBloombergPromoText('Markets rose after the Federal Reserve meeting.')).toBe(false);
+  });
+});
+
+describe('looksLikeBloombergPromo', () => {
+  const viewport = { width: 1200, height: 800 };
+  const rect = { left: 0, top: 720, width: 1200, height: 80, right: 1200, bottom: 800 };
+
+  it('requires an intrusive positioned strip', () => {
+    const promo = mockNode({
+      tagName: 'DIV',
+      className: '_showOnDesktop_abc',
+      textContent: 'Subscribe for just $1.99',
+      rect
+    });
+    expect(looksLikeBloombergPromo(promo, () => ({ position: 'static' }), viewport)).toBe(false);
+    expect(looksLikeBloombergPromo(promo, () => ({ position: 'sticky' }), viewport)).toBe(true);
   });
 });
 
@@ -59,6 +90,20 @@ describe('findBloombergPromoRoot', () => {
     });
     const span = mockNode({ tagName: 'SPAN', parentElement: anchor });
     const getComputedStyle = () => ({ position: 'static' });
+
+    expect(findBloombergPromoRoot(span, getComputedStyle)?.id).toBe('promo-link');
+  });
+
+  it('does not climb into sticky site navigation', () => {
+    const nav = mockNode({ tagName: 'NAV', id: 'site-nav' });
+    const anchor = mockNode({
+      tagName: 'A',
+      id: 'promo-link',
+      href: '/subscriptions/offer',
+      parentElement: nav
+    });
+    const span = mockNode({ tagName: 'SPAN', parentElement: anchor });
+    const getComputedStyle = (el) => ({ position: el === nav ? 'sticky' : 'static' });
 
     expect(findBloombergPromoRoot(span, getComputedStyle)?.id).toBe('promo-link');
   });
