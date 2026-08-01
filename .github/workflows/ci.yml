@@ -41,6 +41,7 @@ jobs:
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/byebar-ci.pem"
           CHROME_PATH="$(node --input-type=module -e "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())")" \
           BYEBAR_CRX_PRIVATE_KEY="$RUNNER_TEMP/byebar-ci.pem" \
+          BYEBAR_CRX_NO_SANDBOX=1 \
           npm run build:store:crx
       - run: npm run test:e2e
         env:

@@ -56,9 +56,9 @@ const packedPem = `${packRoot}.pem`;
 
 try {
   cpSync(stageDir, packRoot, { recursive: true });
-  execFileSync(chrome, [`--pack-extension=${packRoot}`, `--pack-extension-key=${keyPath}`], {
-    stdio: 'inherit'
-  });
+  const packArgs = [`--pack-extension=${packRoot}`, `--pack-extension-key=${keyPath}`];
+  if (process.env.BYEBAR_CRX_NO_SANDBOX === '1') packArgs.unshift('--no-sandbox');
+  execFileSync(chrome, packArgs, { stdio: 'inherit' });
   if (!existsSync(packedCrx)) throw new Error('pack failed: CRX not produced');
 
   const header = readFileSync(packedCrx);
