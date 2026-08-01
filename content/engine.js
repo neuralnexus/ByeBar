@@ -58,6 +58,7 @@
         if (record.type === 'childList') record.addedNodes.forEach((node) => changed.add(node));
         else changed.add(record.target);
       });
+      if (capture.finishScheduled) applyInteractionCapture(capture);
     });
     capture.observer.observe(document.documentElement, {
       childList: true,
