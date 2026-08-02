@@ -1,33 +1,23 @@
 /**
- * Safari/WebKit selector compatibility for querySelectorAll.
+ * Cached browser adapter around the canonical Safari selector helpers.
  */
 (() => {
-  const BYEBAR = (window.ByeBar = window.ByeBar || {});
-
-  function stripCaseInsensitiveFlag(selector) {
-    return selector.replace(/\s+i\]/g, ']');
-  }
-
+  const BYEBAR = (window.ByeBar ||= {});
+  const safari = BYEBAR.lib.safari;
   let caseInsensitiveSupported;
+
   function supportsCaseInsensitiveSelectors() {
-    if (caseInsensitiveSupported !== undefined) return caseInsensitiveSupported;
-    try {
-      document.querySelector('[class*="byebar-probe" i]');
-      caseInsensitiveSupported = true;
-    } catch {
-      caseInsensitiveSupported = false;
-    }
+    caseInsensitiveSupported ??= safari.isCaseInsensitiveSelectorSupported();
     return caseInsensitiveSupported;
   }
 
   function normalizeSelector(selector) {
-    if (supportsCaseInsensitiveSelectors()) return selector;
-    return stripCaseInsensitiveFlag(selector);
+    return supportsCaseInsensitiveSelectors() ? selector : safari.stripCaseInsensitiveFlag(selector);
   }
 
   BYEBAR.safari = {
     normalizeSelector,
-    stripCaseInsensitiveFlag,
+    stripCaseInsensitiveFlag: safari.stripCaseInsensitiveFlag,
     supportsCaseInsensitiveSelectors
   };
 })();

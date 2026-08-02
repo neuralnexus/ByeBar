@@ -10,50 +10,80 @@
     <header class="brand">
       <img class="logo" src="../icons/icon-48.png" width="40" height="40" alt="" />
       <h1>ByeBar</h1>
-      <p class="tagline">Remove distracting popups and make webpages easier to browse. Not an ad-blocker.</p>
+      <p class="tagline">Remove interruptions without breaking the page behind them.</p>
     </header>
 
     <main class="content">
-      <section class="settings">
+      <p class="status" id="status" aria-live="polite"></p>
+
+      <div class="scope" aria-label="Settings scope">
+        <button type="button" id="scope-site" aria-pressed="true">This site</button>
+        <button type="button" id="scope-global" aria-pressed="false">Global defaults</button>
+      </div>
+
+      <section class="settings" aria-label="ByeBar settings">
         <label class="row row--site">
           <span class="row-copy">
-            <span class="row-title">Enabled on this site</span>
+            <span class="row-title" id="enabled-label">Enabled on this site</span>
             <span class="row-host" id="host-label"></span>
+            <span class="row-source" id="enabled-source"></span>
           </span>
-          <input type="checkbox" id="site-enabled" checked />
+          <input type="checkbox" id="site-enabled" data-setting="enabled" />
         </label>
 
         <label class="row">
-          <span>Block newsletter overlays (all sites)</span>
-          <input type="checkbox" id="generic-blocking" checked />
+          <span class="row-copy">
+            <span class="row-title">Block promotional popups &amp; bars</span>
+            <span class="row-source" id="generic-blocking-source"></span>
+          </span>
+          <input type="checkbox" id="generic-blocking" data-setting="genericBlocking" />
         </label>
 
         <label class="row">
-          <span>Auto-decline cookie banners</span>
-          <input type="checkbox" id="cookie-decline" checked />
+          <span class="row-copy">
+            <span class="row-title">Auto-decline cookie banners</span>
+            <span class="row-source" id="cookie-decline-source"></span>
+          </span>
+          <input type="checkbox" id="cookie-decline" data-setting="cookieDecline" />
         </label>
 
         <label class="row">
-          <span>Auto-accept terms &amp; legal modals</span>
-          <input type="checkbox" id="tos-accept" checked />
+          <span class="row-copy">
+            <span class="row-title">Auto-accept legal dialogs</span>
+            <span class="row-source" id="tos-accept-source"></span>
+          </span>
+          <input type="checkbox" id="tos-accept" data-setting="tosAccept" />
         </label>
 
-        <label class="row">
-          <span>Auto-decline location requests</span>
-          <input type="checkbox" id="location-decline" checked />
-        </label>
-
-        <label class="row">
-          <span>Bypass lead forms</span>
-          <input type="checkbox" id="bypass-lead-forms" checked />
-        </label>
+        <button type="button" class="reset-button" id="reset-site" hidden>Use global defaults</button>
       </section>
 
+      <section class="action-card" aria-labelledby="action-heading">
+        <div>
+          <h2 id="action-heading">Latest page action</h2>
+          <p id="action-summary">No page action yet</p>
+        </div>
+        <button type="button" id="undo-action" disabled>Undo latest hide</button>
+      </section>
+
+      <details class="debug-panel">
+        <summary>Local diagnostics</summary>
+        <label class="debug-toggle">
+          <span>
+            <strong>Debug decisions</strong>
+            <small>Preference stays on this device. Decisions clear on reload.</small>
+          </span>
+          <input type="checkbox" id="debug-enabled" />
+        </label>
+        <ol class="debug-list" id="debug-list"></ol>
+        <button type="button" class="text-button" id="clear-debug" hidden>Clear page decisions</button>
+      </details>
+
       <footer class="footer">
-        <p class="privacy-note">Data stays local</p>
+        <p class="privacy-note">Settings stay on this device. No telemetry.</p>
         <p class="footer-links">
           <a href="#" id="report-bug" target="_blank" rel="noopener noreferrer">Report a bug</a>
-          ·
+          <span aria-hidden="true">·</span>
           <a href="#" id="request-feature" target="_blank" rel="noopener noreferrer">Request a feature</a>
         </p>
         <p class="credit">
@@ -62,7 +92,7 @@
       </footer>
     </main>
 
-    <script src="../shared/settings.js"></script>
+    <script src="../shared/runtime.generated.js"></script>
     <script src="../shared/browser.js"></script>
     <script src="popup.js"></script>
   </body>

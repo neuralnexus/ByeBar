@@ -1,24 +1,23 @@
-import { execSync } from 'node:child_process';
-import { mkdirSync, rmSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
+import JSZip from 'jszip';
+import { projectRoot, stageExtension } from './stage-extension.mjs';
+import { listRegularFiles, validatePackage } from './validate-package.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const distDir = join(root, 'dist');
-const zipPath = join(distDir, 'byebar-chrome.zip');
+const version = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8')).version;
+const distDir = join(projectRoot, 'dist');
+const zipPath = join(distDir, `byebar-chrome-${version}.zip`);
+const stageDir = await stageExtension('chrome');
 
-const include = ['manifest.json', 'icons', 'popup', 'content', 'background', 'shared'];
-
-rmSync(distDir, { recursive: true, force: true });
 mkdirSync(distDir, { recursive: true });
-
-execSync('node scripts/validate-manifest.mjs', { cwd: root, stdio: 'inherit' });
-
-const zipArgs = ['-r', zipPath, ...include, '-x', '**/.DS_Store'];
-execSync(`zip ${zipArgs.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(' ')}`, {
-  cwd: root,
-  stdio: 'inherit',
-  shell: true
-});
+rmSync(zipPath, { force: true });
+const zip = new JSZip();
+for (const file of listRegularFiles(stageDir)) {
+  zip.file(file, readFileSync(join(stageDir, file)), { date: new Date('1980-01-01T00:00:00Z') });
+}
+writeFileSync(zipPath, await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }));
+const sha256 = await validatePackage(zipPath, stageDir);
+writeFileSync(`${zipPath}.sha256`, `${sha256}  ${basename(zipPath)}\n`);
 
 console.log(`chrome web store package: ${zipPath}`);
+console.log(`sha256: ${sha256}`);

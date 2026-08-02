@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Overlay safety</title>
+  </head>
+  <body>
+    <main>
+      <nav id="navigation">Home News Newsletter Account</nav>
+      <form id="inline-newsletter" class="klaviyo-form">
+        <label>Sign up for our newsletter <input type="email" /></label>
+      </form>
+      <section id="paywall" class="paywall">
+        Subscribe to our newsletter to continue reading this article.
+      </section>
+    </main>
+
+    <aside id="promo" class="newsletter-popup">Subscribe to our newsletter</aside>
+    <div id="account" class="fixture-dialog" role="dialog" aria-modal="true">
+      Account settings: Subscribe to our newsletter <button>Close</button>
+    </div>
+    <div id="checkout" class="fixture-dialog" role="dialog" aria-modal="true">
+      Apply discount code and save 20% <button>Close</button>
+    </div>
+    <div id="authentication" class="fixture-dialog" role="dialog" aria-modal="true">
+      Enter your email to continue <button>Close</button>
+    </div>
+    <div id="dormant" class="newsletter-popup" role="dialog" style="display: none">
+      Sign up for our newsletter
+    </div>
+    <div id="offscreen" class="newsletter-popup offscreen">Sign up for our newsletter</div>
+
+    <script>
+      window.fixtureEvents = { functionalClose: 0 };
+      document.querySelectorAll('.fixture-dialog button').forEach((button) => {
+        button.addEventListener('click', () => {
+          window.fixtureEvents.functionalClose += 1;
+        });
+      });
+    </script>
+  </body>
+</html>

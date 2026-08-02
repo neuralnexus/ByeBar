@@ -7,19 +7,22 @@ import {
 } from '../lib/substack-detect.mjs';
 
 describe('isSubstackPageHtml', () => {
-  it('detects substackcdn and publication subdomains', () => {
+  it('detects Substack assets and API metadata', () => {
     expect(
       isSubstackPageHtml(
         '<link rel="preconnect" href="https://substackcdn.com" /><meta content="https://noahpinion.substack.com/api/v1/post_preview/1/twitter.jpg"/>'
       )
     ).toBe(true);
-    expect(isSubstackPageHtml('<a href="https://substack.com/signup">Join</a>')).toBe(true);
+    expect(
+      isSubstackPageHtml('<meta content="https://noahpinion.substack.com/api/v1/post_preview/1/image.jpg">')
+    ).toBe(true);
+    expect(isSubstackPageHtml('<a href="https://substack.com/signup">Join</a>')).toBe(false);
     expect(isSubstackPageHtml('<html><body>Hello world</body></html>')).toBe(false);
   });
 });
 
 describe('isSubstackDom', () => {
-  it('detects substack assets and modal chrome in the DOM', () => {
+  it('detects Substack assets without trusting generic modal classes', () => {
     expect(
       isSubstackDom({
         querySelector(sel) {
@@ -36,7 +39,7 @@ describe('isSubstackDom', () => {
           return null;
         }
       })
-    ).toBe(true);
+    ).toBe(false);
 
     expect(
       isSubstackDom({
@@ -52,15 +55,9 @@ describe('isSubstackSite', () => {
     expect(
       isSubstackSite('noahpinion.blog', { html: '<link href="https://substackcdn.com/main.css">' })
     ).toBe(true);
-    expect(
-      isSubstackSite('noahpinion.blog', {
-        root: {
-          querySelector(sel) {
-            return sel.includes('modalViewer') ? { nodeType: 1 } : null;
-          }
-        }
-      })
-    ).toBe(true);
+    expect(isSubstackSite('example.com', { html: '<a href="https://writer.substack.com">Read</a>' })).toBe(
+      false
+    );
     expect(isSubstackSite('example.com')).toBe(false);
   });
 });

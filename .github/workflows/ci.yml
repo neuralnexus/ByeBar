@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,5 +20,58 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node scripts/generate-icons.mjs
       - run: npm run validate
+
+  browser-packages:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run validate:packages
+      - run: npx playwright install --with-deps chromium
+      - name: Validate CRX packaging
+        shell: bash
+        run: |
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/byebar-ci.pem"
+          CHROME_PATH="$(node --input-type=module -e "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())")" \
+          BYEBAR_CRX_PRIVATE_KEY="$RUNNER_TEMP/byebar-ci.pem" \
+          BYEBAR_CRX_NO_SANDBOX=1 \
+          npm run build:store:crx
+      - run: npm run test:e2e
+        env:
+          BYEBAR_EXTENSION_PATH: ${{ github.workspace }}/dist/stage/chrome
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: browser-packages
+          path: |
+            dist/*.zip
+            dist/*.zip.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-failures
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+
+  safari:
+    needs: validate
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run validate:safari

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mutation burst</title>
+  </head>
+  <body>
+    <main id="single-root"></main>
+    <section id="many-roots"></section>
+    <script>
+      window.sameRootBurst = () => {
+        const root = document.querySelector('#single-root');
+        for (let index = 0; index < 500; index += 1) root.append(document.createElement('span'));
+      };
+      window.manyRootBurst = () => {
+        const container = document.querySelector('#many-roots');
+        for (let index = 0; index < 25; index += 1) {
+          const root = document.createElement('div');
+          container.append(root);
+        }
+        [...container.children].forEach((root) => root.append(document.createElement('span')));
+      };
+    </script>
+  </body>
+</html>

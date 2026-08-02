@@ -7,43 +7,7 @@
 
   BYEBAR.SITE_RULES = {
     chinaCommerce: {
-      hosts: [
-        /\.temu\.com$/i,
-        /^temu\.com$/i,
-        /\.shein\.com$/i,
-        /^shein\.com$/i,
-        /\.aliexpress\.com$/i,
-        /^aliexpress\.com$/i,
-        /\.pinduoduo\.com$/i,
-        /^pinduoduo\.com$/i,
-        /yangkeduo\.com$/i,
-        /\.taobao\.com$/i,
-        /^taobao\.com$/i,
-        /\.tmall\.com$/i,
-        /^tmall\.com$/i,
-        /\.jd\.com$/i,
-        /^jd\.com$/i
-      ],
-      hide: [
-        '.react-responsive-modal-root',
-        '.react-responsive-modal-overlay',
-        '.react-responsive-modal-container',
-        '.c-vue-coupon',
-        '.j-vue-coupon-package-container',
-        '[class*="lottery" i]',
-        '[class*="turntable" i]',
-        '[class*="spin-wheel" i]',
-        '[class*="spinWheel" i]',
-        '[class*="coupon-spin" i]',
-        '[class*="couponSpin" i]',
-        '[class*="lucky-wheel" i]',
-        '[class*="luckyWheel" i]',
-        '[class*="fortune-wheel" i]',
-        '[class*="vue-coupon" i]',
-        '[id*="lottery" i]',
-        '[data-testid*="lottery" i]',
-        '[data-testid*="spin" i]'
-      ],
+      hosts: BYEBAR.lib.constants.CHINA_COMMERCE_HOST_PATTERNS,
       remove: [
         '.react-responsive-modal-root',
         '.react-responsive-modal-overlay',
@@ -66,14 +30,7 @@
       ]
     },
     bloomberg: {
-      hosts: [/\.bloomberg\./i, /^bloomberg\./i],
-      hide: [
-        '#cmp-consent-modal',
-        '[class*="_showOnMobile"]',
-        '[class*="_showOnDesktop"]',
-        'a[href*="/subscriptions"]:has([class*="_showOnMobile"])',
-        'a[href*="/subscriptions"]:has([class*="_showOnDesktop"])'
-      ],
+      hosts: BYEBAR.lib.constants.BLOOMBERG_HOST_PATTERNS,
       remove: [
         '#cmp-consent-modal',
         '[class*="_showOnMobile"]',
@@ -83,30 +40,7 @@
       ]
     },
     substack: {
-      hosts: [/\.substack\.com$/i, /^substack\.com$/i],
-      hide: [
-        '[role="dialog"][aria-label="Subscribe modal"]',
-        '[class*="subscribeDialog"]',
-        '[class*="subscribeModal"]',
-        '[class*="subscribeWidget"]',
-        '[class*="subscribe-widget"]',
-        '.intro-popup',
-        '[class*="intro-popup"]',
-        '[class*="IntroPopup"]',
-        '[data-intro-popup]',
-        '[class*="popup-root"]',
-        '[class*="popupRoot"]',
-        '[class*="signupDialog"]',
-        '[class*="signupPopup"]',
-        '[class*="emailPopup"]',
-        '[class*="subscribe-overlay"]',
-        '[class*="SubscribeOverlay"]',
-        '[class*=" modalViewer"] [class^="background-"]',
-        '[class*=" modalViewer"] [class^="overlay-"]',
-        '[class*="modalScrim"]',
-        '[class*="modal-scrim"]',
-        '[role="dialog"][data-testid="modal"]'
-      ],
+      hosts: BYEBAR.lib.constants.SUBSTACK_HOST_PATTERNS,
       remove: [
         '[role="dialog"][aria-label="Subscribe modal"]',
         '[class*="subscribeDialog"]',
@@ -117,27 +51,17 @@
         '[class*="intro-popup"]',
         '[class*="IntroPopup"]',
         '[data-intro-popup]',
-        '[class*="paywall"]',
-        '[class*="Paywall"]',
-        '[class*="popup-root"]',
-        '[class*="popupRoot"]',
         '[class*="signupDialog"]',
         '[class*="signupPopup"]',
         '[class*="emailPopup"]',
         '[class*="subscribe-overlay"]',
         '[class*="SubscribeOverlay"]',
-        '[class*=" modalViewer"] [class^="background-"]',
-        '[class*=" modalViewer"] [class^="overlay-"]',
-        '[class*="modalScrim"]',
-        '[class*="modal-scrim"]',
-        '[class*="ModalScrim"]',
-        '[role="dialog"][data-testid="modal"]',
-        '[class*="modalViewer"] [id^="radix-"][data-state="open"]:not([role="dialog"])'
+        '[role="dialog"][data-testid="modal"]'
       ]
     }
   };
 
-  // Generic overlay / newsletter / email / discount patterns (inferred defaults).
+  // Candidate selectors only. engine.js still requires promotional text and overlay geometry.
   BYEBAR.GENERIC_HIDE = [
     '[role="dialog"][aria-label*="subscribe" i]',
     '[role="dialog"][aria-label*="newsletter" i]',
@@ -202,22 +126,17 @@
     '[class*="stickyBar" i][class*="email" i]'
   ]);
 
-  // Cookie consent banners / overlays (hidden; cookies.js clicks decline when possible).
+  BYEBAR.CHINA_COMMERCE_TRIGGERS = BYEBAR.SITE_RULES.chinaCommerce.remove.join(',');
+
+  // Known cookie banner roots used to confirm that decline controls are in CMP UI.
   BYEBAR.COOKIE_HIDE = [
     '#onetrust-banner-sdk',
-    '#onetrust-consent-sdk',
-    '#usercentrics-root',
-    '#usercentrics-cmp-ui',
-    'usercentrics-root',
     '[data-testid="uc-banner"]',
     '[data-testid="uc-overlay"]',
     '[data-testid="uc-first-layer"]',
     '.uc-banner-root',
     '.uc-overlay',
-    'iframe[src*="usercentrics.eu" i]',
-    '.ot-sdk-container',
     '#CybotCookiebotDialog',
-    '#CybotCookiebotDialogBody',
     '.qc-cmp2-container',
     '#sp-cc',
     '[id^="sp_message_container"]',
@@ -228,14 +147,13 @@
     '.fc-dialog-container',
     '.fc-dialog-overlay',
     '#iubenda-cs-banner',
-    '[id^="iubenda-cs-"]',
     '#termly-code-snippet-support',
     '[data-termly-modal]',
     '.t-consent-banner',
-    '#lanyard-root',
-    '[id^="ketch-"]',
+    '[id^="ketch-banner"]',
+    '[class*="ketch-banner" i]',
     '#BorlabsCookieBox',
-    '[class*="BorlabsCookie" i]',
+    '.BorlabsCookie',
     '#cmplz-cookiebanner-container',
     '.cmplz-cookiebanner',
     '#moove_gdpr_cookie_info_bar',
@@ -244,7 +162,6 @@
     '#cmpbox',
     '#cmpbox2',
     '.cmpwrapper',
-    '.CybotCookiebotDialogActive',
     'iframe[src*="consent.cookiebot.com" i]',
     'iframe[src*="fundingchoicesmessages.google.com" i]',
     '#cookieConsent',
@@ -266,47 +183,21 @@
     '.cky-consent-container',
     '.cky-banner-element',
     '.cky-overlay',
-    '[class*="cky-consent" i]',
-    '[class*="cky-banner" i]',
     '[data-cky-tag="notice"]',
     '[data-cky-tag="detail"]',
     '[data-cky-tag="optout-popup"]',
-    '[data-cky-tag="revisit-consent"]',
     'iframe[src*="cookieyes.com" i]',
     '#consent_blackbar',
     '#trustarc-banner-overlay',
     '#truste-consent-track',
     '#truste-consent-content',
-    '#truste-consent-text',
-    '#truste-consent-buttons',
-    '#truste_domain_list',
-    '#truste-repop-msg',
-    '#teconsent #truste-consent-track',
-    '#teconsent #trustarc-banner-overlay',
-    '#ccpa-opted-in',
-    '#ccpa-opted-out',
-    '#ccpa-no-preference',
     '.truste-banner',
     '.truste_box',
     '.truste-box',
-    '[class*="truste-consent" i]',
-    '[class*="trustarc" i]',
-    'c4d-legal-nav',
     'iframe[src*="trustarc.com" i]',
     'iframe[src*="consent.trustarc.com" i]',
     'iframe[src*="consent-pref.trustarc.com" i]',
-    '[class*="cookieConsent" i]',
-    '[class*="cookie-consent" i]',
-    '[class*="cookieBanner" i]',
-    '[class*="cookie-banner" i]',
-    '[class*="CookieBanner" i]',
-    '[class*="gdpr" i][class*="banner" i]',
-    '[class*="gdpr" i][class*="modal" i]',
-    '[class*="consent-banner" i]',
-    '[class*="consentBanner" i]',
     '[aria-label*="cookie" i][role="dialog"]',
-    '[aria-label*="consent" i][role="dialog"]',
-    '#didomi-host',
     '#didomi-popup',
     '.didomi-popup-backdrop',
     '.didomi-popup-notice',
@@ -316,53 +207,37 @@
     '.didomi-screen-large',
     '[class*="didomi-consent-popup" i]',
     '[class*="didomi-popup" i]',
-    '[id^="didomi-" i]',
-    'iframe[src*="didomi.io" i]',
-    'iframe[src*="privacy-center.org" i]'
+    'iframe[src*="didomi.io" i]'
   ];
 
   BYEBAR.COOKIE_BANNER_ANCESTORS =
     BYEBAR.COOKIE_HIDE.join(',') +
-    ',[class*="cookie" i],[class*="consent" i],[class*="gdpr" i],[id*="cookie" i],[id*="truste" i],[class*="trustarc" i],[class*="cky-" i],[data-cky-tag],[class*="didomi-" i],[id*="didomi" i],[class*="sp_message" i],[class*="sp_choice" i],[class*="fc-consent" i],[class*="fc-dialog" i],[class*="iubenda" i],[class*="termly" i],[class*="ketch" i],[class*="borlabs" i],[class*="brlbs-" i],[class*="cmplz" i],[class*="moove-gdpr" i],[id^="cmpbox" i],[class*="cybotcookiebot" i],[class*="qc-cmp" i]';
+    ',[data-cky-tag],[class*="sp_message" i],[class*="fc-consent" i],[class*="fc-dialog" i]';
 
   // Known decline / reject buttons (clicked before hide).
   BYEBAR.COOKIE_DECLINE_SELECTORS = [
     '[data-cky-tag="reject-button"]',
     '[data-cky-tag="detail-reject-button"]',
-    '[data-cky-tag="optout-cancel-button"]',
     '#truste-ccpa-optout',
     '#onetrust-reject-all-handler',
-    '#onetrust-pc-btn-handler',
     'button[data-testid="uc-deny-all-button"]',
     'button[data-testid="uc-reject-all-button"]',
     '#uc-deny-all-button',
     '#uc-reject-all-button',
-    '.ot-pc-refuse-all-handler',
     '#CybotCookiebotDialogBodyButtonDecline',
     '#CybotCookiebotDialogBodyLevelButtonLevelOptinDeclineAll',
     'button[data-cookiefirst-action="decline"]',
     'button[data-testid="cookie-decline"]',
-    'button[data-testid="reject-all"]',
     '.qc-cmp2-summary-buttons button[mode="secondary"]',
-    '.qc-cmp2-summary-buttons button:first-of-type',
     '#cookiescript_reject',
     '#cookie_action_close_header_reject',
     '#cookie_action_close_header_decline',
     '.cc-deny',
     '.cc-reject',
-    '.cc-dismiss',
     '.opt-out-button',
     'button.opt-out-button',
     '#truste-consent-required',
-    '#truste-consent-close',
-    '#truste-privacy-button',
     'button.truste-button.opt-out-button',
-    '[class*="reject" i][class*="cookie" i]',
-    '[class*="decline" i][class*="cookie" i]',
-    '[id*="reject" i][id*="cookie" i]',
-    '[id*="decline" i][id*="cookie" i]',
-    '[id*="opt-out" i]',
-    '[id*="optout" i]',
     '#didomi-notice-disagree-button',
     '#btn-toggle-disagree',
     '.didomi-continue-without-agreeing',
@@ -378,10 +253,8 @@
     'button[title="Do not sell or share my personal information"]',
     '.fc-cta-do-not-consent',
     'button.fc-cta-do-not-consent',
-    'button.fc-secondary-button',
     'button.iubenda-cs-reject-btn',
     'button.iub-cmp-reject-btn',
-    '#iubFooterBtn',
     '#ketch-banner-button-secondary',
     'button#ketch-banner-button-secondary',
     '.cmplz-deny',
@@ -389,7 +262,6 @@
     '.brlbs-btn-deny',
     '[class*="brlbs-btn-deny" i]',
     '.moove-gdpr-infobar-reject-btn',
-    'button.cookie-notice__button--dismiss',
     '.cn-reject-cookie',
     '#cmpbox .cmpboxbtnno',
     'a.cmpboxbtnno',
@@ -399,9 +271,6 @@
   // Terms-of-service / legal modals (tos.js clicks accept when possible).
   BYEBAR.TOS_HIDE = [
     '#cmp-consent-modal',
-    '[id^="sp_message_container"]',
-    '.sp_message_container',
-    'iframe[id^="sp_message_iframe"]',
     '[class*="tos-modal" i]',
     '[class*="terms-modal" i]',
     '[class*="TosModal" i]',
@@ -421,46 +290,12 @@
 
   BYEBAR.TOS_ACCEPT_SELECTORS = ['#cmp-consent-button', '#cmp-consent-modal #cmp-consent-button'];
 
-  BYEBAR.TOS_ACCEPT_TEXT = [
-    /^accept$/i,
-    /^i agree$/i,
-    /^agree$/i,
-    /^accept and continue$/i,
-    /^got it$/i,
-    /^ok$/i,
-    /^okay$/i
-  ];
-
-  BYEBAR.COOKIE_DECLINE_TEXT = [
-    /^reject(\s+all)?$/i,
-    /^decline(\s+all)?$/i,
-    /^deny(\s+all)?$/i,
-    /^refuse(\s+all)?$/i,
-    /^opt[-\s]?out$/i,
-    /^do not sell/i,
-    /^required cookies only$/i,
-    /^only\s+(essential|necessary|required)(\s+cookies)?$/i,
-    /^essential\s+only$/i,
-    /^necessary\s+only$/i,
-    /^no\s+thanks$/i,
-    /^dismiss$/i,
-    /^close$/i,
-    /^ablehnen$/i,
-    /^alle ablehnen$/i,
-    /^nur technisch notwendige/i,
-    /^nur erforderliche cookies/i,
-    /^disagree$/i,
-    /^disagree to all$/i,
-    /^refuser$/i,
-    /^tout refuser$/i,
-    /^refuser tout$/i,
-    /^continuer sans accepter$/i,
-    /^je refuse$/i,
-    /^ne pas accepter$/i
-  ];
+  BYEBAR.TOS_ACCEPT_TEXT = BYEBAR.lib.constants.TOS_ACCEPT_TEXT;
+  BYEBAR.COOKIE_DECLINE_TEXT = BYEBAR.lib.constants.COOKIE_DECLINE_TEXT;
 
   BYEBAR.isSubstack = () => BYEBAR.substackDetect.detectSubstackPage();
-  BYEBAR.isSubstack();
 
   BYEBAR.isBloomberg = () => BYEBAR.SITE_RULES.bloomberg.hosts.some((re) => re.test(location.hostname));
+  BYEBAR.isChinaCommerce = () =>
+    BYEBAR.SITE_RULES.chinaCommerce.hosts.some((re) => re.test(location.hostname));
 })();

@@ -16,7 +16,7 @@
 
     <main>
       <section class="card">
-        <p><strong>Last updated:</strong> July 5, 2026</p>
+        <p><strong>Last updated:</strong> July 30, 2026</p>
         <p>
           ByeBar is built by Matt Ivan. This policy describes how the extension handles information on your
           device.
@@ -26,33 +26,38 @@
       <section class="card">
         <h2>Summary</h2>
         <p>
-          <strong>Data stays local.</strong> ByeBar does not collect, transmit, or sell your personal data.
-          There is no telemetry.
+          <strong>Nothing is sent to ByeBar.</strong> ByeBar does not collect, transmit to the developer, or
+          sell your personal data. There is no telemetry.
         </p>
       </section>
 
       <section class="card">
         <h2>What is stored on your device</h2>
         <p>
-          ByeBar saves extension settings using the browser&apos;s built-in storage API (`storage.sync`, with
-          a fallback to `storage.local` on Safari). This includes:
+          ByeBar saves settings using the browser&apos;s device-local extension storage API. This includes:
         </p>
         <ul class="features">
-          <li>Whether blocking is enabled globally and per site</li>
-          <li>Your toggle preferences (cookie decline, newsletter overlays, etc.)</li>
+          <li>Whether blocking is enabled globally or overridden for a site</li>
+          <li>
+            Per-site feature overrides for cookie decline, newsletter overlays, and optional legal dialogs
+          </li>
         </ul>
         <p>
-          Settings stay on your device and sync only through your browser vendor&apos;s extension sync, if you
-          use it.
+          Settings, including browsing hostnames used for site overrides, are not placed in browser sync. The
+          Local diagnostics preference also stays in device-local extension storage. When diagnostics are
+          enabled, up to 100 rule/result decisions are kept only in the current page&apos;s memory. They
+          contain no page text, are never sent to the developer, and clear on reload, when diagnostics are
+          disabled, or when you clear them.
         </p>
       </section>
 
       <section class="card">
         <h2>What ByeBar does on web pages</h2>
         <p>
-          ByeBar runs content scripts on pages you visit to hide or remove intrusive overlays and to click
-          decline/accept buttons when you have those options enabled. It does not read page content for
-          analytics, does not intercept network traffic, and does not block ads.
+          ByeBar runs content scripts in eligible top-level pages to hide intrusive overlays and to click
+          confirmed decline/accept buttons when you have those options enabled. Embedded frame contents are
+          not processed. It evaluates limited page text locally to recognize an overlay, but does not store
+          that text, use it for analytics, intercept network traffic, or block ads.
         </p>
       </section>
 
@@ -60,7 +65,10 @@
         <h2>Third parties</h2>
         <p>
           ByeBar does not embed third-party analytics or advertising SDKs. Optional links in the popup (for
-          example, filing a GitHub issue) open only when you click them.
+          example, filing a GitHub issue) open only when you click them and do not include the active site.
+          The public website is hosted on GitHub Pages. Cloudflare may provide DNS/proxying and site-delivery
+          analytics when enabled; those services are separate from the extension and never run in extension
+          pages.
         </p>
       </section>
 

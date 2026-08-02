@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Settings restoration</title>
+  </head>
+  <body>
+    <main><button id="before">Before popup</button></main>
+    <aside id="restorable" class="newsletter-popup" style="display: block">Subscribe to our newsletter</aside>
+    <section class="cookie-banner" style="position: fixed; right: 0; bottom: 0; width: 300px; height: 80px">
+      We use cookies. <button data-testid="cookie-decline">Reject all</button>
+    </section>
+    <script>
+      document.querySelector('.cookie-banner button').addEventListener('click', () => {
+        document.querySelector('.cookie-banner').remove();
+      });
+    </script>
+  </body>
+</html>

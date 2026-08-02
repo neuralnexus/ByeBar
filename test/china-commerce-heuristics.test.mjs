@@ -3,6 +3,7 @@ import {
   findSpinnerRoot,
   hasSpinnerClassHint,
   isChinaCommerceHost,
+  looksLikeSpinnerOverlay,
   matchesSpinnerText
 } from '../lib/china-commerce-heuristics.mjs';
 
@@ -20,6 +21,9 @@ function mockNode({ tagName = 'DIV', id = '', className = '', role = '', parentE
     getAttribute(name) {
       if (name === 'role') return role;
       return null;
+    },
+    getBoundingClientRect() {
+      return { width: 400, height: 300 };
     },
     textContent: ''
   };
@@ -51,6 +55,19 @@ describe('hasSpinnerClassHint', () => {
   });
 });
 
+describe('looksLikeSpinnerOverlay', () => {
+  it('requires overlay geometry in addition to spinner content', () => {
+    const section = mockNode({ className: 'lottery-products' });
+    section.textContent = 'Spin to win your coupon';
+
+    expect(looksLikeSpinnerOverlay(section, () => ({ position: 'static' }))).toBe(false);
+    expect(looksLikeSpinnerOverlay(section, () => ({ position: 'fixed', zIndex: '200' }))).toBe(true);
+    expect(
+      looksLikeSpinnerOverlay(section, () => ({ position: 'fixed', zIndex: '200', display: 'none' }))
+    ).toBe(false);
+  });
+});
+
 describe('findSpinnerRoot', () => {
   it('prefers react-responsive-modal roots', () => {
     const modal = mockNode({
@@ -64,6 +81,7 @@ describe('findSpinnerRoot', () => {
       parentElement: modal
     });
     inner.textContent = 'Spin to win your coupon';
+    modal.textContent = inner.textContent;
 
     expect(findSpinnerRoot(inner, () => ({ position: 'static' }))).toBe(modal);
   });

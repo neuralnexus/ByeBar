@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Legal dialog safety</title>
+  </head>
+  <body>
+    <section
+      id="visible-tos"
+      class="tos-modal"
+      role="dialog"
+      style="position: fixed; width: 400px; height: 160px"
+    >
+      We updated our terms of service. <button>I agree</button>
+    </section>
+    <div style="opacity: 0">
+      <section
+        id="transparent-tos"
+        class="tos-modal"
+        role="dialog"
+        style="position: fixed; width: 400px; height: 160px"
+      >
+        We updated our terms of service. <button>I agree</button>
+      </section>
+    </div>
+    <script>
+      window.fixtureEvents = { visible: 0, transparent: 0 };
+      document.querySelector('#visible-tos button').addEventListener('click', () => {
+        window.fixtureEvents.visible++;
+        document.querySelector('#visible-tos').remove();
+      });
+      document
+        .querySelector('#transparent-tos button')
+        .addEventListener('click', () => window.fixtureEvents.transparent++);
+    </script>
+  </body>
+</html>

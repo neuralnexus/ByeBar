@@ -1,9 +1,18 @@
 {
   "name": "byebar",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "private": true,
   "description": "ByeBar; Overlay & Popup Blocker (Chrome, Firefox, Safari)",
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "overrides": {
+    "adm-zip": "0.6.0",
+    "multimatch": "8.0.0",
+    "postcss": "8.5.25",
+    "shell-quote": "1.10.0"
+  },
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -11,18 +20,35 @@
     "format:check": "prettier --check .",
     "test": "vitest",
     "test:run": "vitest run",
-    "validate": "node scripts/validate-manifest.mjs && npm run lint && npm run format:check && npm run test:run",
+    "test:e2e": "npm run build:runtime && npm run icons && npm run stage:chrome && playwright test",
+    "test:e2e:headed": "npm run build:runtime && npm run icons && npm run stage:chrome && playwright test --headed",
+    "build:runtime": "node scripts/build-runtime.mjs",
+    "check:generated": "node scripts/build-runtime.mjs --check",
+    "validate:source": "node scripts/validate-manifest.mjs && npm run lint && npm run format:check && npm run test:run",
+    "validate": "npm run check:generated && npm run check:icons && npm run validate:source",
+    "stage:chrome": "node scripts/stage-extension.mjs chrome",
+    "stage:firefox": "node scripts/stage-extension.mjs firefox",
+    "stage:safari": "node scripts/stage-extension.mjs safari",
+    "lint:firefox": "npm run build:runtime && npm run icons && node scripts/lint-firefox.mjs",
+    "build:firefox": "npm run build:runtime && npm run icons && node scripts/build-firefox.mjs",
     "build:safari": "bash scripts/build-safari.sh",
+    "validate:safari": "BYEBAR_SAFARI_VALIDATE=1 bash scripts/build-safari.sh",
     "icons": "node scripts/generate-icons.mjs",
-    "build:store": "node scripts/generate-icons.mjs && node scripts/build-chrome-store.mjs",
-    "build:store:crx": "node scripts/generate-icons.mjs && node scripts/build-chrome-crx.mjs"
+    "check:icons": "node scripts/generate-icons.mjs --check",
+    "build:store": "npm run build:runtime && node scripts/generate-icons.mjs && node scripts/build-chrome-store.mjs",
+    "build:store:crx": "npm run build:runtime && node scripts/generate-icons.mjs && node scripts/build-chrome-crx.mjs",
+    "validate:packages": "npm run build:store && npm run build:firefox"
   },
   "devDependencies": {
-    "@eslint/js": "^9.22.0",
-    "eslint": "^9.22.0",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.1",
+    "esbuild": "0.28.1",
+    "eslint": "10.8.0",
     "globals": "^16.0.0",
+    "jszip": "3.10.1",
     "prettier": "^3.5.3",
     "sharp": "^0.35.3",
-    "vitest": "^3.0.8"
+    "vitest": "^3.0.8",
+    "web-ext": "10.5.0"
   }
 }
