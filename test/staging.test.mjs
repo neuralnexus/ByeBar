@@ -5,11 +5,17 @@ import { createTargetManifest } from '../scripts/stage-extension.mjs';
 const source = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
 
 describe('target manifests', () => {
+  function expectIconsPreserved(manifest) {
+    expect(manifest.icons).toEqual(source.icons);
+    expect(manifest.action.default_icon).toEqual(source.action.default_icon);
+  }
+
   it('creates a Chrome-only service worker manifest', () => {
     const manifest = createTargetManifest(source, 'chrome');
     expect(manifest.background).toEqual({ service_worker: 'background/service-worker.js' });
     expect(manifest.minimum_chrome_version).toBe('109');
     expect(manifest).not.toHaveProperty('browser_specific_settings');
+    expectIconsPreserved(manifest);
   });
 
   it('creates an ordered Firefox background-script fallback', () => {
@@ -21,6 +27,7 @@ describe('target manifests', () => {
       gecko: source.browser_specific_settings.gecko
     });
     expect(manifest).not.toHaveProperty('minimum_chrome_version');
+    expectIconsPreserved(manifest);
   });
 
   it('creates a Safari-only service worker manifest', () => {
@@ -30,5 +37,6 @@ describe('target manifests', () => {
       safari: source.browser_specific_settings.safari
     });
     expect(manifest).not.toHaveProperty('minimum_chrome_version');
+    expectIconsPreserved(manifest);
   });
 });

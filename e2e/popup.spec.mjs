@@ -219,3 +219,41 @@ test('refreshes stale decisions before clearing the current page', async ({
   await expect(popup.locator('#debug-list li')).toHaveCount(0);
   await expect(popup.locator('#clear-debug')).toBeHidden();
 });
+
+test('sweeps CSS-only page changes after refreshing a stale document', async ({
+  page,
+  context,
+  serviceWorker,
+  extensionId
+}) => {
+  await page.goto('/sweep.html');
+  const fixtureTabId = await serviceWorker.evaluate(async () => {
+    const tabs = await chrome.tabs.query({});
+    return tabs.find((tab) => tab.url?.includes('sweep.html'))?.id;
+  });
+  const popup = await context.newPage();
+  await serviceWorker.evaluate((tabId) => chrome.tabs.update(tabId, { active: true }), fixtureTabId);
+  await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+  await expect(popup.locator('#sweep-page')).toBeEnabled();
+
+  await page.reload();
+  await page.waitForTimeout(8500);
+  expect(await page.evaluate(() => window.revealSweepTargetViaCssom())).toBe(0);
+  const target = page.locator('#sweep-target');
+  await expect(target).toBeVisible();
+  await expect(target).not.toHaveAttribute('data-byebar-hidden', /.+/);
+
+  await popup.locator('#sweep-page').click();
+  await expect(popup.locator('#status')).toContainText('Page changed; sweep state refreshed');
+  await expect(target).toBeVisible();
+
+  await popup.locator('#sweep-page').click();
+  await expect(popup.locator('#status')).toContainText('Sweep complete');
+  await expect(target).toHaveAttribute('data-byebar-hidden', /generic/);
+  await expect(popup.locator('#action-summary')).toContainText('Hidden intrusive page elements');
+  await expect(popup.locator('#undo-action')).toBeEnabled();
+
+  await popup.locator('#undo-action').click();
+  await expect(target).not.toHaveAttribute('data-byebar-hidden', /.+/);
+  await expect(target).toBeVisible();
+});

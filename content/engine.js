@@ -597,6 +597,11 @@
     return settings;
   }
 
+  async function sweepPage() {
+    await loadSettings();
+    return { ...resolved.effective };
+  }
+
   onStorageChanged((changes) => {
     const relevantKeys = new Set([
       ...BYEBAR.settings.GLOBAL_BOOLEAN_KEYS,
@@ -614,6 +619,7 @@
 
   BYEBAR.engine = {
     loadSettings,
+    sweepPage,
     applySettings,
     nukeAll,
     siteEnabled,

@@ -60,7 +60,7 @@ function loadEngine(storageGet) {
     console
   });
   vm.runInContext(source, context);
-  return { engine: ByeBar.engine, listeners, cookies };
+  return { engine: ByeBar.engine, listeners, cookies, storageGet: ByeBar.browser.storageGet };
 }
 
 describe('content settings state', () => {
@@ -84,5 +84,26 @@ describe('content settings state', () => {
 
     expect(engine.settings.cookieDecline).toBe(false);
     expect(cookies.decline).not.toHaveBeenCalled();
+  });
+
+  it('refreshes settings and returns effective state for a manual sweep', async () => {
+    let stored = {
+      ...settings.DEFAULT_SETTINGS,
+      genericBlocking: false,
+      cookieDecline: false,
+      tosAccept: false
+    };
+    const { engine, cookies, storageGet } = loadEngine(async () => ({ ...stored }));
+    await engine.loadSettings();
+    stored = { ...stored, cookieDecline: true };
+
+    await expect(engine.sweepPage()).resolves.toEqual({
+      enabled: true,
+      genericBlocking: false,
+      cookieDecline: true,
+      tosAccept: false
+    });
+    expect(storageGet).toHaveBeenCalledTimes(2);
+    expect(cookies.decline).toHaveBeenCalledOnce();
   });
 });

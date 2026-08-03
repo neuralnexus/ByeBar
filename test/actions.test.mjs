@@ -29,7 +29,8 @@ function loadActions(localGet = async (defaults) => defaults) {
     addEventListener: vi.fn(),
     querySelector: () => null
   };
-  const ByeBar = { browser, visibility, lib: { constants: { MESSAGE_PROTOCOL_VERSION } } };
+  const engine = { sweepPage: vi.fn(async () => ({ enabled: true })) };
+  const ByeBar = { browser, engine, visibility, lib: { constants: { MESSAGE_PROTOCOL_VERSION } } };
   const window = { ByeBar };
   const context = vm.createContext({
     window,
@@ -40,7 +41,7 @@ function loadActions(localGet = async (defaults) => defaults) {
     console
   });
   vm.runInContext(source, context);
-  return { actions: ByeBar.actions, listeners };
+  return { actions: ByeBar.actions, engine, listeners };
 }
 
 describe('page action state', () => {
@@ -85,5 +86,49 @@ describe('page action state', () => {
         expect.objectContaining({ ok: false, error: expect.objectContaining({ code: 'unknown-message' }) })
       )
     );
+  });
+
+  it('rejects stale sweeps before scanning and returns the current sweep result', async () => {
+    const { actions, engine, listeners } = loadActions();
+    await actions.ready;
+
+    const staleResponse = vi.fn();
+    listeners.message(
+      {
+        protocol: MESSAGE_PROTOCOL_VERSION,
+        type: 'byebar.page.sweep',
+        documentId: 'old-document'
+      },
+      {},
+      staleResponse
+    );
+    await vi.waitFor(() =>
+      expect(staleResponse).toHaveBeenCalledWith(
+        expect.objectContaining({ ok: false, error: { code: 'stale-document' } })
+      )
+    );
+    expect(engine.sweepPage).not.toHaveBeenCalled();
+
+    const currentResponse = vi.fn();
+    listeners.message(
+      {
+        protocol: MESSAGE_PROTOCOL_VERSION,
+        type: 'byebar.page.sweep',
+        documentId: 'document-id'
+      },
+      {},
+      currentResponse
+    );
+    await vi.waitFor(() =>
+      expect(currentResponse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ok: true,
+          documentId: 'document-id',
+          capabilities: ['sweep'],
+          sweep: { effective: { enabled: true } }
+        })
+      )
+    );
+    expect(engine.sweepPage).toHaveBeenCalledOnce();
   });
 });

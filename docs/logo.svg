@@ -1,11 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="ByeBar">
-  <rect width="128" height="128" rx="26" fill="#FFFFFF" />
-  <g transform="translate(66 72)">
-    <rect x="-28" y="-10" width="56" height="28" rx="14" fill="#00BFA5" />
-    <ellipse cx="-22" cy="2" rx="11" ry="10" fill="#00BFA5" />
-    <rect x="-17" y="-42" width="10" height="32" rx="5" fill="#00BFA5" />
-    <rect x="-5" y="-48" width="10" height="38" rx="5" fill="#00BFA5" />
-    <rect x="7" y="-44" width="10" height="34" rx="5" fill="#00BFA5" />
-    <rect x="18" y="-36" width="9" height="24" rx="4.5" fill="#00BFA5" />
-  </g>
+  <defs>
+    <linearGradient id="bg" x1="18" y1="13" x2="112" y2="119" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B6B61" />
+      <stop offset="1" stop-color="#052F2D" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="30" fill="url(#bg)" />
+  <rect x="24" y="24" width="80" height="80" rx="20" fill="#F5F0DC" />
+  <circle cx="38" cy="36" r="3.5" fill="#FF7358" />
+  <circle cx="49" cy="36" r="3.5" fill="#F4C96B" />
+  <circle cx="60" cy="36" r="3.5" fill="#45D7B5" />
+  <rect x="32" y="46" width="64" height="50" rx="12" fill="#0A514C" />
+  <path d="M42 62H98" fill="none" stroke="#FF7358" stroke-width="11" stroke-linecap="round" />
+  <path
+    d="M88 52L103 62L88 72"
+    fill="none"
+    stroke="#FF7358"
+    stroke-width="9"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path d="M42 82H69" fill="none" stroke="#45D7B5" stroke-width="9" stroke-linecap="round" />
 </svg>

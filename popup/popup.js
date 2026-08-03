@@ -22,9 +22,12 @@ const FEATURE_ROWS = {
 
 const scopeSiteEl = document.getElementById('scope-site');
 const scopeGlobalEl = document.getElementById('scope-global');
+const siteStateEl = document.getElementById('site-state');
+const siteStateLabelEl = document.getElementById('site-state-label');
 const enabledLabelEl = document.getElementById('enabled-label');
 const hostLabelEl = document.getElementById('host-label');
 const resetSiteEl = document.getElementById('reset-site');
+const sweepPageEl = document.getElementById('sweep-page');
 const actionSummaryEl = document.getElementById('action-summary');
 const undoActionEl = document.getElementById('undo-action');
 const debugEnabledEl = document.getElementById('debug-enabled');
@@ -40,6 +43,7 @@ let tabId = null;
 let settingsState = null;
 let pageState = null;
 let pending = false;
+let initializationState = 'loading';
 
 function setStatus(message = '', isError = false) {
   statusEl.textContent = message;
@@ -78,6 +82,26 @@ function renderScope() {
   enabledLabelEl.textContent = scope === 'site' ? 'Enabled on this site' : 'Enabled globally';
   hostLabelEl.textContent =
     scope === 'site' ? host || 'Unavailable on this page' : 'Used unless a site overrides it';
+}
+
+function renderSiteState() {
+  let state = 'loading';
+  let label = 'Checking';
+  if (!settingsState && initializationState !== 'loading') {
+    state = 'unavailable';
+    label = initializationState === 'error' ? 'Error' : 'Verify';
+  } else if (settingsState && (!host || !pageState)) {
+    state = 'unavailable';
+    label = 'No access';
+  } else if (settingsState?.site?.effective.enabled) {
+    state = 'ready';
+    label = 'Ready';
+  } else if (settingsState) {
+    state = 'paused';
+    label = 'Paused';
+  }
+  siteStateEl.dataset.state = state;
+  siteStateLabelEl.textContent = label;
 }
 
 function renderSettings() {
@@ -119,8 +143,11 @@ function actionCopy(action) {
 function renderPageState() {
   const action = pageState?.lastAction || null;
   const undoAction = pageState?.undoAction || null;
+  const supportsSweep = pageState?.capabilities?.includes('sweep') === true;
   actionSummaryEl.textContent = pageState ? actionCopy(action) : 'Unavailable on this page';
   undoActionEl.disabled = pending || !undoAction?.canUndo;
+  sweepPageEl.disabled = pending || tabId === null || !supportsSweep;
+  sweepPageEl.title = pageState && !supportsSweep ? 'Reload this page to use Sweep' : '';
   debugListEl.replaceChildren();
   const decisions = pageState?.decisions || [];
   decisions.forEach((decision) => {
@@ -137,6 +164,7 @@ function renderPageState() {
 }
 
 function render() {
+  renderSiteState();
   renderScope();
   renderSettings();
   debugEnabledEl.checked = Boolean(settingsState?.debugEnabled);
@@ -242,6 +270,18 @@ async function refreshPageState() {
   }
 }
 
+async function recoverActiveState() {
+  try {
+    const current = await readActiveContext();
+    if (current.tabId !== tabId || current.host !== host) await loadActiveContext(current);
+    else await refreshPageState();
+    return Boolean(pageState);
+  } catch {
+    pageState = null;
+    return false;
+  }
+}
+
 async function updateSetting(key, value) {
   setPending(true);
   setStatus('Saving…');
@@ -300,6 +340,47 @@ resetSiteEl.addEventListener('click', async () => {
     setStatus(response.reconciled ? 'Global defaults verified' : 'Using global defaults');
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setPending(false);
+    render();
+  }
+});
+
+sweepPageEl.addEventListener('click', async () => {
+  if (!pageState || tabId === null) return;
+  setPending(true);
+  setStatus('Sweeping this page...');
+  let attemptedDocumentId = '';
+  let requestAttempted = false;
+  try {
+    if (!(await confirmActiveContext())) return;
+    if (!pageState || tabId === null) return;
+    attemptedDocumentId = pageState.documentId;
+    requestAttempted = true;
+    const response = await requestPage({
+      type: 'byebar.page.sweep',
+      documentId: pageState.documentId
+    });
+    pageState = response;
+    if (!response.sweep?.effective?.enabled) setStatus('ByeBar is paused on this page');
+    else setStatus('Sweep complete');
+  } catch (error) {
+    const recovered = await recoverActiveState();
+    if (!requestAttempted) setStatus(error.message, true);
+    else if (error.code === 'stale-document') {
+      setStatus(
+        recovered ? 'Page changed; sweep state refreshed' : 'Page changed; current state unavailable',
+        true
+      );
+    } else if (error.code === 'unknown-message') setStatus('Reload this page to use Sweep', true);
+    else if (error.isTransportError) {
+      const documentChanged = Boolean(pageState?.documentId) && pageState.documentId !== attemptedDocumentId;
+      if (documentChanged) setStatus('Page changed during Sweep; the action may already have run', true);
+      else if (!recovered) setStatus('Sweep status unknown; page state unavailable', true);
+      else setStatus('Sweep status unknown; review the latest action', true);
+    } else {
+      setStatus(error.message, true);
+    }
   } finally {
     setPending(false);
     render();
@@ -374,7 +455,9 @@ async function init() {
   setPending(true);
   try {
     await loadActiveContext(await readActiveContext(), true);
+    initializationState = 'ready';
   } catch (error) {
+    initializationState = 'error';
     setStatus(error.message, true);
   } finally {
     setPending(false);

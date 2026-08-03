@@ -185,6 +185,7 @@
     return {
       ok: true,
       documentId,
+      capabilities: ['sweep'],
       lastAction: action,
       undoAction,
       debugEnabled,
@@ -212,6 +213,15 @@
     return pageState();
   }
 
+  async function sweep(message) {
+    if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    const effective = await BYEBAR.engine.sweepPage();
+    return {
+      ...pageState(),
+      sweep: { effective }
+    };
+  }
+
   BYEBAR.browser.onStorageChanged((changes, area) => {
     if (area !== 'local' || !changes[DEBUG_KEY]) return;
     debugGeneration += 1;
@@ -236,9 +246,10 @@
       return;
     }
     void ready
-      .then(() => {
+      .then(async () => {
         if (message.type === 'byebar.page.getState') sendResponse(pageState());
         else if (message.type === 'byebar.page.undo') sendResponse(undo(message));
+        else if (message.type === 'byebar.page.sweep') sendResponse(await sweep(message));
         else if (message.type === 'byebar.page.debug.clear') {
           if (message.documentId !== documentId)
             sendResponse({ ok: false, error: { code: 'stale-document' } });
