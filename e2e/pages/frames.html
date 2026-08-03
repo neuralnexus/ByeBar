@@ -8,6 +8,9 @@
   <body>
     <aside id="top-promo" class="newsletter-popup">Subscribe to our newsletter</aside>
     <iframe id="same-frame" src="/frame-child.html"></iframe>
-    <iframe id="cross-frame" src="http://localhost:43117/frame-child.html"></iframe>
+    <iframe id="cross-frame"></iframe>
+    <script>
+      document.querySelector('#cross-frame').src = `http://localhost:${location.port}/frame-child.html`;
+    </script>
   </body>
 </html>

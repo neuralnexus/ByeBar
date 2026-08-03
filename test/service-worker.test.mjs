@@ -242,6 +242,49 @@ describe('service worker mutation queue', () => {
     expect((await second.response).ok).toBe(true);
     expect(worker.syncStore).toMatchObject({ enabled: true, genericBlocking: false });
   });
+
+  it('serializes diagnostics writes in request order', async () => {
+    let releaseFirst;
+    const firstWrite = new Promise((resolve) => {
+      releaseFirst = resolve;
+    });
+    let writes = 0;
+    const worker = loadWorker({
+      localSet: async () => {
+        writes += 1;
+        if (writes === 1) await firstWrite;
+      }
+    });
+
+    const first = worker.dispatch(request('byebar.debug.set', { enabled: true }));
+    const second = worker.dispatch(request('byebar.debug.set', { enabled: false }));
+    await vi.waitFor(() => expect(worker.browser.localSet).toHaveBeenCalledOnce());
+    expect(worker.browser.storageGet).toHaveBeenCalledOnce();
+
+    releaseFirst();
+    expect((await first.response).state.debugEnabled).toBe(true);
+    expect((await second.response).state.debugEnabled).toBe(false);
+    expect(worker.localStore['byebar.debug'].enabled).toBe(false);
+  });
+
+  it('orders settings reads behind pending mutations', async () => {
+    let releaseWrite;
+    const pendingWrite = new Promise((resolve) => {
+      releaseWrite = resolve;
+    });
+    const worker = loadWorker({ storageSet: async () => pendingWrite });
+
+    const update = worker.dispatch(
+      request('byebar.settings.update', { scope: 'global', key: 'enabled', value: false })
+    );
+    await vi.waitFor(() => expect(worker.browser.storageSet).toHaveBeenCalledOnce());
+    const read = worker.dispatch(request('byebar.settings.get'));
+    expect(worker.browser.storageGet).toHaveBeenCalledOnce();
+
+    releaseWrite();
+    expect((await update.response).state.global.enabled).toBe(false);
+    expect((await read.response).state.global.enabled).toBe(false);
+  });
 });
 
 describe('service worker migration and failures', () => {

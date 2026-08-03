@@ -8,7 +8,11 @@ import {
   normalizeHost,
   siteEnabledForHost
 } from '../lib/host.mjs';
-import { DEFAULT_SETTINGS } from '../lib/constants.mjs';
+import {
+  BLOOMBERG_HOST_PATTERNS,
+  CHINA_COMMERCE_HOST_PATTERNS,
+  DEFAULT_SETTINGS
+} from '../lib/constants.mjs';
 
 describe('hostKey', () => {
   it('strips www prefix', () => {
@@ -46,6 +50,18 @@ describe('isSubstackSite', () => {
 describe('normalizeHost', () => {
   it('parses urls', () => {
     expect(normalizeHost('https://www.ibm.com/path')).toBe('ibm.com');
+  });
+});
+
+describe('site-specific host patterns', () => {
+  const matches = (patterns, host) => patterns.some((pattern) => pattern.test(host));
+
+  it('requires real Bloomberg and Yangkeduo domain boundaries', () => {
+    expect(matches(BLOOMBERG_HOST_PATTERNS, 'www.bloomberg.com')).toBe(true);
+    expect(matches(BLOOMBERG_HOST_PATTERNS, 'bloomberg.co.jp')).toBe(true);
+    expect(matches(BLOOMBERG_HOST_PATTERNS, 'bloomberg.com.evil')).toBe(false);
+    expect(matches(CHINA_COMMERCE_HOST_PATTERNS, 'm.yangkeduo.com')).toBe(true);
+    expect(matches(CHINA_COMMERCE_HOST_PATTERNS, 'notyangkeduo.com')).toBe(false);
   });
 });
 

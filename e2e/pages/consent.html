@@ -19,6 +19,8 @@
   <body>
     <main>
       <button id="outside" data-testid="cookie-decline">Reject outside banner</button>
+      <button id="open-user-cookie">Privacy choices</button>
+      <shadow-cookie></shadow-cookie>
     </main>
     <section id="visible-banner" class="cookie-banner">
       We use cookies. <button id="visible-reject" data-testid="cookie-decline">Reject all</button>
@@ -40,7 +42,34 @@
       </section>
     </div>
     <script>
-      window.fixtureEvents = { visibleReject: 0, hiddenReject: 0, accept: 0, outside: 0 };
+      window.fixtureEvents = {
+        visibleReject: 0,
+        hiddenReject: 0,
+        accept: 0,
+        outside: 0,
+        userOpened: 0,
+        shadowUserOpened: 0
+      };
+      customElements.define(
+        'shadow-cookie',
+        class extends HTMLElement {
+          connectedCallback() {
+            const root = this.attachShadow({ mode: 'open' });
+            root.innerHTML = `
+              <button id="open-shadow-cookie">Shadow privacy choices</button>
+              <section id="shadow-policy" class="shell">
+                We use cookies. <button data-testid="cookie-decline">Reject all</button>
+              </section>
+            `;
+            root.querySelector('#open-shadow-cookie').addEventListener('click', () => {
+              root.querySelector('#shadow-policy').setAttribute('data-cky-tag', 'notice');
+            });
+            root
+              .querySelector('[data-testid="cookie-decline"]')
+              .addEventListener('click', () => window.fixtureEvents.shadowUserOpened++);
+          }
+        }
+      );
       document
         .querySelector('#visible-reject')
         .addEventListener('click', () => window.fixtureEvents.visibleReject++);
@@ -51,6 +80,14 @@
         .querySelector('#visible-accept')
         .addEventListener('click', () => window.fixtureEvents.accept++);
       document.querySelector('#outside').addEventListener('click', () => window.fixtureEvents.outside++);
+      document.querySelector('#open-user-cookie').addEventListener('click', () => {
+        const banner = document.createElement('section');
+        banner.id = 'user-cookie';
+        banner.className = 'cookie-banner';
+        banner.innerHTML = 'We use cookies. <button data-testid="cookie-decline">Reject all</button>';
+        banner.querySelector('button').addEventListener('click', () => window.fixtureEvents.userOpened++);
+        document.body.append(banner);
+      });
       document
         .querySelectorAll(
           '#hidden-banner button, #offscreen-banner button, #aria-hidden-banner button, #transparent-banner button'

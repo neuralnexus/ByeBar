@@ -11,6 +11,7 @@ test('blocks only visible intrusive promotional chrome', async ({ page }) => {
     '#account',
     '#checkout',
     '#authentication',
+    '#sign-in',
     '#dormant',
     '#offscreen'
   ]) {

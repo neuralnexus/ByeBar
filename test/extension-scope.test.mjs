@@ -57,11 +57,14 @@ describe('extension scope', () => {
     expect(engine).toContain('userAllowed.add(candidate)');
   });
 
-  it('uses reversible inline hiding for open shadow roots', () => {
+  it('uses bounded reversible inline hiding across roots', () => {
     const visibility = readProjectFile('content/visibility.js');
-    expect(visibility).toContain('root.nodeType !== 11');
-    expect(visibility).toContain("setProperty('display', 'none', 'important')");
-    expect(visibility).toContain('restoreShadowDisplay(el)');
+    expect(visibility).toContain('hiddenDisplayVariable');
+    expect(visibility).toContain("setProperty(hiddenDisplayVariable, 'none', 'important')");
+    expect(visibility).toContain("setProperty('display', hiddenDisplayValue, 'important')");
+    expect(visibility).toContain('maxDisplayRetries');
+    expect(visibility).toContain('disconnectedGraceMs');
+    expect(visibility).toContain('restoreInlineDisplay(el)');
     expect(visibility).toContain('ensureHidden');
   });
 

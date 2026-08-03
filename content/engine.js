@@ -16,41 +16,104 @@
   let shadowScanTimer = null;
   let pending = false;
   let interactionCapture = null;
+  const activePointers = new Set();
+  const activeKeys = new Set();
+  let settingsGeneration = 0;
+  let settingsLoaded = false;
   const metrics = { mutationFlushes: 0, mutationRoots: 0 };
 
   const genericCandidateSelector = ['[role="dialog"]', '[aria-modal="true"]', ...BYEBAR.GENERIC_REMOVE].join(
     ','
   );
+  const interactionCandidateSelector = [
+    genericCandidateSelector,
+    BYEBAR.COOKIE_BANNER_ANCESTORS,
+    BYEBAR.TOS_BANNER_ANCESTORS
+  ]
+    .filter(Boolean)
+    .join(',');
+  const mutationAncestorSelector = [
+    genericCandidateSelector,
+    BYEBAR.COOKIE_BANNER_ANCESTORS,
+    BYEBAR.TOS_BANNER_ANCESTORS
+  ]
+    .filter(Boolean)
+    .join(',');
+  const relevantClassMutation =
+    /popup|modal|overlay|backdrop|scrim|newsletter|subscribe|optin|opt-in|discount|coupon|sticky|bottom|cookie|gdpr|consent|onetrust|truste|usercentrics|didomi|cky-|cmp|klaviyo|mailchimp|om-holder|optinmonster|poptin|privy|sumo|lottery|turntable|spin-?wheel|coupon-?spin|lucky-?wheel|fortune-wheel|vue-coupon|_showOn(?:Mobile|Desktop)/i;
+
+  function addInteractionContainers(candidates, element) {
+    if (!element) return;
+    const enclosing =
+      BYEBAR.shadow?.closestDeep?.(element, interactionCandidateSelector) ||
+      element.closest?.(interactionCandidateSelector);
+    if (enclosing) candidates.add(enclosing);
+    const cookieBanner = BYEBAR.cookies?.closestBanner?.(element);
+    if (cookieBanner) candidates.add(cookieBanner);
+    const tosModal = BYEBAR.tos?.closestModal?.(element);
+    if (tosModal) candidates.add(tosModal);
+  }
+
+  function allowInteractionCandidate(candidate) {
+    if (!candidate || !isVisiblyInteractive(candidate)) return;
+    userAllowed.add(candidate);
+    const overlay = LIB.overlay.findPromotionalOverlayRoot(candidate, getComputedStyle);
+    if (overlay) userAllowed.add(overlay);
+  }
+
+  function collectInteractionCandidates(root = document) {
+    const candidates = new Set(queryMatches(interactionCandidateSelector, root));
+    const controls = queryMatches(
+      'button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]',
+      root
+    );
+    if (root?.nodeType === 1 && !controls.includes(root)) controls.unshift(root);
+    controls.forEach((element) => addInteractionContainers(candidates, element));
+    return candidates;
+  }
+
+  function classifyInteractionChanges(capture) {
+    const candidates = new Set();
+    capture.changed.forEach((root) => {
+      const scope = root?.nodeType === 1 || root?.nodeType === 11 ? root : root?.parentElement;
+      if (!scope) return;
+      collectInteractionCandidates(scope).forEach((candidate) => candidates.add(candidate));
+    });
+    capture.changed.clear();
+    candidates.forEach((candidate) => {
+      if (capture.initiallyVisible.has(candidate) || !isVisiblyInteractive(candidate)) return;
+      allowInteractionCandidate(candidate);
+    });
+  }
 
   function applyInteractionCapture(capture) {
     if (interactionCapture !== capture) return;
     interactionCapture = null;
-    clearTimeout(capture.fallbackTimer);
     capture.observer.disconnect();
-    const candidates = new Set();
-    capture.changed.forEach((root) =>
-      queryMatches(genericCandidateSelector, root).forEach((el) => candidates.add(el))
-    );
-    candidates.forEach((candidate) => {
-      if (capture.initiallyVisible.has(candidate) || !isVisiblyInteractive(candidate)) return;
-      userAllowed.add(candidate);
-      const overlay = LIB.overlay.findPromotionalOverlayRoot(candidate, getComputedStyle);
-      if (overlay) userAllowed.add(overlay);
-    });
+    classifyInteractionChanges(capture);
   }
 
   function beginTrustedInteractionCapture(event) {
     if (!event.isTrusted || !document.documentElement) return;
+    if (event.type === 'keydown') {
+      if (event.repeat) return;
+      activeKeys.add(event.code || event.key);
+    } else if (event.type === 'pointerdown') {
+      activePointers.add(event.pointerId);
+    }
     if (interactionCapture) applyInteractionCapture(interactionCapture);
     const changed = new Set();
     const initiallyVisible = new Set(
-      queryMatches(genericCandidateSelector).filter((candidate) => isVisiblyInteractive(candidate))
+      [...collectInteractionCandidates()].filter((candidate) => isVisiblyInteractive(candidate))
     );
+    const eventTarget = event.composedPath?.().find((node) => node?.nodeType === 1) || event.target;
+    const interactedContainers = new Set();
+    addInteractionContainers(interactedContainers, eventTarget);
+    interactedContainers.forEach(allowInteractionCandidate);
     const capture = {
       changed,
       initiallyVisible,
       observer: null,
-      fallbackTimer: null,
       finishScheduled: false
     };
     capture.observer = new MutationObserver((records) => {
@@ -58,20 +121,39 @@
         if (record.type === 'childList') record.addedNodes.forEach((node) => changed.add(node));
         else changed.add(record.target);
       });
+      classifyInteractionChanges(capture);
       if (capture.finishScheduled) applyInteractionCapture(capture);
     });
-    capture.observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style', 'hidden', 'open', 'aria-hidden', 'aria-modal']
-    });
-    capture.fallbackTimer = setTimeout(() => applyInteractionCapture(capture), 1000);
+    const observe = (scope) => {
+      try {
+        capture.observer.observe(scope, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: BYEBAR.shadow?.observedAttributes
+        });
+      } catch {
+        /* ignore roots that cannot be observed */
+      }
+    };
+    if (BYEBAR.shadow?.walkRoots) BYEBAR.shadow.walkRoots(document.documentElement, observe);
+    else observe(document.documentElement);
     interactionCapture = capture;
   }
 
   function finishTrustedInteractionCapture(event) {
     if (!event.isTrusted) return;
+    let releasedInput = false;
+    if (event.type === 'keyup') {
+      activeKeys.delete(event.code || event.key);
+      releasedInput = true;
+    } else if (event.type === 'pointerup' || event.type === 'pointercancel') {
+      activePointers.delete(event.pointerId);
+      releasedInput = true;
+    } else if (event.type === 'click' && (activePointers.size > 0 || activeKeys.size > 0)) {
+      return;
+    }
+    if (releasedInput && (activePointers.size > 0 || activeKeys.size > 0)) return;
     if (!interactionCapture) beginTrustedInteractionCapture(event);
     const capture = interactionCapture;
     if (!capture || capture.finishScheduled) return;
@@ -81,8 +163,17 @@
   window.addEventListener('pointerdown', beginTrustedInteractionCapture, { capture: true, passive: true });
   window.addEventListener('keydown', beginTrustedInteractionCapture, { capture: true });
   window.addEventListener('pointerup', finishTrustedInteractionCapture, { capture: true, passive: true });
+  window.addEventListener('pointercancel', finishTrustedInteractionCapture, {
+    capture: true,
+    passive: true
+  });
   window.addEventListener('keyup', finishTrustedInteractionCapture, { capture: true });
   window.addEventListener('click', finishTrustedInteractionCapture, { capture: true });
+  window.addEventListener('blur', () => {
+    activePointers.clear();
+    activeKeys.clear();
+    if (interactionCapture) applyInteractionCapture(interactionCapture);
+  });
   BYEBAR.wasUserOpened = (el) => Boolean(el && userAllowed.has(el));
 
   function hostKey() {
@@ -264,8 +355,7 @@
     return action;
   }
 
-  function nukeSubstackLayers(root = document) {
-    const onSubstack = BYEBAR.isSubstack();
+  function nukeSubstackLayers(root = document, onSubstack = BYEBAR.isSubstack()) {
     const meta = {
       feature: 'genericBlocking',
       rule: 'substack-signup',
@@ -372,8 +462,8 @@
   function nukeAll(root = document) {
     if (!siteEnabled()) return;
     if (featureEnabled('genericBlocking')) {
-      BYEBAR.substackDetect?.recheckSubstackPage?.();
-      nukeSubstackLayers(root);
+      const onSubstack = BYEBAR.substackDetect?.recheckSubstackPage?.() ?? BYEBAR.isSubstack();
+      nukeSubstackLayers(root, onSubstack);
       nukeBloombergPromos(root);
       BYEBAR.chinaCommerce?.nukeSpinners?.(root);
       heuristicScan(root);
@@ -383,6 +473,7 @@
 
   function runRootPasses(root) {
     if (!root || (root !== document && root.isConnected === false)) return;
+    BYEBAR.visibility.ensureHidden(root);
     nukeAll(root);
     if (featureEnabled('cookieDecline')) BYEBAR.cookies?.decline?.(root);
     if (featureEnabled('tosAccept')) BYEBAR.tos?.accept?.(root);
@@ -406,33 +497,42 @@
     observer = new MutationObserver((records) => {
       if (!siteEnabled()) return;
       records.forEach((record) => {
+        if (record.type === 'childList') {
+          record.addedNodes.forEach((node) => BYEBAR.visibility.ensureHidden(node));
+          record.removedNodes.forEach((node) => {
+            const destination = node.getRootNode?.();
+            if (destination?.nodeType !== 11 || !destination.host) return;
+            BYEBAR.shadow?.watchShadowRoots?.(observer, destination, runRootPasses);
+            BYEBAR.visibility.ensureHidden(node);
+          });
+        }
         if (record.type === 'attributes' && record.attributeName === 'style') {
           if (record.target.hasAttribute?.('data-byebar-hidden')) {
             BYEBAR.visibility.ensureHidden(record.target);
             return;
           }
         }
+        const root =
+          record.target?.nodeType === 1 || record.target?.nodeType === 11
+            ? record.target
+            : record.target?.parentElement;
+        if (!root) return;
+        const candidate =
+          BYEBAR.shadow?.closestDeep?.(root, mutationAncestorSelector) ||
+          root.closest?.(mutationAncestorSelector);
         if (record.type === 'attributes' && record.attributeName === 'class') {
           const currentClass =
             typeof record.target.className === 'string'
               ? record.target.className
               : record.target.className?.baseVal;
           const classSample = `${record.oldValue || ''} ${currentClass || ''}`;
-          if (
-            !isModal(record.target) &&
-            !/popup|modal|overlay|backdrop|scrim|newsletter|subscribe|optin|discount|coupon|sticky|bottom|cookie|gdpr|consent|onetrust|truste|usercentrics|didomi|cky-|cmp/i.test(
-              classSample
-            )
-          ) {
+          if (!isModal(record.target) && !candidate && !relevantClassMutation.test(classSample)) {
             return;
           }
         }
 
-        const root =
-          record.target?.nodeType === 1 || record.target?.nodeType === 11
-            ? record.target
-            : record.target?.parentElement;
-        if (root) pendingRoots.add(root);
+        pendingRoots.add(root);
+        if (candidate) pendingRoots.add(candidate);
       });
 
       if (pendingRoots.size > 20) {
@@ -489,7 +589,10 @@
   }
 
   async function loadSettings() {
+    const generation = settingsGeneration;
     const stored = await storageGet(DEFAULTS);
+    if (generation !== settingsGeneration) return loadSettings();
+    settingsLoaded = true;
     applySettings(stored);
     return settings;
   }
@@ -502,6 +605,8 @@
       'siteFeatureOverrides'
     ]);
     if (!Object.keys(changes).some((key) => relevantKeys.has(key))) return;
+    settingsGeneration += 1;
+    if (!settingsLoaded) return;
     const next = { ...settings };
     for (const [key, change] of Object.entries(changes)) next[key] = change.newValue;
     applySettings(next);

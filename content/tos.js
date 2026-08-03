@@ -49,9 +49,12 @@
 
   function closestTosModal(el) {
     if (!el) return null;
-    return (
-      BYEBAR.shadow?.closestDeep(el, BYEBAR.TOS_BANNER_ANCESTORS) || el.closest?.(BYEBAR.TOS_BANNER_ANCESTORS)
-    );
+    const known =
+      BYEBAR.shadow?.closestDeep(el, BYEBAR.TOS_BANNER_ANCESTORS) ||
+      el.closest?.(BYEBAR.TOS_BANNER_ANCESTORS);
+    if (known) return known;
+    const dialogSelector = 'dialog, [role="dialog"], [aria-modal="true"]';
+    return BYEBAR.shadow?.closestDeep(el, dialogSelector) || el.closest?.(dialogSelector);
   }
 
   function clickElement(el) {
@@ -92,10 +95,7 @@
   function looksLikeTosModal(el) {
     if (!el || el.nodeType !== 1 || !isVisible(el)) return false;
 
-    const id = (el.id || '').toLowerCase();
     const cls = typeof el.className === 'string' ? el.className.toLowerCase() : '';
-
-    if (id === 'cmp-consent-modal') return true;
 
     const text = (el.textContent || '').slice(0, 4000);
     if (!BYEBAR.lib.tos.matchesTosModalText(text)) return false;
@@ -119,8 +119,10 @@
     for (const el of queryAll(BYEBAR.TOS_ACCEPT_SELECTORS.join(','), root)) {
       if (!isVisible(el)) continue;
       const modal = closestTosModal(el);
-      if (!modal || actedModals.has(modal) || !looksLikeTosModal(modal)) continue;
-      if (clickElement(el)) {
+      if (!modal || actedModals.has(modal) || BYEBAR.wasUserOpened?.(modal) || !looksLikeTosModal(modal)) {
+        continue;
+      }
+      if (clickIfAccept(el)) {
         recordAttempt(modal, {
           feature: 'tosAccept',
           rule: 'known-legal-dialog',
@@ -142,7 +144,9 @@
     for (const el of controls) {
       if (!isVisible(el)) continue;
       const modal = closestTosModal(el);
-      if (!modal || actedModals.has(modal) || !looksLikeTosModal(modal)) continue;
+      if (!modal || actedModals.has(modal) || BYEBAR.wasUserOpened?.(modal) || !looksLikeTosModal(modal)) {
+        continue;
+      }
       if (clickIfAccept(el)) {
         recordAttempt(modal, {
           feature: 'tosAccept',
@@ -164,5 +168,5 @@
     return accepted;
   }
 
-  BYEBAR.tos = { accept };
+  BYEBAR.tos = { accept, closestModal: closestTosModal };
 })();

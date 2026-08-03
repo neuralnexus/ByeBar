@@ -145,6 +145,11 @@ describe('browser adapters', () => {
 
   it('prefers a migrated local record and cleans stale sync settings', async () => {
     const remove = vi.fn(async () => {});
+    const localStored = {
+      'byebar.localSettingsVersion': 1,
+      settingsSchemaVersion: 1,
+      enabled: false
+    };
     const browserApi = {
       runtime: {},
       storage: {
@@ -153,11 +158,8 @@ describe('browser adapters', () => {
           remove
         },
         local: {
-          get: async () => ({
-            'byebar.localSettingsVersion': 1,
-            settingsSchemaVersion: 1,
-            enabled: false
-          })
+          get: async () => ({ ...localStored }),
+          set: async (values) => Object.assign(localStored, values)
         },
         onChanged: { addListener: vi.fn() }
       }
@@ -165,7 +167,46 @@ describe('browser adapters', () => {
     const browser = loadBrowserShim(browserApi, 'browser');
 
     expect((await browser.storageGet(DEFAULT_SETTINGS)).enabled).toBe(false);
-    await vi.waitFor(() => expect(remove).toHaveBeenCalled());
+    await vi.waitFor(() => expect(localStored['byebar.legacySyncCleanupVersion']).toBe(1));
+    await browser.storageGet(DEFAULT_SETTINGS);
+    expect(remove).toHaveBeenCalledOnce();
+    expect(remove.mock.calls[0][0]).toEqual(
+      expect.arrayContaining(['locationDecline', 'netsuiteLeadRedirect'])
+    );
+  });
+
+  it('prefers a local migration completed while a legacy sync read is pending', async () => {
+    let resolveSync;
+    const localStored = { enabled: true };
+    const syncGet = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveSync = resolve;
+        })
+    );
+    const browserApi = {
+      runtime: {},
+      storage: {
+        sync: { get: syncGet, remove: async () => {} },
+        local: {
+          get: async () => ({ ...localStored }),
+          set: async (values) => Object.assign(localStored, values)
+        },
+        onChanged: { addListener: vi.fn() }
+      }
+    };
+    const browser = loadBrowserShim(browserApi, 'browser');
+    const pending = browser.storageGet(DEFAULT_SETTINGS);
+    await vi.waitFor(() => expect(syncGet).toHaveBeenCalledOnce());
+
+    Object.assign(localStored, {
+      'byebar.localSettingsVersion': 1,
+      settingsSchemaVersion: 1,
+      enabled: false
+    });
+    resolveSync({ settingsSchemaVersion: 1, enabled: true });
+
+    expect((await pending).enabled).toBe(false);
   });
 
   it('fails closed when legacy sync cannot be inspected', async () => {

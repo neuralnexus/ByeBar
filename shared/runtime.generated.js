@@ -54,7 +54,7 @@
     siteFeatureOverrides: {}
   };
   var SUBSTACK_HOST_PATTERNS = [/\.substack\.com$/i, /^substack\.com$/i];
-  var BLOOMBERG_HOST_PATTERNS = [/\.bloomberg\./i, /^bloomberg\./i];
+  var BLOOMBERG_HOST_PATTERNS = [/(?:^|\.)bloomberg\.(?:com|co\.jp|tv)$/i];
   var CHINA_COMMERCE_HOST_PATTERNS = [
     /\.temu\.com$/i,
     /^temu\.com$/i,
@@ -64,7 +64,7 @@
     /^aliexpress\.com$/i,
     /\.pinduoduo\.com$/i,
     /^pinduoduo\.com$/i,
-    /yangkeduo\.com$/i,
+    /(?:^|\.)yangkeduo\.com$/i,
     /\.taobao\.com$/i,
     /^taobao\.com$/i,
     /\.tmall\.com$/i,
@@ -522,7 +522,7 @@
   var SUBSTACK_DOM_SELECTORS = [
     'link[href*="substackcdn.com"]',
     'script[src*="substackcdn.com"]',
-    'script[src*="substack.com"]',
+    'meta[content*=".substack.com/api/v1/" i]',
     'meta[name="generator"][content*="Substack" i]'
   ];
   function isSubstackPageHtml(html) {
@@ -671,17 +671,17 @@
     if (!sample || sample.length > 2e3) return false;
     return SUBSTACK_MODAL_TEXT_RE.test(sample) || onSubstackPage && SUBSTACK_ACTION_TEXT_RE.test(sample);
   }
-  function hasSubstackSignupActions(el) {
-    if (!el?.querySelector) return false;
+  function hasSubstackSignupActions(el, onSubstackPage = false) {
+    if (!onSubstackPage || !el?.querySelector) return false;
     const text = el.textContent || "";
-    return Boolean(el.querySelector('button, a[role="button"]') && /get the app|sign in/i.test(text));
+    return Boolean(el.querySelector('button, a[role="button"]') && SUBSTACK_ACTION_TEXT_RE.test(text));
   }
-  function isSubstackRadixDialog(el) {
+  function isSubstackRadixDialog(el, onSubstackPage = false) {
     if (!el || el.nodeType !== 1) return false;
     if (el.getAttribute("role") !== "dialog") return false;
     const hasModalChrome = el.getAttribute("data-testid") === "modal" || Boolean(el.querySelector?.('[data-modal-role="header"], [data-modal-role="footer"]'));
     if (!hasModalChrome) return false;
-    return matchesSubstackSignupText(el.textContent || "") || hasSubstackSignupActions(el);
+    return matchesSubstackSignupText(el.textContent || "", onSubstackPage) || hasSubstackSignupActions(el, onSubstackPage);
   }
   function isInsideModalViewer(el) {
     if (!el?.closest) return false;
@@ -719,7 +719,7 @@
       return false;
     }
     if (onSubstackPage && /subscribe/i.test(el.getAttribute?.("aria-label") || "")) return true;
-    if (isSubstackRadixDialog(el)) return true;
+    if (isSubstackRadixDialog(el, onSubstackPage)) return true;
     return matchesSubstackSignupText(el.textContent || "", onSubstackPage);
   }
   function isSubstackModalScrim(el, getComputedStyle = () => ({}), onSubstackPage = false, viewport = {}) {

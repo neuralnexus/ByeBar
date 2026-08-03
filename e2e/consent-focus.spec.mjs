@@ -12,8 +12,20 @@ test('clicks one visible reject control per banner lifetime', async ({ page }) =
     visibleReject: 1,
     hiddenReject: 0,
     accept: 0,
-    outside: 0
+    outside: 0,
+    userOpened: 0,
+    shadowUserOpened: 0
   });
+
+  await page.locator('#open-user-cookie').click();
+  await expect(page.locator('#user-cookie')).toBeVisible();
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.fixtureEvents.userOpened)).toBe(0);
+
+  await page.locator('#open-shadow-cookie').click();
+  await expect(page.locator('#shadow-policy')).toHaveAttribute('data-cky-tag', 'notice');
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.fixtureEvents.shadowUserOpened)).toBe(0);
 });
 
 test('retries a confirmed reject control after delayed hydration', async ({ page }) => {
@@ -25,7 +37,15 @@ test('accepts only visible legal controls when explicitly enabled', async ({ pag
   await setSettings({ tosAccept: true });
   await page.goto('/tos.html');
   await expect.poll(() => page.evaluate(() => window.fixtureEvents.visible)).toBe(1);
-  expect(await page.evaluate(() => window.fixtureEvents.transparent)).toBe(0);
+  await page.locator('#open-user-tos').click();
+  await expect(page.locator('#user-tos')).toBeVisible();
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.fixtureEvents)).toEqual({
+    visible: 1,
+    unsafe: 0,
+    transparent: 0,
+    userOpened: 0
+  });
 });
 
 test('lets site close handlers repair focus and leaves unsafe modals intact', async ({ page }) => {

@@ -43,6 +43,14 @@ describe('isSubstackDom', () => {
 
     expect(
       isSubstackDom({
+        querySelector(selector) {
+          return selector === 'script[src*="substack.com"]' ? { nodeType: 1 } : null;
+        }
+      })
+    ).toBe(false);
+
+    expect(
+      isSubstackDom({
         querySelector: () => null
       })
     ).toBe(false);

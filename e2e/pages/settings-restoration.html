@@ -15,6 +15,10 @@
       document.querySelector('.cookie-banner button').addEventListener('click', () => {
         document.querySelector('.cookie-banner').remove();
       });
+      const restorable = document.querySelector('#restorable');
+      window.detachRestorable = () => restorable.remove();
+      window.reinsertRestorable = () => document.body.append(restorable);
+      window.restorableIsHidden = () => restorable.hasAttribute('data-byebar-hidden');
     </script>
   </body>
 </html>

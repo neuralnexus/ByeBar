@@ -7,8 +7,46 @@
   </head>
   <body>
     <main><shadow-fixture id="shadow"></shadow-fixture></main>
+    <div id="movable-source">
+      <aside
+        id="movable-promo"
+        class="newsletter-popup"
+        style="display: grid; position: fixed; bottom: 180px; left: 0; width: 600px; height: 80px"
+      >
+        Subscribe to our newsletter
+      </aside>
+    </div>
+    <div id="late-shadow-destination"></div>
+    <aside
+      id="closed-movable-promo"
+      class="newsletter-popup"
+      style="display: grid; position: fixed; bottom: 270px; left: 0; width: 600px; height: 80px"
+    >
+      Subscribe to our newsletter
+    </aside>
+    <div id="closed-shadow-destination"></div>
+    <sync-style-promo
+      id="sync-style-promo"
+      class="newsletter-popup"
+      style="display: grid; position: fixed; bottom: 360px; left: 0; width: 600px; height: 80px"
+    >
+      Subscribe to our newsletter
+    </sync-style-promo>
     <script>
-      window.fixtureEvents = { shadowReject: 0 };
+      window.fixtureEvents = { shadowReject: 0, displayFight: 0, syncStyle: 0 };
+      customElements.define(
+        'sync-style-promo',
+        class extends HTMLElement {
+          static observedAttributes = ['style'];
+
+          attributeChangedCallback(_name, _oldValue, newValue) {
+            if (newValue?.includes('var(--byebar-hidden-display') && window.fixtureEvents.syncStyle < 1) {
+              window.fixtureEvents.syncStyle += 1;
+              this.style.setProperty('display', 'flex', 'important');
+            }
+          }
+        }
+      );
       customElements.define(
         'nested-fixture',
         class extends HTMLElement {
@@ -41,6 +79,49 @@
           .shadowRoot.querySelector('#shadow-promo')
           .style.setProperty('display', 'flex', 'important');
       };
+      window.startShadowDisplayFight = () => {
+        const promo = document.querySelector('#shadow').shadowRoot.querySelector('#shadow-promo');
+        const observer = new MutationObserver(() => {
+          if (
+            promo.style.getPropertyValue('display').startsWith('var(--byebar-hidden-display') &&
+            window.fixtureEvents.displayFight < 25
+          ) {
+            window.fixtureEvents.displayFight += 1;
+            promo.style.setProperty('display', 'flex', 'important');
+          }
+        });
+        observer.observe(promo, { attributes: true, attributeFilter: ['style'] });
+        promo.style.setProperty('display', 'flex', 'important');
+      };
+      window.overrideInheritedHiddenVariable = () => {
+        document.documentElement.style.setProperty('--byebar-hidden-display-7c6f2a', 'block', 'important');
+      };
+      window.movePromoIntoShadow = async () => {
+        const promo = document.querySelector('#movable-promo');
+        promo.remove();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const root = document.querySelector('#late-shadow-destination').attachShadow({ mode: 'open' });
+        root.append(promo);
+      };
+      const closedMovablePromo = document.querySelector('#closed-movable-promo');
+      window.movePromoIntoClosedShadow = async () => {
+        closedMovablePromo.remove();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        closedMovablePromo.style.setProperty('--byebar-hidden-display-7c6f2a', 'block', 'important');
+        closedMovablePromo.style.setProperty('display', 'flex', 'important');
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        closedMovablePromo.style.setProperty('display', 'none', 'important');
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        const root = document.querySelector('#closed-shadow-destination').attachShadow({ mode: 'closed' });
+        root.append(closedMovablePromo);
+      };
+      window.closedPromoState = () => ({
+        computed: getComputedStyle(closedMovablePromo).display,
+        inline: closedMovablePromo.style.getPropertyValue('display'),
+        priority: closedMovablePromo.style.getPropertyPriority('display'),
+        variable: closedMovablePromo.style.getPropertyValue('--byebar-hidden-display-7c6f2a'),
+        hidden: closedMovablePromo.hasAttribute('data-byebar-hidden')
+      });
     </script>
   </body>
 </html>

@@ -30,13 +30,13 @@
     "stage:firefox": "node scripts/stage-extension.mjs firefox",
     "stage:safari": "node scripts/stage-extension.mjs safari",
     "lint:firefox": "npm run build:runtime && npm run icons && node scripts/lint-firefox.mjs",
-    "build:firefox": "npm run build:runtime && npm run icons && node scripts/build-firefox.mjs",
+    "build:firefox": "node scripts/build-firefox.mjs",
     "build:safari": "bash scripts/build-safari.sh",
     "validate:safari": "BYEBAR_SAFARI_VALIDATE=1 bash scripts/build-safari.sh",
     "icons": "node scripts/generate-icons.mjs",
     "check:icons": "node scripts/generate-icons.mjs --check",
-    "build:store": "npm run build:runtime && node scripts/generate-icons.mjs && node scripts/build-chrome-store.mjs",
-    "build:store:crx": "npm run build:runtime && node scripts/generate-icons.mjs && node scripts/build-chrome-crx.mjs",
+    "build:store": "node scripts/build-chrome-store.mjs",
+    "build:store:crx": "node scripts/build-chrome-crx.mjs",
     "validate:packages": "npm run build:store && npm run build:firefox"
   },
   "devDependencies": {
