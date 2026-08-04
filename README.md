@@ -45,12 +45,12 @@ document_start
 | **Auto-decline cookie banners** | Clicks visible reject/deny controls inside confirmed CMP banners and lets the CMP close itself     |
 | **Optional legal dialogs**      | Can accept confirmed legal/TOS popups; disabled by default                                         |
 | **Reversible marker hides**     | Hides matched elements without deleting DOM nodes and supports Undo for the latest reversible hide |
-| **On-demand page sweep**        | Reruns the same conservative rules when a CSS-only page change slips past automatic observation    |
+| **On-demand page sweep**        | Reruns the same conservative rules and reports each direct action or that no safe action ran       |
 | **Site-specific rules**         | Targeted, host-limited heuristics for known offenders                                              |
 | **Per-site feature controls**   | Inherit or override each global feature for the current host                                       |
 | **Local diagnostics**           | Optionally shows rule/result metadata in page memory without recording page text or telemetry      |
 
-Open the toolbar popup to toggle behavior globally or per-site, or use **Sweep page** for a fresh pass.
+Open the toolbar popup to toggle behavior globally or per-site, or use **Sweep page** for a fresh pass. Press `Ctrl+Shift+Y` (`Command+Shift+Y` on macOS) to Sweep without opening the popup; remap it in your browser's extension-shortcut settings where supported.
 
 ## Site coverage
 
@@ -145,7 +145,7 @@ Open the popup from the toolbar:
 
 Use **This site** to inherit or override each setting for the current host. **Global defaults** changes the values inherited by sites without an override. **Use global defaults** clears every override for the current host.
 
-Global defaults, hostname-keyed site overrides, and the diagnostics preference stay in device-local extension storage. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Sweep page** reruns the enabled safe rules without broadening what ByeBar may act on. **Undo hide** restores only the latest marker-based hide in the current document. Cookie, legal, and site close-button clicks cannot be undone.
+Global defaults, hostname-keyed site overrides, and the diagnostics preference stay in device-local extension storage. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Sweep page** reruns the enabled safe rules without broadening what ByeBar may act on and reports counts for direct actions from that pass. **Undo hide** restores only the latest marker-based hide in the current document. Cookie, legal, and site close-button clicks cannot be undone.
 
 ## Troubleshooting
 
@@ -154,6 +154,10 @@ Expected for late-injected modals. ByeBar retries at 500 ms, 1.5 s, 4 s, and 8 s
 
 **ByeBar does nothing on a site**  
 Check **Enabled on this site** and each feature under **This site**. Use **Use global defaults** to clear stale whole-site or per-feature overrides. ByeBar intentionally does not process overlays inside iframes.
+
+**The Sweep shortcut does nothing**
+
+Reload the page after installing or updating ByeBar, then confirm the shortcut is assigned in your browser's extension-shortcut settings. Browser-internal pages and extension stores do not allow ByeBar content scripts.
 
 **Cookie banner keeps returning**  
 Some CMPs re-inject on interaction. Ensure **Auto-decline cookie banners** is on. Didomi/Usercentrics sites may need a new rule ; see [Contributing](#contributing).
@@ -168,7 +172,7 @@ Re-load `manifest.json` from `about:debugging` after each browser restart.
 
 ```bash
 npm ci
-npm run icons      # generate icon sizes from icons/logo.svg
+npm run icons      # generate brand and toolbar sizes from icons/*.svg
 npm run build:runtime
 npm run validate   # generated runtime + manifest + lint + format + Vitest
 npm run test       # vitest watch mode

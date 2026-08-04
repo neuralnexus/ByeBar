@@ -248,9 +248,13 @@ test('sweeps CSS-only page changes after refreshing a stale document', async ({
   await expect(target).toBeVisible();
 
   await popup.locator('#sweep-page').click();
-  await expect(popup.locator('#status')).toContainText('Sweep complete');
+  await expect(popup.locator('#status')).toContainText('Sweep: 1 element hidden.');
   await expect(target).toHaveAttribute('data-byebar-hidden', /generic/);
   await expect(popup.locator('#action-summary')).toContainText('Hidden intrusive page elements');
+  await expect(popup.locator('#undo-action')).toBeEnabled();
+
+  await popup.locator('#sweep-page').click();
+  await expect(popup.locator('#status')).toContainText('No safe interruptions found.');
   await expect(popup.locator('#undo-action')).toBeEnabled();
 
   await popup.locator('#undo-action').click();

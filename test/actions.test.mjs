@@ -5,7 +5,7 @@ import { MESSAGE_PROTOCOL_VERSION } from '../lib/constants.mjs';
 
 const source = readFileSync(new URL('../content/actions.js', import.meta.url), 'utf8');
 
-function loadActions(localGet = async (defaults) => defaults) {
+function loadActions(localGet = async (defaults) => defaults, visibilityOverrides = {}) {
   const listeners = {};
   const browser = {
     localGet: vi.fn(localGet),
@@ -20,7 +20,8 @@ function loadActions(localGet = async (defaults) => defaults) {
     isHidden: () => false,
     hasAction: () => false,
     hide: () => false,
-    restoreAction: () => []
+    restoreAction: () => [],
+    ...visibilityOverrides
   };
   const document = {
     activeElement: null,
@@ -29,7 +30,15 @@ function loadActions(localGet = async (defaults) => defaults) {
     addEventListener: vi.fn(),
     querySelector: () => null
   };
-  const engine = { sweepPage: vi.fn(async () => ({ enabled: true })) };
+  const engine = {
+    sweepPage: vi.fn(async () => ({
+      effective: { enabled: true },
+      result: {
+        outcome: 'no-op',
+        counts: { reversibleHides: 0, dismissActions: 0, cookieDeclines: 0, legalAccepts: 0 }
+      }
+    }))
+  };
   const ByeBar = { browser, engine, visibility, lib: { constants: { MESSAGE_PROTOCOL_VERSION } } };
   const window = { ByeBar };
   const context = vm.createContext({
@@ -125,10 +134,65 @@ describe('page action state', () => {
           ok: true,
           documentId: 'document-id',
           capabilities: ['sweep'],
-          sweep: { effective: { enabled: true } }
+          sweep: {
+            effective: { enabled: true },
+            result: {
+              outcome: 'no-op',
+              counts: { reversibleHides: 0, dismissActions: 0, cookieDeclines: 0, legalAccepts: 0 }
+            }
+          }
         })
       )
     );
     expect(engine.sweepPage).toHaveBeenCalledOnce();
+  });
+
+  it('counts only actions applied during the captured sweep pass', () => {
+    const { actions } = loadActions(undefined, { hide: vi.fn(() => true) });
+    actions.recordIrreversible({ operation: 'dismiss' });
+
+    const transaction = actions.begin({ operation: 'hide' });
+    const result = actions.captureSweepResult(() => {
+      actions.hide(transaction, {}, 'generic');
+      actions.hide(transaction, {}, 'generic');
+      actions.commit(transaction);
+      actions.recordIrreversible({ operation: 'dismiss' });
+      actions.recordIrreversible({ operation: 'decline' });
+      actions.recordIrreversible({ operation: 'accept' });
+    });
+
+    expect(result).toEqual({
+      outcome: 'applied',
+      counts: { reversibleHides: 2, dismissActions: 1, cookieDeclines: 1, legalAccepts: 1 }
+    });
+  });
+
+  it('reports a no-op for skipped and unsuccessful sweep actions', () => {
+    const { actions } = loadActions();
+    const transaction = actions.begin({ operation: 'hide' });
+
+    expect(
+      actions.captureSweepResult(() => {
+        actions.hide(transaction, {}, 'generic');
+        actions.skip({ operation: 'hide' });
+      })
+    ).toEqual({
+      outcome: 'no-op',
+      counts: { reversibleHides: 0, dismissActions: 0, cookieDeclines: 0, legalAccepts: 0 }
+    });
+  });
+
+  it('clears sweep accounting when a pass throws', () => {
+    const { actions } = loadActions();
+    expect(() =>
+      actions.captureSweepResult(() => {
+        actions.recordIrreversible({ operation: 'dismiss' });
+        throw new Error('scan failed');
+      })
+    ).toThrow('scan failed');
+    expect(actions.captureSweepResult(() => {})).toEqual({
+      outcome: 'no-op',
+      counts: { reversibleHides: 0, dismissActions: 0, cookieDeclines: 0, legalAccepts: 0 }
+    });
   });
 });

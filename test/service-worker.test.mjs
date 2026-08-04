@@ -11,7 +11,17 @@ function clone(value) {
   return structuredClone(value);
 }
 
-function loadWorker({ sync = {}, local = {}, storageGet, storageSet, localGet, localSet } = {}) {
+function loadWorker({
+  sync = {},
+  local = {},
+  tabs = [{ id: 7 }],
+  storageGet,
+  storageSet,
+  localGet,
+  localSet,
+  tabsQuery,
+  sendTabMessage
+} = {}) {
   const listeners = {};
   const syncStore = clone(sync);
   const localStore = clone(local);
@@ -19,7 +29,8 @@ function loadWorker({ sync = {}, local = {}, storageGet, storageSet, localGet, l
     runtime: {
       onInstalled: { addListener: (listener) => (listeners.installed = listener) },
       onMessage: { addListener: (listener) => (listeners.message = listener) }
-    }
+    },
+    commands: { onCommand: { addListener: (listener) => (listeners.command = listener) } }
   };
   const browser = {
     api,
@@ -38,10 +49,20 @@ function loadWorker({ sync = {}, local = {}, storageGet, storageSet, localGet, l
     localSet: vi.fn(async (values) => {
       if (localSet) await localSet(values, localStore);
       Object.assign(localStore, clone(values));
+    }),
+    tabsQuery: vi.fn(async (query) => (tabsQuery ? tabsQuery(query) : clone(tabs))),
+    sendTabMessage: vi.fn(async (tabId, message) => {
+      if (sendTabMessage) return sendTabMessage(tabId, message);
+      if (message.type === 'byebar.page.getState') {
+        return { ok: true, documentId: 'document-id', capabilities: ['sweep'] };
+      }
+      return { ok: true };
     })
   };
   const context = vm.createContext({
     self: { ByeBar: { browser, settings, lib: { constants } } },
+    setTimeout,
+    clearTimeout,
     console
   });
   vm.runInContext(source, context);
@@ -61,6 +82,9 @@ function loadWorker({ sync = {}, local = {}, storageGet, storageSet, localGet, l
     },
     install(details) {
       listeners.installed(details);
+    },
+    command(command, tab) {
+      listeners.command(command, tab);
     }
   };
 }
@@ -189,6 +213,84 @@ describe('service worker protocol', () => {
     expect((await send(worker, 'byebar.debug.set', { enabled: 'yes' })).error.code).toBe('invalid-setting');
     expect(worker.browser.storageSet).not.toHaveBeenCalled();
     expect(worker.browser.localSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('service worker Sweep command', () => {
+  it('uses the command tab for a document-scoped Sweep handshake', async () => {
+    const worker = loadWorker();
+    worker.command('unrelated-command', { id: 11 });
+    expect(worker.browser.sendTabMessage).not.toHaveBeenCalled();
+
+    worker.command('sweep-page', { id: 11 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+
+    expect(worker.browser.tabsQuery).not.toHaveBeenCalled();
+    expect(worker.browser.sendTabMessage.mock.calls).toEqual([
+      [11, { protocol, type: 'byebar.page.getState' }],
+      [11, { protocol, type: 'byebar.page.sweep', documentId: 'document-id' }]
+    ]);
+  });
+
+  it('queries the active tab when the browser omits the command tab', async () => {
+    const worker = loadWorker({ tabs: [{ id: 12 }] });
+    worker.command('sweep-page');
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+
+    expect(worker.browser.tabsQuery).toHaveBeenCalledWith({ active: true, currentWindow: true });
+    expect(worker.browser.sendTabMessage.mock.calls[0][0]).toBe(12);
+  });
+
+  it('stops when Sweep is unsupported', async () => {
+    let resolveState;
+    const pendingState = new Promise((resolve) => {
+      resolveState = resolve;
+    });
+    const worker = loadWorker({ sendTabMessage: async () => pendingState });
+    worker.command('sweep-page', { id: 13 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+
+    resolveState({ ok: true, documentId: 'document-id', capabilities: [] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce();
+  });
+
+  it('suppresses key repeats that arrive after the first Sweep completes', async () => {
+    const worker = loadWorker();
+    worker.command('sweep-page', { id: 14 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    worker.command('sweep-page', { id: 14 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for settings mutations queued before the shortcut', async () => {
+    let releaseWrite;
+    const pendingWrite = new Promise((resolve) => {
+      releaseWrite = resolve;
+    });
+    const worker = loadWorker({ storageSet: async () => pendingWrite });
+    const update = worker.dispatch(
+      request('byebar.settings.update', { scope: 'global', key: 'enabled', value: false })
+    );
+    await vi.waitFor(() => expect(worker.browser.storageSet).toHaveBeenCalledOnce());
+
+    worker.command('sweep-page', { id: 15 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+    expect(worker.browser.sendTabMessage.mock.calls[0]).toEqual([
+      15,
+      { protocol, type: 'byebar.page.getState' }
+    ]);
+
+    releaseWrite();
+    await update.response;
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+    expect(worker.browser.sendTabMessage.mock.calls[1]).toEqual([
+      15,
+      { protocol, type: 'byebar.page.sweep', documentId: 'document-id' }
+    ]);
   });
 });
 

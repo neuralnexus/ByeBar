@@ -15,6 +15,31 @@
   let latestAction = null;
   let latestReversibleAction = null;
   let debugGeneration = 0;
+  let activeSweepCounts = null;
+
+  function createSweepCounts() {
+    return {
+      reversibleHides: 0,
+      dismissActions: 0,
+      cookieDeclines: 0,
+      legalAccepts: 0
+    };
+  }
+
+  function captureSweepResult(run) {
+    const previous = activeSweepCounts;
+    const counts = createSweepCounts();
+    activeSweepCounts = counts;
+    try {
+      run();
+    } finally {
+      activeSweepCounts = previous;
+    }
+    return {
+      outcome: Object.values(counts).some((count) => count > 0) ? 'applied' : 'no-op',
+      counts: { ...counts }
+    };
+  }
 
   function nextId() {
     sequence += 1;
@@ -127,7 +152,10 @@
   function hide(action, el, reason, options = {}) {
     if (!action || !el || suppressed.has(el) || BYEBAR.visibility.isHidden(el)) return false;
     const hidden = BYEBAR.visibility.hide(el, reason, { ...options, actionId: action.id });
-    if (hidden) action.targets.push(el);
+    if (hidden) {
+      action.targets.push(el);
+      if (activeSweepCounts) activeSweepCounts.reversibleHides += 1;
+    }
     return hidden;
   }
 
@@ -152,15 +180,22 @@
   }
 
   function recordIrreversible(meta) {
+    const normalized = safeMeta(meta);
     const action = {
       id: nextId(),
       at: Date.now(),
-      ...safeMeta(meta),
+      ...normalized,
       reversible: false,
       canUndo: false
     };
+    const countKey = {
+      dismiss: 'dismissActions',
+      decline: 'cookieDeclines',
+      accept: 'legalAccepts'
+    }[normalized.operation];
+    if (activeSweepCounts && countKey) activeSweepCounts[countKey] += 1;
     latestAction = action;
-    pushDecision(meta, 'applied', false);
+    pushDecision(normalized, 'applied', false);
     requestAnimationFrame(repairFocusAfterIrreversible);
     return action;
   }
@@ -215,10 +250,10 @@
 
   async function sweep(message) {
     if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
-    const effective = await BYEBAR.engine.sweepPage();
+    const result = await BYEBAR.engine.sweepPage();
     return {
       ...pageState(),
-      sweep: { effective }
+      sweep: result
     };
   }
 
@@ -277,6 +312,7 @@
     commit,
     skip,
     recordIrreversible,
+    captureSweepResult,
     isSuppressed,
     pageState
   };

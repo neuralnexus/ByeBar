@@ -40,7 +40,8 @@ The content script declaration has `all_frames: false`; embedded frames are not 
 ```
 popup.js → versioned messages → service-worker.js (sole settings writer)
         └→ document-scoped sweep/Undo → actions.js
-                                  ↓ settings: storage.local
+browser shortcut → service-worker.js → state handshake → document-scoped sweep
+                                   ↓ settings: storage.local
 content scripts read global + host feature settings on load/change
         ↓
 engine validates selector candidates with text + layout
@@ -128,6 +129,8 @@ Manual checks:
 - Decline button clicked when cookie setting is on
 - Whole-site and individual feature overrides inherit/reset correctly
 - Undo restores only the latest reversible hide; cookie/legal/site clicks remain irreversible
+- Sweep reports only actions captured during its final fresh-settings pass; no-op leaves Undo intact
+- Keyboard Sweep uses the state/document handshake and never retries an ambiguous request
 - Diagnostics record metadata without page text and clear decisions on reload
 - Same-origin and cross-origin iframe contents remain untouched
 
@@ -164,10 +167,10 @@ npm run validate:packages
 | Extension scope      | `test/extension-scope.test.mjs`           | Marker-only CSS and unrelated behavior exclusions                                        |
 | Host / settings      | `test/host.test.mjs`                      | Per-site overrides                                                                       |
 | Manifest             | `test/manifest.test.mjs`                  | MV3 structure                                                                            |
-| Worker protocol      | `test/service-worker.test.mjs`            | Serialization, migration, validation, storage errors, and quotas                         |
+| Worker protocol      | `test/service-worker.test.mjs`            | Settings serialization, shortcut orchestration, migration, failures, and quotas          |
 | Target manifests     | `test/staging.test.mjs`                   | Chrome, Firefox, and Safari background shapes                                            |
 
-Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, and popup Sweep/Undo/diagnostics.
+Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, and popup Sweep result/Undo/diagnostics behavior.
 
 Live-site manual checks still include:
 

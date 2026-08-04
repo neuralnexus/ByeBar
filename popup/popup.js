@@ -136,8 +136,22 @@ function actionCopy(action) {
   if (action.operation === 'undo') return 'Last reversible hide restored';
   if (action.operation === 'decline') return 'Clicked a cookie reject control; this cannot be undone';
   if (action.operation === 'accept') return 'Clicked a legal accept control; this cannot be undone';
-  if (action.operation === 'dismiss') return 'Clicked a popup dismiss control; this cannot be undone';
+  if (action.operation === 'dismiss') return 'Triggered a popup close action; this cannot be undone';
   return action.canUndo ? 'Hidden intrusive page elements' : 'Page action completed';
+}
+
+function sweepCopy(sweep) {
+  const counts = sweep?.result?.counts;
+  if (!counts) return 'Sweep complete';
+  const parts = [];
+  const add = (value, singular, plural = `${singular}s`) => {
+    if (Number.isInteger(value) && value > 0) parts.push(`${value} ${value === 1 ? singular : plural}`);
+  };
+  add(counts.reversibleHides, 'element hidden', 'elements hidden');
+  add(counts.dismissActions, 'popup close triggered', 'popup closes triggered');
+  add(counts.cookieDeclines, 'cookie rejection clicked', 'cookie rejections clicked');
+  add(counts.legalAccepts, 'legal acceptance clicked', 'legal acceptances clicked');
+  return parts.length > 0 ? `Sweep: ${parts.join('; ')}.` : 'No safe interruptions found.';
 }
 
 function renderPageState() {
@@ -363,7 +377,7 @@ sweepPageEl.addEventListener('click', async () => {
     });
     pageState = response;
     if (!response.sweep?.effective?.enabled) setStatus('ByeBar is paused on this page');
-    else setStatus('Sweep complete');
+    else setStatus(sweepCopy(response.sweep));
   } catch (error) {
     const recovered = await recoverActiveState();
     if (!requestAttempted) setStatus(error.message, true);

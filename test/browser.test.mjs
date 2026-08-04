@@ -54,6 +54,9 @@ describe('browser adapters', () => {
       tabs: {
         query(_query, callback) {
           callback([{ id: 1 }]);
+        },
+        sendMessage(id, message, callback) {
+          callback({ ok: true, id, message });
         }
       }
     };
@@ -69,6 +72,11 @@ describe('browser adapters', () => {
     expect(localStored).toMatchObject({ siteOverrides: {}, siteFeatureOverrides: {} });
     expect(await browser.tabsQuery({ active: true })).toEqual([{ id: 1 }]);
     expect((await browser.sendRuntimeMessage({ type: 'test' })).ok).toBe(true);
+    expect(await browser.sendTabMessage(1, { type: 'test' })).toEqual({
+      ok: true,
+      id: 1,
+      message: { type: 'test' }
+    });
   });
 
   it('supports Promise-based browser APIs', async () => {

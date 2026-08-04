@@ -39,8 +39,17 @@ describe('manifest.json', () => {
       )
     );
     expect(manifest.action.default_icon).toEqual(
-      Object.fromEntries([16, 24, 32, 48, 64].map((size) => [size, `icons/icon-${size}.png`]))
+      Object.fromEntries([16, 24, 32, 48, 64].map((size) => [size, `icons/toolbar-${size}.png`]))
     );
+  });
+
+  it('declares a configurable shortcut for the conservative page Sweep', () => {
+    expect(manifest.commands).toEqual({
+      'sweep-page': {
+        suggested_key: { default: 'Ctrl+Shift+Y', mac: 'Command+Shift+Y' },
+        description: 'Run ByeBar Sweep on the active page'
+      }
+    });
   });
 
   it('keeps description within Chrome Web Store limit', () => {

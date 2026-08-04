@@ -3,13 +3,17 @@ if (typeof importScripts === 'function') {
 }
 
 const BYEBAR = self.ByeBar;
-const { api, storageGet, storageSet, localGet, localSet } = BYEBAR.browser;
+const { api, storageGet, storageSet, localGet, localSet, tabsQuery, sendTabMessage } = BYEBAR.browser;
 const SETTINGS = BYEBAR.settings;
 const DEFAULTS = SETTINGS.DEFAULT_SETTINGS;
 const DEBUG_KEY = 'byebar.debug';
 const PROTOCOL = BYEBAR.lib.constants.MESSAGE_PROTOCOL_VERSION;
+const SWEEP_PAGE_COMMAND = 'sweep-page';
+const COMMAND_REPEAT_QUIET_MS = 2_000;
 
 let mutationQueue = Promise.resolve();
+let commandQuietTimer = null;
+const sweepingTabs = new Set();
 
 function enqueue(operation) {
   const result = mutationQueue.then(operation, operation);
@@ -70,6 +74,55 @@ async function initialize() {
 
 api.runtime.onInstalled.addListener(() => {
   void enqueue(() => initialize()).catch(() => {});
+});
+
+async function resolveCommandTab(commandTab) {
+  if (Number.isInteger(commandTab?.id) && commandTab.id >= 0) return commandTab;
+  const [tab] = await tabsQuery({ active: true, currentWindow: true });
+  return tab;
+}
+
+async function sweepActiveTab(commandTab, pendingMutations) {
+  const tab = await resolveCommandTab(commandTab);
+  if (!Number.isInteger(tab?.id) || tab.id < 0 || sweepingTabs.has(tab.id)) return;
+  sweepingTabs.add(tab.id);
+  try {
+    const state = await sendTabMessage(tab.id, {
+      protocol: PROTOCOL,
+      type: 'byebar.page.getState'
+    });
+    if (
+      !state?.ok ||
+      !state.capabilities?.includes('sweep') ||
+      typeof state.documentId !== 'string' ||
+      !state.documentId
+    ) {
+      return;
+    }
+    await pendingMutations;
+    await sendTabMessage(tab.id, {
+      protocol: PROTOCOL,
+      type: 'byebar.page.sweep',
+      documentId: state.documentId
+    });
+  } finally {
+    sweepingTabs.delete(tab.id);
+  }
+}
+
+function claimSweepCommand() {
+  const claimed = commandQuietTimer === null;
+  clearTimeout(commandQuietTimer);
+  commandQuietTimer = setTimeout(() => {
+    commandQuietTimer = null;
+  }, COMMAND_REPEAT_QUIET_MS);
+  return claimed;
+}
+
+api.commands?.onCommand?.addListener((command, tab) => {
+  if (command !== SWEEP_PAGE_COMMAND || !claimSweepCommand()) return;
+  const pendingMutations = mutationQueue;
+  void sweepActiveTab(tab, pendingMutations).catch(() => {});
 });
 
 async function handleMessage(message) {

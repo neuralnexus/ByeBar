@@ -35,8 +35,8 @@ function assertUnique(values, label) {
   if (new Set(values).size !== values.length) throw new Error(`duplicate ${label}`);
 }
 
-async function assertIconMap(root, iconMap, sizes, label) {
-  const expected = Object.fromEntries(sizes.map((size) => [size, `icons/icon-${size}.png`]));
+async function assertIconMap(root, iconMap, sizes, prefix, label) {
+  const expected = Object.fromEntries(sizes.map((size) => [size, `icons/${prefix}-${size}.png`]));
   if (JSON.stringify(iconMap || {}) !== JSON.stringify(expected)) {
     throw new Error(`${label} map must contain sizes: ${sizes.join(', ')}`);
   }
@@ -70,8 +70,8 @@ export async function validateManifest(root = projectRoot, target = 'source') {
   if ((manifest.description || '').length > 132)
     throw new Error('manifest description exceeds 132 characters');
 
-  await assertIconMap(root, manifest.icons, iconSizes, 'icon');
-  await assertIconMap(root, manifest.action?.default_icon, actionIconSizes, 'action icon');
+  await assertIconMap(root, manifest.icons, iconSizes, 'icon', 'icon');
+  await assertIconMap(root, manifest.action?.default_icon, actionIconSizes, 'toolbar', 'action icon');
 
   for (const entry of manifest.content_scripts || []) {
     if (entry.all_frames !== false) throw new Error('content scripts must be top-frame-only');

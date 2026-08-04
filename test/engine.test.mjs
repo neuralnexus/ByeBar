@@ -14,6 +14,15 @@ function loadEngine(storageGet) {
     restoreAll: vi.fn(),
     syncScrollLock: vi.fn()
   };
+  const actions = {
+    captureSweepResult: vi.fn((run) => {
+      run();
+      return {
+        outcome: 'no-op',
+        counts: { reversibleHides: 0, dismissActions: 0, cookieDeclines: 0, legalAccepts: 0 }
+      };
+    })
+  };
   const document = {
     documentElement: {},
     querySelectorAll: () => []
@@ -28,6 +37,7 @@ function loadEngine(storageGet) {
       storageGet: vi.fn(storageGet),
       onStorageChanged: (listener) => (listeners.storage = listener)
     },
+    actions,
     visibility,
     shadow: {
       observedAttributes: [],
@@ -60,7 +70,7 @@ function loadEngine(storageGet) {
     console
   });
   vm.runInContext(source, context);
-  return { engine: ByeBar.engine, listeners, cookies, storageGet: ByeBar.browser.storageGet };
+  return { engine: ByeBar.engine, listeners, cookies, actions, storageGet: ByeBar.browser.storageGet };
 }
 
 describe('content settings state', () => {
@@ -98,12 +108,40 @@ describe('content settings state', () => {
     stored = { ...stored, cookieDecline: true };
 
     await expect(engine.sweepPage()).resolves.toEqual({
-      enabled: true,
-      genericBlocking: false,
-      cookieDecline: true,
-      tosAccept: false
+      effective: {
+        enabled: true,
+        genericBlocking: false,
+        cookieDecline: true,
+        tosAccept: false
+      },
+      result: {
+        outcome: 'no-op',
+        counts: { reversibleHides: 0, dismissActions: 0, cookieDeclines: 0, legalAccepts: 0 }
+      }
     });
     expect(storageGet).toHaveBeenCalledTimes(2);
     expect(cookies.decline).toHaveBeenCalledOnce();
+  });
+
+  it('captures only the final settings pass after a stale storage read', async () => {
+    let resolveFirst;
+    let reads = 0;
+    const first = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    const { engine, listeners, actions, storageGet } = loadEngine(async () => {
+      reads += 1;
+      if (reads === 1) return first;
+      return { ...settings.DEFAULT_SETTINGS, genericBlocking: false };
+    });
+
+    const sweep = engine.sweepPage();
+    await vi.waitFor(() => expect(storageGet).toHaveBeenCalledOnce());
+    listeners.storage({ genericBlocking: { newValue: false } });
+    resolveFirst(settings.DEFAULT_SETTINGS);
+
+    await expect(sweep).resolves.toMatchObject({ effective: { genericBlocking: false } });
+    expect(storageGet).toHaveBeenCalledTimes(2);
+    expect(actions.captureSweepResult).toHaveBeenCalledOnce();
   });
 });

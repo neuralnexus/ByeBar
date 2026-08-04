@@ -588,18 +588,26 @@
     startObserver();
   }
 
-  async function loadSettings() {
+  async function withFreshSettings(consume) {
     const generation = settingsGeneration;
     const stored = await storageGet(DEFAULTS);
-    if (generation !== settingsGeneration) return loadSettings();
+    if (generation !== settingsGeneration) return withFreshSettings(consume);
     settingsLoaded = true;
-    applySettings(stored);
-    return settings;
+    return consume(stored);
   }
 
-  async function sweepPage() {
-    await loadSettings();
-    return { ...resolved.effective };
+  function loadSettings() {
+    return withFreshSettings((stored) => {
+      applySettings(stored);
+      return settings;
+    });
+  }
+
+  function sweepPage() {
+    return withFreshSettings((stored) => {
+      const result = BYEBAR.actions.captureSweepResult(() => applySettings(stored));
+      return { effective: { ...resolved.effective }, result };
+    });
   }
 
   onStorageChanged((changes) => {

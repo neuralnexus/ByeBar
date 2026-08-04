@@ -8,6 +8,7 @@ describe('target manifests', () => {
   function expectIconsPreserved(manifest) {
     expect(manifest.icons).toEqual(source.icons);
     expect(manifest.action.default_icon).toEqual(source.action.default_icon);
+    expect(manifest.commands).toEqual(source.commands);
   }
 
   it('creates a Chrome-only service worker manifest', () => {

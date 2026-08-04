@@ -20,11 +20,20 @@
     "default_title": "ByeBar",
     "default_popup": "popup/popup.html",
     "default_icon": {
-      "16": "icons/icon-16.png",
-      "24": "icons/icon-24.png",
-      "32": "icons/icon-32.png",
-      "48": "icons/icon-48.png",
-      "64": "icons/icon-64.png"
+      "16": "icons/toolbar-16.png",
+      "24": "icons/toolbar-24.png",
+      "32": "icons/toolbar-32.png",
+      "48": "icons/toolbar-48.png",
+      "64": "icons/toolbar-64.png"
+    }
+  },
+  "commands": {
+    "sweep-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Run ByeBar Sweep on the active page"
     }
   },
   "background": {
