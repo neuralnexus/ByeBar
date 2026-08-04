@@ -18,6 +18,20 @@ async function dropSettingsMutationResponse(popup, dropVerification = false) {
   }, dropVerification);
 }
 
+async function dropNextUndoResponse(popup) {
+  await popup.addInitScript(() => {
+    const sendMessage = chrome.tabs.sendMessage.bind(chrome.tabs);
+    let shouldDrop = true;
+    chrome.tabs.sendMessage = (tabId, message, callback) => {
+      if (shouldDrop && message?.type === 'byebar.page.undo') {
+        shouldDrop = false;
+        return sendMessage(tabId, message, () => callback?.());
+      }
+      return sendMessage(tabId, message, callback);
+    };
+  });
+}
+
 test('popup edits site overrides, enables diagnostics, and undoes the latest hide', async ({
   page,
   context,
@@ -260,4 +274,56 @@ test('sweeps CSS-only page changes after refreshing a stale document', async ({
   await popup.locator('#undo-action').click();
   await expect(target).not.toHaveAttribute('data-byebar-hidden', /.+/);
   await expect(target).toBeVisible();
+});
+
+test('undoes recent hides newest-first and reconciles a lost response', async ({
+  page,
+  context,
+  serviceWorker,
+  extensionId
+}) => {
+  await page.goto('/undo-history.html');
+  const overlays = [];
+  for (let index = 0; index < 3; index += 1) {
+    const id = await page.evaluate(() => window.addUndoOverlay());
+    const overlay = page.locator(`#${id}`);
+    overlays.push(overlay);
+    await expect(overlay).toHaveAttribute('data-byebar-hidden', /generic/);
+  }
+
+  const fixtureTabId = await serviceWorker.evaluate(async () => {
+    const tabs = await chrome.tabs.query({});
+    return tabs.find((tab) => tab.url?.includes('undo-history.html'))?.id;
+  });
+  const popup = await context.newPage();
+  await dropNextUndoResponse(popup);
+  await serviceWorker.evaluate((tabId) => chrome.tabs.update(tabId, { active: true }), fixtureTabId);
+  await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+
+  const undo = popup.locator('#undo-action');
+  await expect(undo).toHaveText('Undo hide (3)');
+  await expect(undo).toHaveAccessibleName('Undo hide (3); newest hide first');
+
+  await undo.click();
+  await expect(popup.locator('#status')).toContainText('2 more hide actions available');
+  await expect(overlays[2]).not.toHaveAttribute('data-byebar-hidden', /.+/);
+  await expect(overlays[1]).toHaveAttribute('data-byebar-hidden', /generic/);
+  await expect(overlays[0]).toHaveAttribute('data-byebar-hidden', /generic/);
+  await expect(undo).toHaveText('Undo hide (2)');
+
+  await popup.locator('#sweep-page').click();
+  await expect(popup.locator('#status')).toContainText('No safe interruptions found');
+  await expect(overlays[2]).toBeVisible();
+  await expect(undo).toHaveText('Undo hide (2)');
+
+  await undo.click();
+  await expect(popup.locator('#status')).toContainText('1 more hide action available');
+  await expect(overlays[1]).not.toHaveAttribute('data-byebar-hidden', /.+/);
+  await expect(overlays[0]).toHaveAttribute('data-byebar-hidden', /generic/);
+  await expect(undo).toHaveText('Undo hide');
+
+  await undo.click();
+  await expect(popup.locator('#status')).toContainText('Hidden elements restored');
+  await expect(overlays[0]).not.toHaveAttribute('data-byebar-hidden', /.+/);
+  await expect(undo).toBeDisabled();
 });

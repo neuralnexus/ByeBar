@@ -133,7 +133,7 @@ function renderSettings() {
 
 function actionCopy(action) {
   if (!action) return 'No page action yet';
-  if (action.operation === 'undo') return 'Last reversible hide restored';
+  if (action.operation === 'undo') return 'Restored hidden page elements';
   if (action.operation === 'decline') return 'Clicked a cookie reject control; this cannot be undone';
   if (action.operation === 'accept') return 'Clicked a legal accept control; this cannot be undone';
   if (action.operation === 'dismiss') return 'Triggered a popup close action; this cannot be undone';
@@ -154,12 +154,30 @@ function sweepCopy(sweep) {
   return parts.length > 0 ? `Sweep: ${parts.join('; ')}.` : 'No safe interruptions found.';
 }
 
+function undoActionCount(state = pageState) {
+  if (Number.isInteger(state?.undoActionCount) && state.undoActionCount >= 0) {
+    return state.undoActionCount;
+  }
+  return state?.undoAction?.canUndo ? 1 : 0;
+}
+
+function undoStatus(count) {
+  if (count <= 0) return 'Hidden elements restored';
+  return `Hidden elements restored. ${count} more hide ${count === 1 ? 'action' : 'actions'} available.`;
+}
+
 function renderPageState() {
   const action = pageState?.lastAction || null;
   const undoAction = pageState?.undoAction || null;
+  const undoCount = undoActionCount();
   const supportsSweep = pageState?.capabilities?.includes('sweep') === true;
   actionSummaryEl.textContent = pageState ? actionCopy(action) : 'Unavailable on this page';
-  undoActionEl.disabled = pending || !undoAction?.canUndo;
+  const undoText = undoCount > 1 ? `Undo hide (${undoCount})` : 'Undo hide';
+  undoActionEl.textContent = undoText;
+  undoActionEl.disabled = pending || !undoAction?.canUndo || undoCount === 0;
+  const undoLabel = undoCount > 0 ? `${undoText}; newest hide first` : undoText;
+  undoActionEl.setAttribute('aria-label', undoLabel);
+  undoActionEl.title = undoCount > 0 ? undoLabel : '';
   sweepPageEl.disabled = pending || tabId === null || !supportsSweep;
   sweepPageEl.title = pageState && !supportsSweep ? 'Reload this page to use Sweep' : '';
   debugListEl.replaceChildren();
@@ -404,19 +422,50 @@ sweepPageEl.addEventListener('click', async () => {
 undoActionEl.addEventListener('click', async () => {
   if (!pageState?.undoAction || tabId === null) return;
   setPending(true);
+  let attemptedDocumentId = '';
+  let attemptedActionId = '';
+  let requestAttempted = false;
   try {
     if (!(await confirmActiveContext())) return;
     if (!pageState?.undoAction || tabId === null) return;
+    attemptedDocumentId = pageState.documentId;
+    attemptedActionId = pageState.undoAction.id;
+    requestAttempted = true;
     const response = await requestPage({
       type: 'byebar.page.undo',
-      documentId: pageState.documentId,
-      actionId: pageState.undoAction.id
+      documentId: attemptedDocumentId,
+      actionId: attemptedActionId
     });
     pageState = response;
-    setStatus('Hidden elements restored');
+    setStatus(undoStatus(undoActionCount(response)));
   } catch (error) {
-    await refreshPageState();
-    setStatus(error.code === 'stale-document' ? 'Page changed; actions refreshed' : error.message, true);
+    const recovered = await recoverActiveState();
+    if (!requestAttempted) setStatus(error.message, true);
+    else if (error.code === 'stale-document') {
+      setStatus(recovered ? 'Page changed; actions refreshed' : 'Page changed; actions unavailable', true);
+    } else if (error.code === 'not-latest-hide') {
+      setStatus(
+        recovered
+          ? 'Page actions changed; Undo refreshed'
+          : 'Page actions changed; current state unavailable',
+        true
+      );
+    } else if (error.code === 'target-gone') {
+      setStatus(
+        recovered
+          ? 'That hide is no longer available; Undo refreshed'
+          : 'That hide is no longer available; current state unavailable',
+        true
+      );
+    } else if (error.isTransportError) {
+      const reconciled =
+        recovered &&
+        pageState?.documentId === attemptedDocumentId &&
+        pageState?.lastAction?.operation === 'undo' &&
+        pageState.lastAction.id === attemptedActionId;
+      if (reconciled) setStatus(undoStatus(undoActionCount()));
+      else setStatus('Undo status unknown; review the page before undoing again', true);
+    } else setStatus(error.message, true);
   } finally {
     setPending(false);
     render();

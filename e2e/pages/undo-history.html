@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Undo history</title>
+  </head>
+  <body>
+    <main><button id="before">Before overlays</button></main>
+    <script>
+      let overlayIndex = 0;
+      window.addUndoOverlay = () => {
+        overlayIndex += 1;
+        const overlay = document.createElement('aside');
+        overlay.id = `undo-overlay-${overlayIndex}`;
+        overlay.className = 'newsletter-popup';
+        overlay.textContent = `Subscribe to our newsletter for weekly updates ${overlayIndex}`;
+        overlay.style.cssText = `position: fixed; left: 0; bottom: ${(overlayIndex - 1) * 115}px; width: 600px; height: 80px`;
+        document.body.append(overlay);
+        return overlay.id;
+      };
+    </script>
+  </body>
+</html>

@@ -40,7 +40,7 @@ The content script declaration has `all_frames: false`; embedded frames are not 
 ```
 popup.js → versioned messages → service-worker.js (sole settings writer)
         └→ document-scoped sweep/Undo → actions.js
-browser shortcut → service-worker.js → state handshake → document-scoped sweep
+browser shortcut → service-worker.js → state handshake → document-scoped sweep → transient badge
                                    ↓ settings: storage.local
 content scripts read global + host feature settings on load/change
         ↓
@@ -128,7 +128,8 @@ Manual checks:
 - Scroll remains usable without deleting site classes or inline styles
 - Decline button clicked when cookie setting is on
 - Whole-site and individual feature overrides inherit/reset correctly
-- Undo restores only the latest reversible hide; cookie/legal/site clicks remain irreversible
+- Undo restores up to 10 recent reversible hide actions newest-first; cookie/legal/site clicks remain irreversible
+- Expired Undo metadata never restores elements or breaks reason-based settings restoration
 - Sweep reports only actions captured during its final fresh-settings pass; no-op leaves Undo intact
 - Keyboard Sweep uses the state/document handshake and never retries an ambiguous request
 - Diagnostics record metadata without page text and clear decisions on reload
@@ -167,10 +168,11 @@ npm run validate:packages
 | Extension scope      | `test/extension-scope.test.mjs`           | Marker-only CSS and unrelated behavior exclusions                                        |
 | Host / settings      | `test/host.test.mjs`                      | Per-site overrides                                                                       |
 | Manifest             | `test/manifest.test.mjs`                  | MV3 structure                                                                            |
+| Visibility ownership | `test/visibility.test.mjs`                | Bounded Undo metadata without changing marker or settings ownership                      |
 | Worker protocol      | `test/service-worker.test.mjs`            | Settings serialization, shortcut orchestration, migration, failures, and quotas          |
 | Target manifests     | `test/staging.test.mjs`                   | Chrome, Firefox, and Safari background shapes                                            |
 
-Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, and popup Sweep result/Undo/diagnostics behavior.
+Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, and popup Sweep result/multi-step Undo/diagnostics behavior.
 
 Live-site manual checks still include:
 

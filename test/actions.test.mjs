@@ -21,6 +21,7 @@ function loadActions(localGet = async (defaults) => defaults, visibilityOverride
     hasAction: () => false,
     hide: () => false,
     restoreAction: () => [],
+    forgetAction: () => false,
     ...visibilityOverrides
   };
   const document = {
@@ -51,6 +52,39 @@ function loadActions(localGet = async (defaults) => defaults, visibilityOverride
   });
   vm.runInContext(source, context);
   return { actions: ByeBar.actions, engine, listeners };
+}
+
+function createActionVisibility() {
+  const entries = new Map();
+  return {
+    isHidden: () => false,
+    hide: vi.fn((el, _reason, { actionId }) => {
+      if (!entries.has(actionId)) entries.set(actionId, []);
+      entries.get(actionId).push(el);
+      return true;
+    }),
+    hasAction: vi.fn((actionId) => entries.has(actionId)),
+    restoreAction: vi.fn((actionId) => {
+      const restored = entries.get(actionId) || [];
+      entries.delete(actionId);
+      return restored;
+    }),
+    forgetAction: vi.fn((actionId) => entries.delete(actionId))
+  };
+}
+
+function commitHide(actions, element = {}) {
+  const action = actions.begin({ operation: 'hide' });
+  expect(actions.hide(action, element, 'generic')).toBe(true);
+  expect(actions.commit(action)).toBe(true);
+  return { action, element };
+}
+
+async function sendPageRequest(listeners, type, values = {}) {
+  return new Promise((resolve) => {
+    const handled = listeners.message({ protocol: MESSAGE_PROTOCOL_VERSION, type, ...values }, {}, resolve);
+    expect(handled).toBe(true);
+  });
 }
 
 describe('page action state', () => {
@@ -193,6 +227,73 @@ describe('page action state', () => {
     expect(actions.captureSweepResult(() => {})).toEqual({
       outcome: 'no-op',
       counts: { reversibleHides: 0, dismissActions: 0, cookieDeclines: 0, legalAccepts: 0 }
+    });
+  });
+
+  it('keeps ten recent hide actions without restoring the expired marker', () => {
+    const visibility = createActionVisibility();
+    const { actions } = loadActions(undefined, visibility);
+    const committed = Array.from({ length: 11 }, () => commitHide(actions));
+
+    expect(actions.pageState()).toMatchObject({
+      undoAction: { id: committed[10].action.id, canUndo: true },
+      undoActionCount: 10
+    });
+    expect(visibility.forgetAction).toHaveBeenCalledOnce();
+    expect(visibility.forgetAction).toHaveBeenCalledWith(committed[0].action.id);
+    expect(visibility.restoreAction).not.toHaveBeenCalled();
+  });
+
+  it('undoes hide actions newest-first while preserving irreversible history', async () => {
+    const visibility = createActionVisibility();
+    const { actions, listeners } = loadActions(undefined, visibility);
+    const first = commitHide(actions);
+    const second = commitHide(actions);
+    const third = commitHide(actions);
+    actions.recordIrreversible({ operation: 'decline' });
+    await actions.ready;
+
+    expect(actions.pageState()).toMatchObject({
+      lastAction: { operation: 'decline', reversible: false },
+      undoAction: { id: third.action.id },
+      undoActionCount: 3
+    });
+
+    expect(
+      await sendPageRequest(listeners, 'byebar.page.undo', {
+        documentId: 'document-id',
+        actionId: first.action.id
+      })
+    ).toEqual({ ok: false, error: { code: 'not-latest-hide' } });
+
+    const thirdResponse = await sendPageRequest(listeners, 'byebar.page.undo', {
+      documentId: 'document-id',
+      actionId: third.action.id
+    });
+    expect(thirdResponse).toMatchObject({
+      lastAction: { id: third.action.id, operation: 'undo' },
+      undoAction: { id: second.action.id },
+      undoActionCount: 2
+    });
+    expect(actions.isSuppressed(third.element)).toBe(true);
+    const retry = actions.begin({ operation: 'hide' });
+    expect(actions.hide(retry, third.element, 'generic')).toBe(false);
+
+    expect(
+      await sendPageRequest(listeners, 'byebar.page.undo', {
+        documentId: 'document-id',
+        actionId: third.action.id
+      })
+    ).toEqual({ ok: false, error: { code: 'not-latest-hide' } });
+    expect(visibility.restoreAction).toHaveBeenCalledTimes(1);
+
+    const secondResponse = await sendPageRequest(listeners, 'byebar.page.undo', {
+      documentId: 'document-id',
+      actionId: second.action.id
+    });
+    expect(secondResponse).toMatchObject({
+      undoAction: { id: first.action.id },
+      undoActionCount: 1
     });
   });
 });

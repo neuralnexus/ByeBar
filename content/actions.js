@@ -6,14 +6,15 @@
   const DEBUG_KEY = 'byebar.debug';
   const PROTOCOL = BYEBAR.lib.constants.MESSAGE_PROTOCOL_VERSION;
   const MAX_DECISIONS = 100;
+  const MAX_UNDO_ACTIONS = 10;
   const documentId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const decisions = [];
   const suppressed = new WeakSet();
   const focusHistory = [];
+  const undoHistory = [];
   let debugEnabled = false;
   let sequence = 0;
   let latestAction = null;
-  let latestReversibleAction = null;
   let debugGeneration = 0;
   let activeSweepCounts = null;
 
@@ -159,6 +160,13 @@
     return hidden;
   }
 
+  function pruneUndoHistory() {
+    for (let index = undoHistory.length - 1; index >= 0; index -= 1) {
+      if (!BYEBAR.visibility.hasAction(undoHistory[index].id)) undoHistory.splice(index, 1);
+    }
+    return undoHistory[undoHistory.length - 1] || null;
+  }
+
   function commit(action) {
     if (!action?.targets.length) return false;
     repairFocusAfterHide(action.previousFocus, action.targets);
@@ -170,7 +178,11 @@
       canUndo: true
     };
     latestAction = completed;
-    latestReversibleAction = completed;
+    pruneUndoHistory();
+    undoHistory.push(completed);
+    while (undoHistory.length > MAX_UNDO_ACTIONS) {
+      BYEBAR.visibility.forgetAction(undoHistory.shift().id);
+    }
     pushDecision(action.meta, 'applied', true);
     return true;
   }
@@ -205,6 +217,7 @@
   }
 
   function pageState() {
+    const latestReversibleAction = pruneUndoHistory();
     const action = latestAction
       ? {
           ...latestAction,
@@ -214,7 +227,7 @@
     const undoAction = latestReversibleAction
       ? {
           ...latestReversibleAction,
-          canUndo: Boolean(BYEBAR.visibility.hasAction(latestReversibleAction.id))
+          canUndo: true
         }
       : null;
     return {
@@ -223,6 +236,7 @@
       capabilities: ['sweep'],
       lastAction: action,
       undoAction,
+      undoActionCount: undoHistory.length,
       debugEnabled,
       decisions: debugEnabled ? [...decisions] : []
     };
@@ -230,21 +244,25 @@
 
   function undo(message) {
     if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    const latestReversibleAction = pruneUndoHistory();
     if (!latestReversibleAction || message.actionId !== latestReversibleAction.id) {
       return { ok: false, error: { code: 'not-latest-hide' } };
     }
 
     const restored = BYEBAR.visibility.restoreAction(latestReversibleAction.id);
-    if (restored.length === 0) return { ok: false, error: { code: 'target-gone' } };
+    if (restored.length === 0) {
+      undoHistory.pop();
+      return { ok: false, error: { code: 'target-gone' } };
+    }
+    undoHistory.pop();
     restored.forEach((el) => suppressed.add(el));
     pushDecision({ ...latestReversibleAction, operation: 'undo', reason: 'user-request' }, 'applied', false);
-    latestReversibleAction = {
+    latestAction = {
       ...latestReversibleAction,
       canUndo: false,
       reversible: false,
       operation: 'undo'
     };
-    latestAction = latestReversibleAction;
     return pageState();
   }
 

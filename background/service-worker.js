@@ -3,17 +3,22 @@ if (typeof importScripts === 'function') {
 }
 
 const BYEBAR = self.ByeBar;
-const { api, storageGet, storageSet, localGet, localSet, tabsQuery, sendTabMessage } = BYEBAR.browser;
+const { api, storageGet, storageSet, localGet, localSet, tabsQuery, sendTabMessage, setActionBadgeText } =
+  BYEBAR.browser;
 const SETTINGS = BYEBAR.settings;
 const DEFAULTS = SETTINGS.DEFAULT_SETTINGS;
 const DEBUG_KEY = 'byebar.debug';
 const PROTOCOL = BYEBAR.lib.constants.MESSAGE_PROTOCOL_VERSION;
 const SWEEP_PAGE_COMMAND = 'sweep-page';
 const COMMAND_REPEAT_QUIET_MS = 2_000;
+const SWEEP_BADGE_DURATION_MS = 3_000;
+const SWEEP_COUNT_KEYS = ['cookieDeclines', 'dismissActions', 'legalAccepts', 'reversibleHides'];
 
 let mutationQueue = Promise.resolve();
 let commandQuietTimer = null;
 const sweepingTabs = new Set();
+const badgeClearTimers = new Map();
+const badgeStartupReady = clearExistingSweepBadges();
 
 function enqueue(operation) {
   const result = mutationQueue.then(operation, operation);
@@ -82,10 +87,87 @@ async function resolveCommandTab(commandTab) {
   return tab;
 }
 
+function cancelBadgeClear(tabId) {
+  clearTimeout(badgeClearTimers.get(tabId));
+  badgeClearTimers.delete(tabId);
+}
+
+async function clearExistingSweepBadges() {
+  try {
+    const tabs = await tabsQuery({});
+    await Promise.all(
+      (tabs || [])
+        .filter((tab) => Number.isInteger(tab?.id) && tab.id >= 0)
+        .map((tab) => setActionBadgeText({ text: '', tabId: tab.id }).catch(() => {}))
+    );
+  } catch {
+    /* A later accepted command still clears its own tab before reporting. */
+  }
+}
+
+async function clearSweepBadge(tabId) {
+  cancelBadgeClear(tabId);
+  try {
+    await setActionBadgeText({ text: '', tabId });
+  } catch {
+    /* Badge feedback must never affect the page action. */
+  }
+}
+
+function sweepBadgeText(response, documentId) {
+  const result = response?.sweep?.result;
+  const effective = response?.sweep?.effective;
+  const counts = result?.counts;
+  if (
+    response?.ok !== true ||
+    response.documentId !== documentId ||
+    !Array.isArray(response.capabilities) ||
+    !response.capabilities.includes('sweep') ||
+    !effective ||
+    !Object.hasOwn(effective, 'enabled') ||
+    typeof effective.enabled !== 'boolean' ||
+    !counts ||
+    typeof counts !== 'object' ||
+    Array.isArray(counts)
+  ) {
+    return '';
+  }
+
+  const keys = Object.keys(counts).sort();
+  if (keys.length !== SWEEP_COUNT_KEYS.length || keys.some((key, index) => key !== SWEEP_COUNT_KEYS[index])) {
+    return '';
+  }
+  let total = 0;
+  for (const key of SWEEP_COUNT_KEYS) {
+    const count = counts[key];
+    if (!Number.isSafeInteger(count) || count < 0 || !Number.isSafeInteger(total + count)) return '';
+    total += count;
+  }
+  if (result.outcome !== (total === 0 ? 'no-op' : 'applied')) return '';
+  if (!effective.enabled) return total === 0 ? 'OFF' : '';
+  return total > 99 ? '99+' : String(total);
+}
+
+async function showSweepBadge(tabId, text) {
+  cancelBadgeClear(tabId);
+  try {
+    await setActionBadgeText({ text, tabId });
+  } catch {
+    return;
+  }
+  const timer = setTimeout(() => {
+    if (badgeClearTimers.get(tabId) !== timer) return;
+    badgeClearTimers.delete(tabId);
+    void setActionBadgeText({ text: '', tabId }).catch(() => {});
+  }, SWEEP_BADGE_DURATION_MS);
+  badgeClearTimers.set(tabId, timer);
+}
+
 async function sweepActiveTab(commandTab, pendingMutations) {
   const tab = await resolveCommandTab(commandTab);
   if (!Number.isInteger(tab?.id) || tab.id < 0 || sweepingTabs.has(tab.id)) return;
   sweepingTabs.add(tab.id);
+  const badgeCleared = badgeStartupReady.then(() => clearSweepBadge(tab.id));
   try {
     const state = await sendTabMessage(tab.id, {
       protocol: PROTOCOL,
@@ -100,11 +182,14 @@ async function sweepActiveTab(commandTab, pendingMutations) {
       return;
     }
     await pendingMutations;
-    await sendTabMessage(tab.id, {
+    const response = await sendTabMessage(tab.id, {
       protocol: PROTOCOL,
       type: 'byebar.page.sweep',
       documentId: state.documentId
     });
+    const badgeText = sweepBadgeText(response, state.documentId);
+    await badgeCleared;
+    if (badgeText) await showSweepBadge(tab.id, badgeText);
   } finally {
     sweepingTabs.delete(tab.id);
   }

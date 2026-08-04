@@ -531,6 +531,10 @@ input[type='checkbox']:checked {
   cursor: pointer;
 }
 
+.action-card button {
+  white-space: nowrap;
+}
+
 button:disabled,
 input:disabled {
   cursor: not-allowed;

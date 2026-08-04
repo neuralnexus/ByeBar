@@ -156,6 +156,10 @@
     return invoke(api.tabs, 'sendMessage', [tabId, message]);
   }
 
+  function setActionBadgeText(details) {
+    return invoke(api.action, 'setBadgeText', [details]);
+  }
+
   function onStorageChanged(listener) {
     api.storage.onChanged.addListener((changes, area) => {
       const settingsArea = api.storage?.local ? 'local' : 'sync';
@@ -177,6 +181,7 @@
     tabsQuery,
     sendRuntimeMessage,
     sendTabMessage,
+    setActionBadgeText,
     onStorageChanged
   };
 })();

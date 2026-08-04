@@ -269,6 +269,10 @@
     return restored;
   }
 
+  function forgetAction(actionId) {
+    return hiddenByAction.delete(actionId);
+  }
+
   function hasAction(actionId) {
     const entries = hiddenByAction.get(actionId);
     if (!entries) return false;
@@ -329,6 +333,7 @@
     hide,
     restore,
     restoreAction,
+    forgetAction,
     restoreAll,
     hasAction,
     isHidden,

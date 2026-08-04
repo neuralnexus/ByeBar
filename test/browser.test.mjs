@@ -17,6 +17,7 @@ function loadBrowserShim(extensionApi, namespace = 'chrome') {
 
 describe('browser adapters', () => {
   it('supports callback-based Chrome APIs', async () => {
+    const setBadgeText = vi.fn((_details, callback) => callback());
     const stored = { enabled: false, siteOverrides: { 'legacy.example': false } };
     const localStored = { enabled: true, siteOverrides: { 'stale.example': true } };
     const chrome = {
@@ -26,6 +27,7 @@ describe('browser adapters', () => {
           callback({ ok: true, message });
         }
       },
+      action: { setBadgeText },
       storage: {
         sync: {
           get(_keys, callback) {
@@ -77,12 +79,16 @@ describe('browser adapters', () => {
       id: 1,
       message: { type: 'test' }
     });
+    await browser.setActionBadgeText({ text: '2', tabId: 1 });
+    expect(setBadgeText).toHaveBeenCalledWith({ text: '2', tabId: 1 }, expect.any(Function));
   });
 
   it('supports Promise-based browser APIs', async () => {
     const stored = { ...DEFAULT_SETTINGS };
+    const setBadgeText = vi.fn(async () => {});
     const browserApi = {
       runtime: { sendMessage: async (message) => ({ ok: true, message }) },
+      action: { setBadgeText },
       storage: {
         sync: {
           get: async () => stored,
@@ -105,6 +111,24 @@ describe('browser adapters', () => {
     expect((await browser.storageGet(DEFAULT_SETTINGS)).enabled).toBe(true);
     expect(await browser.tabsQuery({ active: true })).toEqual([{ id: 2 }]);
     expect((await browser.sendTabMessage(2, { type: 'test' })).ok).toBe(true);
+    await browser.setActionBadgeText({ text: '0', tabId: 2 });
+    expect(setBadgeText).toHaveBeenCalledWith({ text: '0', tabId: 2 });
+  });
+
+  it('surfaces callback-based action badge failures', async () => {
+    const chrome = {
+      runtime: { lastError: null },
+      action: {
+        setBadgeText(_details, callback) {
+          chrome.runtime.lastError = { message: 'action unavailable' };
+          callback();
+          chrome.runtime.lastError = null;
+        }
+      }
+    };
+    const browser = loadBrowserShim(chrome);
+
+    await expect(browser.setActionBadgeText({ text: '1', tabId: 1 })).rejects.toThrow('action unavailable');
   });
 
   it('surfaces local settings write failures', async () => {
