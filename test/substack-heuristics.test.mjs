@@ -48,6 +48,17 @@ const GENERIC_RADIX_DIALOG = {
   closest: () => null
 };
 
+const GENERIC_SIGN_IN_DIALOG = {
+  ...GENERIC_RADIX_DIALOG,
+  getAttribute(name) {
+    return name === 'role' ? 'dialog' : name === 'data-testid' ? 'modal' : null;
+  },
+  textContent: 'Sign in to continue',
+  querySelector(selector) {
+    return selector.includes('button') ? { nodeType: 1 } : null;
+  }
+};
+
 describe('matchesSubstackSignupText', () => {
   it('detects join-on-substack copy', () => {
     expect(matchesSubstackSignupText('Join Aaron Parnas on Substack')).toBe(true);
@@ -64,6 +75,7 @@ describe('isSubstackRadixDialog', () => {
 
   it('ignores unrelated radix dialogs', () => {
     expect(isSubstackRadixDialog(GENERIC_RADIX_DIALOG)).toBe(false);
+    expect(isSubstackRadixDialog(GENERIC_SIGN_IN_DIALOG)).toBe(false);
   });
 });
 
@@ -74,6 +86,7 @@ describe('looksLikeSubstackSignupModal', () => {
 
   it('does not flag unrelated dialogs', () => {
     expect(looksLikeSubstackSignupModal(GENERIC_RADIX_DIALOG)).toBe(false);
+    expect(looksLikeSubstackSignupModal(GENERIC_SIGN_IN_DIALOG)).toBe(false);
   });
 });
 

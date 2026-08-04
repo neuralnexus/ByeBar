@@ -67,7 +67,7 @@
       }
     }
 
-    let candidate = composedParent(el);
+    let candidate = el;
     for (let depth = 0; depth < 8 && candidate; depth += 1) {
       if (candidate.tagName === 'BODY' || candidate.tagName === 'HTML') break;
       const className = typeof candidate.className === 'string' ? candidate.className : '';
@@ -144,7 +144,15 @@
     const continueWithout = queryAll('.didomi-continue-without-agreeing', root);
     for (const el of continueWithout) {
       const banner = closestBanner(el);
-      if (!banner || actedBanners.has(banner) || !isVisible(banner) || !isVisible(el)) continue;
+      if (
+        !banner ||
+        actedBanners.has(banner) ||
+        BYEBAR.wasUserOpened?.(banner) ||
+        !isVisible(banner) ||
+        !isVisible(el)
+      ) {
+        continue;
+      }
       if (clickElement(el)) {
         recordAttempt(el, banner, {
           feature: 'cookieDecline',
@@ -162,7 +170,15 @@
     );
     for (const el of disagree) {
       const banner = closestBanner(el);
-      if (!banner || actedBanners.has(banner) || !isVisible(banner) || !isVisible(el)) continue;
+      if (
+        !banner ||
+        actedBanners.has(banner) ||
+        BYEBAR.wasUserOpened?.(banner) ||
+        !isVisible(banner) ||
+        !isVisible(el)
+      ) {
+        continue;
+      }
       if (clickElement(el)) {
         recordAttempt(el, banner, {
           feature: 'cookieDecline',
@@ -181,7 +197,9 @@
     for (const el of queryAll(BYEBAR.COOKIE_DECLINE_SELECTORS.join(','), root)) {
       if (!isVisible(el)) continue;
       const banner = closestBanner(el);
-      if (!banner || actedBanners.has(banner) || !isVisible(banner)) continue;
+      if (!banner || actedBanners.has(banner) || BYEBAR.wasUserOpened?.(banner) || !isVisible(banner)) {
+        continue;
+      }
       if (clickElement(el)) {
         recordAttempt(el, banner, {
           feature: 'cookieDecline',
@@ -204,7 +222,9 @@
     for (const el of controls) {
       if (!isVisible(el)) continue;
       const banner = closestBanner(el);
-      if (!banner || actedBanners.has(banner) || !isVisible(banner)) continue;
+      if (!banner || actedBanners.has(banner) || BYEBAR.wasUserOpened?.(banner) || !isVisible(banner)) {
+        continue;
+      }
       if (clickIfDecline(el)) {
         recordAttempt(el, banner, {
           feature: 'cookieDecline',
@@ -225,5 +245,5 @@
     return declineViaDidomiUi(root) || declineViaSelectors(root) || declineViaTextScan(root);
   }
 
-  BYEBAR.cookies = { decline };
+  BYEBAR.cookies = { decline, closestBanner };
 })();

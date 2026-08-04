@@ -23,10 +23,30 @@
     >
       Subscribe to our newsletter
     </aside>
+    <aside
+      id="late-text"
+      class="newsletter-popup"
+      style="position: fixed; top: 180px; left: 0; width: 600px; height: 80px"
+    >
+      <span id="late-copy">Welcome back</span>
+    </aside>
+    <section id="late-cookie" class="cookie-banner">
+      We use cookies to protect your privacy. <button id="late-reject" disabled>Reject all</button>
+    </section>
+    <section id="late-policy" class="shell">
+      We use cookies to protect your privacy. <button id="late-class-reject">Reject all</button>
+    </section>
     <late-shadow></late-shadow>
     <deferred-shadow></deferred-shadow>
     <div id="standard-shadow"></div>
     <script>
+      window.fixtureEvents = { lateReject: 0, lateClassReject: 0 };
+      document
+        .querySelector('#late-reject')
+        .addEventListener('click', () => window.fixtureEvents.lateReject++);
+      document
+        .querySelector('#late-class-reject')
+        .addEventListener('click', () => window.fixtureEvents.lateClassReject++);
       customElements.define(
         'late-shadow',
         class extends HTMLElement {
@@ -43,6 +63,11 @@
       };
       window.revealStylePopup = () => {
         document.querySelector('#late-style').style.display = 'block';
+      };
+      window.hydrateLateContent = () => {
+        document.querySelector('#late-copy').firstChild.data = 'Subscribe to our newsletter';
+        document.querySelector('#late-reject').disabled = false;
+        document.querySelector('#late-policy').className = 'cc-window';
       };
       setTimeout(() => {
         customElements.define(

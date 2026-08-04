@@ -8,21 +8,48 @@
   </head>
   <body>
     <header class="brand">
-      <img class="logo" src="../icons/icon-48.png" width="40" height="40" alt="" />
-      <h1>ByeBar</h1>
-      <p class="tagline">Remove interruptions without breaking the page behind them.</p>
+      <div class="brand-row">
+        <div class="brand-lockup">
+          <img class="logo" src="../icons/icon-96.png" width="48" height="48" alt="" />
+          <div>
+            <p class="eyebrow">Quiet browsing</p>
+            <h1>ByeBar</h1>
+          </div>
+        </div>
+        <div class="site-state" id="site-state" data-state="loading">
+          <span class="site-state-dot" aria-hidden="true"></span>
+          <span id="site-state-label">Checking</span>
+        </div>
+      </div>
+      <p class="tagline">Clear the interruption. Keep the page.</p>
+      <div class="brand-bars" aria-hidden="true"><span></span><span></span></div>
     </header>
 
     <main class="content">
-      <p class="status" id="status" aria-live="polite"></p>
+      <p class="status" id="status" role="status" aria-live="polite" aria-atomic="true"></p>
 
       <div class="scope" aria-label="Settings scope">
         <button type="button" id="scope-site" aria-pressed="true">This site</button>
         <button type="button" id="scope-global" aria-pressed="false">Global defaults</button>
       </div>
 
+      <section class="sweep-card" aria-labelledby="sweep-heading">
+        <div class="sweep-copy">
+          <span class="sweep-kicker">On demand</span>
+          <h2 id="sweep-heading">Clear the way</h2>
+          <p>Run a fresh, conservative pass on this page.</p>
+        </div>
+        <button type="button" id="sweep-page" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 12h13M13 7l5 5-5 5" />
+          </svg>
+          Sweep page
+        </button>
+      </section>
+
+      <p class="section-label">Protection</p>
       <section class="settings" aria-label="ByeBar settings">
-        <label class="row row--site">
+        <label class="row row--site row--master">
           <span class="row-copy">
             <span class="row-title" id="enabled-label">Enabled on this site</span>
             <span class="row-host" id="host-label"></span>
@@ -34,6 +61,7 @@
         <label class="row">
           <span class="row-copy">
             <span class="row-title">Block promotional popups &amp; bars</span>
+            <span class="row-note">Newsletter prompts and sticky promos</span>
             <span class="row-source" id="generic-blocking-source"></span>
           </span>
           <input type="checkbox" id="generic-blocking" data-setting="genericBlocking" />
@@ -42,6 +70,7 @@
         <label class="row">
           <span class="row-copy">
             <span class="row-title">Auto-decline cookie banners</span>
+            <span class="row-note">Only when a reject control is confidently matched</span>
             <span class="row-source" id="cookie-decline-source"></span>
           </span>
           <input type="checkbox" id="cookie-decline" data-setting="cookieDecline" />
@@ -50,6 +79,7 @@
         <label class="row">
           <span class="row-copy">
             <span class="row-title">Auto-accept legal dialogs</span>
+            <span class="row-note">Off by default; confirmed legal prompts only</span>
             <span class="row-source" id="tos-accept-source"></span>
           </span>
           <input type="checkbox" id="tos-accept" data-setting="tosAccept" />
@@ -59,15 +89,19 @@
       </section>
 
       <section class="action-card" aria-labelledby="action-heading">
-        <div>
+        <div class="action-copy">
           <h2 id="action-heading">Latest page action</h2>
           <p id="action-summary">No page action yet</p>
         </div>
-        <button type="button" id="undo-action" disabled>Undo latest hide</button>
+        <button type="button" id="undo-action" disabled>Undo hide</button>
       </section>
 
       <details class="debug-panel">
-        <summary>Local diagnostics</summary>
+        <summary>
+          <span>Local diagnostics</span>
+          <small>For troubleshooting</small>
+          <span class="disclosure-icon" aria-hidden="true">+</span>
+        </summary>
         <label class="debug-toggle">
           <span>
             <strong>Debug decisions</strong>
@@ -80,14 +114,11 @@
       </details>
 
       <footer class="footer">
-        <p class="privacy-note">Settings stay on this device. No telemetry.</p>
+        <p class="privacy-note"><span aria-hidden="true"></span> Device-local settings. No telemetry.</p>
         <p class="footer-links">
           <a href="#" id="report-bug" target="_blank" rel="noopener noreferrer">Report a bug</a>
           <span aria-hidden="true">·</span>
           <a href="#" id="request-feature" target="_blank" rel="noopener noreferrer">Request a feature</a>
-        </p>
-        <p class="credit">
-          Made by <a href="https://mattivan.com" target="_blank" rel="noopener noreferrer">Matt Ivan</a>
         </p>
       </footer>
     </main>

@@ -6,33 +6,44 @@
     <title>Legal dialog safety</title>
   </head>
   <body>
-    <section
-      id="visible-tos"
-      class="tos-modal"
-      role="dialog"
-      style="position: fixed; width: 400px; height: 160px"
-    >
-      We updated our terms of service. <button>I agree</button>
+    <section id="visible-tos" role="dialog" style="position: fixed; width: 400px; height: 160px">
+      We updated our terms of service and user agreement. <button>I agree</button>
     </section>
-    <div style="opacity: 0">
-      <section
-        id="transparent-tos"
-        class="tos-modal"
-        role="dialog"
-        style="position: fixed; width: 400px; height: 160px"
-      >
-        We updated our terms of service. <button>I agree</button>
+    <section
+      id="cmp-consent-modal"
+      role="dialog"
+      style="position: fixed; left: 420px; width: 400px; height: 160px"
+    >
+      We updated our terms of service and user agreement.
+      <button id="cmp-consent-button">Review</button>
+    </section>
+    <div style="opacity: 0; pointer-events: none">
+      <section id="transparent-tos" role="dialog" style="position: fixed; width: 400px; height: 160px">
+        We updated our terms of service and user agreement. <button>I agree</button>
       </section>
     </div>
+    <button id="open-user-tos">Review terms</button>
     <script>
-      window.fixtureEvents = { visible: 0, transparent: 0 };
+      window.fixtureEvents = { visible: 0, unsafe: 0, transparent: 0, userOpened: 0 };
       document.querySelector('#visible-tos button').addEventListener('click', () => {
         window.fixtureEvents.visible++;
         document.querySelector('#visible-tos').remove();
       });
       document
+        .querySelector('#cmp-consent-button')
+        .addEventListener('click', () => window.fixtureEvents.unsafe++);
+      document
         .querySelector('#transparent-tos button')
         .addEventListener('click', () => window.fixtureEvents.transparent++);
+      document.querySelector('#open-user-tos').addEventListener('click', () => {
+        const modal = document.createElement('section');
+        modal.id = 'user-tos';
+        modal.className = 'tos-modal';
+        modal.style.cssText = 'position:fixed;width:400px;height:160px';
+        modal.innerHTML = 'We updated our terms of service and user agreement. <button>I agree</button>';
+        modal.querySelector('button').addEventListener('click', () => window.fixtureEvents.userOpened++);
+        document.body.append(modal);
+      });
     </script>
   </body>
 </html>

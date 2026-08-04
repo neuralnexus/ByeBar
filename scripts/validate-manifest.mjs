@@ -10,6 +10,8 @@ const firefoxBackground = [
   'shared/browser.js',
   'background/service-worker.js'
 ];
+const iconSizes = [16, 32, 48, 64, 96, 128, 256, 512, 1024];
+const actionIconSizes = [16, 24, 32, 48, 64];
 
 function assertSafePath(root, relativePath, label) {
   if (
@@ -33,6 +35,20 @@ function assertUnique(values, label) {
   if (new Set(values).size !== values.length) throw new Error(`duplicate ${label}`);
 }
 
+async function assertIconMap(root, iconMap, sizes, label) {
+  const expected = Object.fromEntries(sizes.map((size) => [size, `icons/icon-${size}.png`]));
+  if (JSON.stringify(iconMap || {}) !== JSON.stringify(expected)) {
+    throw new Error(`${label} map must contain sizes: ${sizes.join(', ')}`);
+  }
+  for (const [size, relativePath] of Object.entries(iconMap)) {
+    const metadata = await sharp(assertSafePath(root, relativePath, label)).metadata();
+    if (metadata.format !== 'png') throw new Error(`${label} must be PNG: ${relativePath}`);
+    if (metadata.width !== Number(size) || metadata.height !== Number(size)) {
+      throw new Error(`${label} dimensions do not match ${size}: ${relativePath}`);
+    }
+  }
+}
+
 function popupReferences(root, popupPath) {
   const html = readFileSync(assertSafePath(root, popupPath, 'popup'), 'utf8');
   const references = [];
@@ -54,16 +70,8 @@ export async function validateManifest(root = projectRoot, target = 'source') {
   if ((manifest.description || '').length > 132)
     throw new Error('manifest description exceeds 132 characters');
 
-  const iconEntries = Object.entries(manifest.icons || {});
-  for (const [size, relativePath] of iconEntries) {
-    const metadata = await sharp(assertSafePath(root, relativePath, 'icon')).metadata();
-    if (metadata.width !== Number(size) || metadata.height !== Number(size)) {
-      throw new Error(`icon dimensions do not match ${size}: ${relativePath}`);
-    }
-  }
-  for (const relativePath of Object.values(manifest.action?.default_icon || {})) {
-    assertSafePath(root, relativePath, 'action icon');
-  }
+  await assertIconMap(root, manifest.icons, iconSizes, 'icon');
+  await assertIconMap(root, manifest.action?.default_icon, actionIconSizes, 'action icon');
 
   for (const entry of manifest.content_scripts || []) {
     if (entry.all_frames !== false) throw new Error('content scripts must be top-frame-only');

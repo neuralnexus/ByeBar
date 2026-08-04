@@ -39,6 +39,7 @@ The content script declaration has `all_frames: false`; embedded frames are not 
 
 ```
 popup.js → versioned messages → service-worker.js (sole settings writer)
+        └→ document-scoped sweep/Undo → actions.js
                                   ↓ settings: storage.local
 content scripts read global + host feature settings on load/change
         ↓
@@ -166,7 +167,7 @@ npm run validate:packages
 | Worker protocol      | `test/service-worker.test.mjs`            | Serialization, migration, validation, storage errors, and quotas                         |
 | Target manifests     | `test/staging.test.mjs`                   | Chrome, Firefox, and Safari background shapes                                            |
 
-Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, and popup Undo/diagnostics.
+Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, and popup Sweep/Undo/diagnostics.
 
 Live-site manual checks still include:
 

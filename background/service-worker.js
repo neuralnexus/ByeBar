@@ -76,8 +76,10 @@ async function handleMessage(message) {
   if (message?.protocol !== PROTOCOL) return responseError('protocol-mismatch', 'Unsupported protocol');
 
   if (message.type === 'byebar.settings.get') {
-    const settings = await readSettings();
-    return { ok: true, state: await buildState(settings, message.host || '') };
+    return enqueue(async () => {
+      const settings = await readSettings();
+      return { ok: true, state: await buildState(settings, message.host || '') };
+    });
   }
 
   if (message.type === 'byebar.settings.update') {
@@ -124,9 +126,11 @@ async function handleMessage(message) {
   if (message.type === 'byebar.debug.set') {
     if (typeof message.enabled !== 'boolean')
       return responseError('invalid-setting', 'Debug value must be boolean');
-    const settings = await readSettings();
-    await localSet({ [DEBUG_KEY]: { schemaVersion: 1, enabled: message.enabled } });
-    return { ok: true, state: await buildState(settings, message.host || '', message.enabled) };
+    return enqueue(async () => {
+      const settings = await readSettings();
+      await localSet({ [DEBUG_KEY]: { schemaVersion: 1, enabled: message.enabled } });
+      return { ok: true, state: await buildState(settings, message.host || '', message.enabled) };
+    });
   }
 
   return responseError('unknown-message', 'Unknown request');

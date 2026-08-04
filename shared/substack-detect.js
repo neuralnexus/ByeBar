@@ -9,7 +9,6 @@
   function detectSubstackPage() {
     if (cached === true) return true;
     const detected = detector.isSubstackSite(location.hostname, {
-      html: detector.collectSubstackHtmlSample(document),
       root: document
     });
     if (detected) cached = true;

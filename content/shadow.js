@@ -3,6 +3,25 @@
  */
 (() => {
   const BYEBAR = window.ByeBar;
+  const observedAttributes = Object.freeze([
+    'class',
+    'id',
+    'style',
+    'hidden',
+    'disabled',
+    'aria-disabled',
+    'aria-hidden',
+    'role',
+    'aria-label',
+    'aria-modal',
+    'title',
+    'value',
+    'href',
+    'open',
+    'data-state',
+    'data-testid',
+    'data-cky-tag'
+  ]);
 
   function walkRoots(root, visit) {
     if (!root) return;
@@ -114,24 +133,13 @@
       watchedRoots.set(scope, observer);
       if (scope.nodeType === 11) discovered.push(scope);
       try {
-        const attributeFilter = [
-          'class',
-          'style',
-          'hidden',
-          'aria-hidden',
-          'role',
-          'aria-label',
-          'aria-modal',
-          'open',
-          'data-state',
-          'data-testid'
-        ];
         observer.observe(scope, {
           childList: true,
           subtree: true,
+          characterData: true,
           attributes: true,
           attributeOldValue: true,
-          attributeFilter
+          attributeFilter: observedAttributes
         });
       } catch {
         /* ignore */
@@ -141,5 +149,5 @@
     discovered.forEach((shadowRoot) => onShadowRoot?.(shadowRoot));
   }
 
-  BYEBAR.shadow = { walkRoots, queryAll, query, closestDeep, watchShadowRoots };
+  BYEBAR.shadow = { observedAttributes, walkRoots, queryAll, query, closestDeep, watchShadowRoots };
 })();

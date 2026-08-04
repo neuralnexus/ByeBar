@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <style id="sweep-style">
+      #sweep-target {
+        display: none;
+      }
+    </style>
+    <title>Manual sweep</title>
+  </head>
+  <body>
+    <main><button id="before">Before popup</button></main>
+    <aside
+      id="sweep-target"
+      class="newsletter-popup"
+      style="position: fixed; left: 0; bottom: 0; width: 600px; height: 100px"
+    >
+      Subscribe to our newsletter for weekly updates
+    </aside>
+    <script>
+      window.revealSweepTargetViaCssom = () => {
+        let mutations = 0;
+        const observer = new MutationObserver((records) => (mutations += records.length));
+        observer.observe(document.documentElement, {
+          attributes: true,
+          childList: true,
+          characterData: true,
+          subtree: true
+        });
+        document.querySelector('#sweep-style').sheet.cssRules[0].style.removeProperty('display');
+        return new Promise((resolve) => {
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              observer.disconnect();
+              resolve(mutations);
+            })
+          );
+        });
+      };
+    </script>
+  </body>
+</html>

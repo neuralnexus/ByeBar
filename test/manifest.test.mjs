@@ -32,12 +32,15 @@ describe('manifest.json', () => {
     expect(manifest.browser_specific_settings?.gecko?.strict_min_version).toBe('115.0');
   });
 
-  it('declares high-resolution store icons', () => {
-    expect(manifest.icons).toMatchObject({
-      256: 'icons/icon-256.png',
-      512: 'icons/icon-512.png',
-      1024: 'icons/icon-1024.png'
-    });
+  it('declares crisp extension and toolbar icon sizes', () => {
+    expect(manifest.icons).toEqual(
+      Object.fromEntries(
+        [16, 32, 48, 64, 96, 128, 256, 512, 1024].map((size) => [size, `icons/icon-${size}.png`])
+      )
+    );
+    expect(manifest.action.default_icon).toEqual(
+      Object.fromEntries([16, 24, 32, 48, 64].map((size) => [size, `icons/icon-${size}.png`]))
+    );
   });
 
   it('keeps description within Chrome Web Store limit', () => {

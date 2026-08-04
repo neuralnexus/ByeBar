@@ -14,6 +14,7 @@
   let sequence = 0;
   let latestAction = null;
   let latestReversibleAction = null;
+  let debugGeneration = 0;
 
   function nextId() {
     sequence += 1;
@@ -184,6 +185,7 @@
     return {
       ok: true,
       documentId,
+      capabilities: ['sweep'],
       lastAction: action,
       undoAction,
       debugEnabled,
@@ -211,32 +213,60 @@
     return pageState();
   }
 
-  const ready = BYEBAR.browser
-    .localGet({ [DEBUG_KEY]: { schemaVersion: 1, enabled: false } })
-    .then((stored) => {
-      debugEnabled = Boolean(stored?.[DEBUG_KEY]?.enabled);
-    })
-    .catch(() => {});
+  async function sweep(message) {
+    if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    const effective = await BYEBAR.engine.sweepPage();
+    return {
+      ...pageState(),
+      sweep: { effective }
+    };
+  }
 
   BYEBAR.browser.onStorageChanged((changes, area) => {
     if (area !== 'local' || !changes[DEBUG_KEY]) return;
+    debugGeneration += 1;
     debugEnabled = Boolean(changes[DEBUG_KEY].newValue?.enabled);
     if (!debugEnabled) decisions.length = 0;
   });
 
-  BYEBAR.browser.api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.protocol !== PROTOCOL || !message.type?.startsWith?.('byebar.page.')) return;
-    void ready.then(() => {
-      if (message.type === 'byebar.page.getState') sendResponse(pageState());
-      else if (message.type === 'byebar.page.undo') sendResponse(undo(message));
-      else if (message.type === 'byebar.page.debug.clear') {
-        if (message.documentId !== documentId) sendResponse({ ok: false, error: { code: 'stale-document' } });
-        else {
-          decisions.length = 0;
-          sendResponse(pageState());
-        }
+  const initialDebugGeneration = debugGeneration;
+  const ready = BYEBAR.browser
+    .localGet({ [DEBUG_KEY]: { schemaVersion: 1, enabled: false } })
+    .then((stored) => {
+      if (initialDebugGeneration === debugGeneration) {
+        debugEnabled = stored?.[DEBUG_KEY]?.enabled === true;
       }
-    });
+    })
+    .catch(() => {});
+
+  BYEBAR.browser.api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!message?.type?.startsWith?.('byebar.page.')) return;
+    if (message.protocol !== PROTOCOL) {
+      sendResponse({ ok: false, error: { code: 'protocol-mismatch', message: 'Unsupported protocol' } });
+      return;
+    }
+    void ready
+      .then(async () => {
+        if (message.type === 'byebar.page.getState') sendResponse(pageState());
+        else if (message.type === 'byebar.page.undo') sendResponse(undo(message));
+        else if (message.type === 'byebar.page.sweep') sendResponse(await sweep(message));
+        else if (message.type === 'byebar.page.debug.clear') {
+          if (message.documentId !== documentId)
+            sendResponse({ ok: false, error: { code: 'stale-document' } });
+          else {
+            decisions.length = 0;
+            sendResponse(pageState());
+          }
+        } else {
+          sendResponse({ ok: false, error: { code: 'unknown-message', message: 'Unknown request' } });
+        }
+      })
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: { code: 'page-state-unavailable', message: error?.message || 'Page state unavailable' }
+        });
+      });
     return true;
   });
 

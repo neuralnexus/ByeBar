@@ -24,8 +24,11 @@ export const test = base.extend({
       });
       await use(context);
     } finally {
-      await context?.close();
-      await rm(userDataDir, { recursive: true, force: true });
+      try {
+        await context?.close();
+      } finally {
+        await rm(userDataDir, { recursive: true, force: true });
+      }
     }
   },
 

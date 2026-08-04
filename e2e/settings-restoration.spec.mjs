@@ -5,7 +5,13 @@ test('restores and reapplies reversible hides when settings change', async ({ pa
   const popup = page.locator('#restorable');
   await expect(popup).toHaveAttribute('data-byebar-hidden', /generic/);
 
+  await page.evaluate(() => window.detachRestorable());
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  );
   await setSettings({ genericBlocking: false });
+  await expect.poll(() => page.evaluate(() => window.restorableIsHidden())).toBe(false);
+  await page.evaluate(() => window.reinsertRestorable());
   await expect(popup).not.toHaveAttribute('data-byebar-hidden', /.+/);
   await expect(popup).toHaveCSS('display', 'block');
 

@@ -10,7 +10,20 @@
       <button id="open-trusted">Open newsletter</button>
       <button id="open-synthetic">Synthetic newsletter</button>
       <button id="unrelated">Unrelated click</button>
+      <button id="open-custom-consent">Open privacy choices</button>
+      <button id="open-held-pointer">Hold to open consent</button>
+      <button id="open-held-key">Hold Enter to open newsletter</button>
     </main>
+    <section
+      id="hydrating-consent"
+      class="privacy-panel"
+      style="width: 320px; min-height: 90px; background: white"
+    >
+      We use cookies on this site. <button id="manage-consent">Manage preferences</button>
+    </section>
+    <section id="hydrating-tos" role="dialog" style="width: 320px; min-height: 100px; background: white">
+      Review and accept the Terms of Service. <button id="manage-tos">Review terms</button>
+    </section>
     <script>
       function addPopup(id) {
         const popup = document.createElement('aside');
@@ -19,10 +32,53 @@
         popup.textContent = 'Subscribe to our newsletter';
         document.body.append(popup);
       }
+      window.fixtureEvents = {
+        customRejects: 0,
+        heldRejects: 0,
+        hydratedRejects: 0,
+        hydratedAccepts: 0
+      };
+      function addPrivacyPanel(id, eventKey) {
+        const panel = document.createElement('section');
+        panel.id = id;
+        panel.className = 'privacy-panel';
+        panel.style = 'position:fixed;right:0;bottom:0;width:320px;height:90px;background:white;z-index:200';
+        panel.innerHTML = 'We use cookies to personalize this site. <button>Reject all</button>';
+        panel.querySelector('button').addEventListener('click', () => {
+          window.fixtureEvents[eventKey] += 1;
+          panel.remove();
+        });
+        document.body.append(panel);
+      }
       document.querySelector('#open-trusted').addEventListener('click', () => addPopup('trusted-popup'));
       document.querySelector('#open-synthetic').addEventListener('click', () => addPopup('synthetic-popup'));
       document.querySelector('#unrelated').addEventListener('click', () => {
         setTimeout(() => addPopup('unrelated-popup'), 100);
+      });
+      document
+        .querySelector('#open-custom-consent')
+        .addEventListener('click', () => addPrivacyPanel('custom-consent', 'customRejects'));
+      document.querySelector('#open-held-pointer').addEventListener('pointerdown', () => {
+        setTimeout(() => addPrivacyPanel('held-consent', 'heldRejects'), 50);
+      });
+      document.querySelector('#open-held-key').addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.repeat) {
+          setTimeout(() => addPopup('held-key-popup'), 50);
+        }
+      });
+      document.querySelector('#manage-consent').addEventListener('click', () => {
+        const reject = document.createElement('button');
+        reject.id = 'hydrated-reject';
+        reject.textContent = 'Reject all';
+        reject.addEventListener('click', () => (window.fixtureEvents.hydratedRejects += 1));
+        document.querySelector('#hydrating-consent').append(reject);
+      });
+      document.querySelector('#manage-tos').addEventListener('click', () => {
+        const accept = document.createElement('button');
+        accept.id = 'hydrated-accept';
+        accept.textContent = 'I agree';
+        accept.addEventListener('click', () => (window.fixtureEvents.hydratedAccepts += 1));
+        document.querySelector('#hydrating-tos').append(accept);
       });
     </script>
   </body>

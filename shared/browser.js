@@ -14,9 +14,14 @@
     'siteOverrides',
     'siteFeatureOverrides'
   ];
+  const LEGACY_SYNC_KEYS = [...SETTINGS_KEYS, 'locationDecline', 'netsuiteLeadRedirect'];
   const MIGRATION_KEY = 'byebar.localSettingsVersion';
   const MIGRATION_VERSION = 1;
+  const SYNC_CLEANUP_KEY = 'byebar.legacySyncCleanupVersion';
+  const SYNC_CLEANUP_VERSION = 1;
   let legacyMigrationReady = false;
+  let legacySyncClean = false;
+  let cleanupPromise = null;
 
   if (!api) throw new Error('ByeBar: WebExtension API unavailable');
 
@@ -61,14 +66,29 @@
     return Boolean(stored && SETTINGS_KEYS.some((key) => Object.hasOwn(stored, key)));
   }
 
-  async function cleanupLegacySync() {
-    const sync = api.storage?.sync;
-    if (!sync || sync === getStorageArea() || !sync.remove) return;
-    try {
-      await invoke(sync, 'remove', [SETTINGS_KEYS]);
-    } catch {
-      /* A later read/write retries cleanup without invalidating local settings. */
+  async function cleanupLegacySync(localStored = {}) {
+    if (legacySyncClean || localStored?.[SYNC_CLEANUP_KEY] === SYNC_CLEANUP_VERSION) {
+      legacySyncClean = true;
+      return;
     }
+    if (cleanupPromise) return cleanupPromise;
+    const sync = api.storage?.sync;
+    if (!sync || sync === getStorageArea() || !sync.remove) {
+      legacySyncClean = true;
+      return;
+    }
+    cleanupPromise = (async () => {
+      try {
+        await invoke(sync, 'remove', [LEGACY_SYNC_KEYS]);
+        await invoke(getStorageArea(), 'set', [{ [SYNC_CLEANUP_KEY]: SYNC_CLEANUP_VERSION }]);
+        legacySyncClean = true;
+      } catch {
+        /* A later read/write retries cleanup without invalidating local settings. */
+      } finally {
+        cleanupPromise = null;
+      }
+    })();
+    return cleanupPromise;
   }
 
   async function storageGet(defaults) {
@@ -76,7 +96,7 @@
     const localStored = await invoke(area, 'get', [null]);
     if (localStored?.[MIGRATION_KEY] === MIGRATION_VERSION) {
       legacyMigrationReady = true;
-      void cleanupLegacySync();
+      void cleanupLegacySync(localStored);
       return normalizeStored(localStored, defaults);
     }
 
@@ -86,8 +106,14 @@
       return normalizeStored(localStored, defaults);
     }
     const legacySync = await invoke(sync, 'get', [null]);
+    const refreshedLocal = await invoke(area, 'get', [null]);
+    if (refreshedLocal?.[MIGRATION_KEY] === MIGRATION_VERSION) {
+      legacyMigrationReady = true;
+      void cleanupLegacySync(refreshedLocal);
+      return normalizeStored(refreshedLocal, defaults);
+    }
     legacyMigrationReady = true;
-    return normalizeStored(hasSettings(legacySync) ? legacySync : localStored, defaults);
+    return normalizeStored(hasSettings(legacySync) ? legacySync : refreshedLocal, defaults);
   }
 
   async function storageSet(values) {
@@ -95,7 +121,7 @@
     const area = getStorageArea();
     const stored = legacyMigrationReady ? { ...normalized, [MIGRATION_KEY]: MIGRATION_VERSION } : normalized;
     await invoke(area, 'set', [stored]);
-    if (legacyMigrationReady) await cleanupLegacySync();
+    if (legacyMigrationReady) await cleanupLegacySync(stored);
   }
 
   function storageGetRaw(keys = null) {

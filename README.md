@@ -45,11 +45,12 @@ document_start
 | **Auto-decline cookie banners** | Clicks visible reject/deny controls inside confirmed CMP banners and lets the CMP close itself     |
 | **Optional legal dialogs**      | Can accept confirmed legal/TOS popups; disabled by default                                         |
 | **Reversible marker hides**     | Hides matched elements without deleting DOM nodes and supports Undo for the latest reversible hide |
+| **On-demand page sweep**        | Reruns the same conservative rules when a CSS-only page change slips past automatic observation    |
 | **Site-specific rules**         | Targeted, host-limited heuristics for known offenders                                              |
 | **Per-site feature controls**   | Inherit or override each global feature for the current host                                       |
 | **Local diagnostics**           | Optionally shows rule/result metadata in page memory without recording page text or telemetry      |
 
-Open the toolbar popup to toggle behavior globally or per-site.
+Open the toolbar popup to toggle behavior globally or per-site, or use **Sweep page** for a fresh pass.
 
 ## Site coverage
 
@@ -144,7 +145,7 @@ Open the popup from the toolbar:
 
 Use **This site** to inherit or override each setting for the current host. **Global defaults** changes the values inherited by sites without an override. **Use global defaults** clears every override for the current host.
 
-Global defaults, hostname-keyed site overrides, and the diagnostics preference stay in device-local extension storage. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Undo latest hide** restores only the latest marker-based hide in the current document. Cookie, legal, and site close-button clicks cannot be undone.
+Global defaults, hostname-keyed site overrides, and the diagnostics preference stay in device-local extension storage. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Sweep page** reruns the enabled safe rules without broadening what ByeBar may act on. **Undo hide** restores only the latest marker-based hide in the current document. Cookie, legal, and site close-button clicks cannot be undone.
 
 ## Troubleshooting
 

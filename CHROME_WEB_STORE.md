@@ -76,7 +76,7 @@ Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem
 
 **Description (listing tab):**
 
-> ByeBar hides validated newsletter modals and subscribe bars, and can click confirmed cookie-reject or optional terms controls. It uses both content and layout checks, keeps marker-based hides reversible, and does not patch unrelated site APIs. Site control clicks are not reversible. Not an ad blocker; it does not block ads, trackers, or network requests. No telemetry.
+> ByeBar hides validated newsletter modals and subscribe bars, and can click confirmed cookie-reject or optional terms controls. Its toolbar popup can run the same conservative rules on demand when a CSS-only page change evades automatic observation. Marker-based hides are reversible, while site control clicks are not. Not an ad blocker; it does not block ads, trackers, or network requests. No telemetry.
 
 ## Privacy practices tab (copy-paste)
 

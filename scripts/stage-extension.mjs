@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { cpSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { buildValidatedDirectory } from './artifact-output.mjs';
 import { validateManifest } from './validate-manifest.mjs';
 
 export const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -75,26 +76,31 @@ function assertSourceFile(relativePath) {
 
 export async function stageExtension(target) {
   if (!targets.has(target)) throw new Error(`unknown extension target: ${target}`);
-  const sourceManifest = JSON.parse(readFileSync(join(projectRoot, 'manifest.json'), 'utf8'));
-  assertSupportedManifest(sourceManifest);
-  execFileSync(process.execPath, [join(projectRoot, 'scripts', 'build-runtime.mjs'), '--check'], {
-    stdio: 'inherit'
-  });
-  execFileSync(process.execPath, [join(projectRoot, 'scripts', 'generate-icons.mjs'), '--check'], {
-    stdio: 'inherit'
-  });
-  const manifest = createTargetManifest(sourceManifest, target);
   const stageDir = join(projectRoot, 'dist', 'stage', target);
-  rmSync(stageDir, { recursive: true, force: true });
-  mkdirSync(stageDir, { recursive: true });
+  let manifest;
 
-  for (const relativePath of packageFiles(manifest)) {
-    const destination = join(stageDir, relativePath);
-    mkdirSync(dirname(destination), { recursive: true });
-    cpSync(assertSourceFile(relativePath), destination);
-  }
-  writeFileSync(join(stageDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-  await validateManifest(stageDir, target);
+  await buildValidatedDirectory(stageDir, {
+    build: async (candidateStage) => {
+      const sourceManifest = JSON.parse(readFileSync(join(projectRoot, 'manifest.json'), 'utf8'));
+      assertSupportedManifest(sourceManifest);
+      execFileSync(process.execPath, [join(projectRoot, 'scripts', 'build-runtime.mjs'), '--check'], {
+        stdio: 'inherit'
+      });
+      execFileSync(process.execPath, [join(projectRoot, 'scripts', 'generate-icons.mjs'), '--check'], {
+        stdio: 'inherit'
+      });
+      manifest = createTargetManifest(sourceManifest, target);
+      mkdirSync(candidateStage, { recursive: true });
+
+      for (const relativePath of packageFiles(manifest)) {
+        const destination = join(candidateStage, relativePath);
+        mkdirSync(dirname(destination), { recursive: true });
+        cpSync(assertSourceFile(relativePath), destination);
+      }
+      writeFileSync(join(candidateStage, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+    },
+    validate: (candidateStage) => validateManifest(candidateStage, target)
+  });
   return stageDir;
 }
 

@@ -22,9 +22,12 @@ const FEATURE_ROWS = {
 
 const scopeSiteEl = document.getElementById('scope-site');
 const scopeGlobalEl = document.getElementById('scope-global');
+const siteStateEl = document.getElementById('site-state');
+const siteStateLabelEl = document.getElementById('site-state-label');
 const enabledLabelEl = document.getElementById('enabled-label');
 const hostLabelEl = document.getElementById('host-label');
 const resetSiteEl = document.getElementById('reset-site');
+const sweepPageEl = document.getElementById('sweep-page');
 const actionSummaryEl = document.getElementById('action-summary');
 const undoActionEl = document.getElementById('undo-action');
 const debugEnabledEl = document.getElementById('debug-enabled');
@@ -40,6 +43,7 @@ let tabId = null;
 let settingsState = null;
 let pageState = null;
 let pending = false;
+let initializationState = 'loading';
 
 function setStatus(message = '', isError = false) {
   statusEl.textContent = message;
@@ -80,8 +84,32 @@ function renderScope() {
     scope === 'site' ? host || 'Unavailable on this page' : 'Used unless a site overrides it';
 }
 
+function renderSiteState() {
+  let state = 'loading';
+  let label = 'Checking';
+  if (!settingsState && initializationState !== 'loading') {
+    state = 'unavailable';
+    label = initializationState === 'error' ? 'Error' : 'Verify';
+  } else if (settingsState && (!host || !pageState)) {
+    state = 'unavailable';
+    label = 'No access';
+  } else if (settingsState?.site?.effective.enabled) {
+    state = 'ready';
+    label = 'Ready';
+  } else if (settingsState) {
+    state = 'paused';
+    label = 'Paused';
+  }
+  siteStateEl.dataset.state = state;
+  siteStateLabelEl.textContent = label;
+}
+
 function renderSettings() {
-  if (!settingsState) return;
+  if (!settingsState) {
+    Object.values(FEATURE_ROWS).forEach((row) => (row.input.disabled = true));
+    resetSiteEl.hidden = true;
+    return;
+  }
   const siteUnavailable = scope === 'site' && !host;
   const values = scope === 'site' ? settingsState.site.configured : settingsState.global;
 
@@ -98,10 +126,8 @@ function renderSettings() {
 
   resetSiteEl.hidden = scope !== 'site' || !settingsState.site.hasOverrides || siteUnavailable;
   resetSiteEl.disabled = pending;
-  if (scope === 'site' && host && !settingsState.site.effective.enabled) {
+  if (!statusEl.textContent && scope === 'site' && host && !settingsState.site.effective.enabled) {
     setStatus('Paused on this site');
-  } else if (!pending && !statusEl.classList.contains('status--error')) {
-    setStatus('');
   }
 }
 
@@ -117,8 +143,11 @@ function actionCopy(action) {
 function renderPageState() {
   const action = pageState?.lastAction || null;
   const undoAction = pageState?.undoAction || null;
+  const supportsSweep = pageState?.capabilities?.includes('sweep') === true;
   actionSummaryEl.textContent = pageState ? actionCopy(action) : 'Unavailable on this page';
   undoActionEl.disabled = pending || !undoAction?.canUndo;
+  sweepPageEl.disabled = pending || tabId === null || !supportsSweep;
+  sweepPageEl.title = pageState && !supportsSweep ? 'Reload this page to use Sweep' : '';
   debugListEl.replaceChildren();
   const decisions = pageState?.decisions || [];
   decisions.forEach((decision) => {
@@ -135,24 +164,101 @@ function renderPageState() {
 }
 
 function render() {
+  renderSiteState();
   renderScope();
   renderSettings();
   debugEnabledEl.checked = Boolean(settingsState?.debugEnabled);
-  debugEnabledEl.disabled = pending;
+  debugEnabledEl.disabled = pending || !settingsState;
+  scopeSiteEl.disabled = pending || !settingsState || !host;
+  scopeGlobalEl.disabled = pending || !settingsState;
   renderPageState();
   reportBugEl.href = buildIssueUrl('bug');
   requestFeatureEl.href = buildIssueUrl('feature');
 }
 
+function requestError(response, fallback) {
+  const error = new Error(response?.error?.message || response?.error?.code || fallback);
+  error.code = response?.error?.code || 'request-failed';
+  return error;
+}
+
+function transportError(error, fallback) {
+  const result = new Error(error?.message || fallback);
+  result.isTransportError = true;
+  return result;
+}
+
 async function requestSettings(message) {
-  const response = await sendRuntimeMessage({ protocol: PROTOCOL, ...message });
-  if (!response?.ok) throw new Error(response?.error?.message || 'Settings update failed');
+  let response;
+  try {
+    response = await sendRuntimeMessage({ protocol: PROTOCOL, ...message });
+  } catch (error) {
+    throw transportError(error, 'Settings service unavailable');
+  }
+  if (!response) throw transportError(null, 'Settings response unavailable');
+  if (!response.ok) throw requestError(response, 'Settings update failed');
   settingsState = response.state;
   return response;
 }
 
+async function mutateSettings(message, matches) {
+  try {
+    return await requestSettings(message);
+  } catch (error) {
+    if (!error.isTransportError) throw error;
+    settingsState = null;
+    try {
+      await requestSettings({ type: 'byebar.settings.get', host: message.host || '' });
+    } catch (verificationError) {
+      throw new Error('Save status unknown; reopen ByeBar to verify', {
+        cause: verificationError
+      });
+    }
+    if (!matches(settingsState)) throw new Error('Save was not applied', { cause: error });
+    return { ok: true, state: settingsState, reconciled: true };
+  }
+}
+
+async function readActiveContext() {
+  const [tab] = await tabsQuery({ active: true, currentWindow: true });
+  return {
+    tabId: Number.isInteger(tab?.id) ? tab.id : null,
+    host: tab?.incognito ? '' : window.ByeBar.lib.host.normalizeHost(tab?.url || '')
+  };
+}
+
+async function loadActiveContext(context, initial = false) {
+  settingsState = null;
+  pageState = null;
+  tabId = context.tabId;
+  host = context.host;
+  if (!host && (initial || scope === 'site')) scope = 'global';
+  await requestSettings({ type: 'byebar.settings.get', host });
+  await refreshPageState();
+}
+
+async function confirmActiveContext() {
+  const current = await readActiveContext();
+  if (current.tabId === tabId && current.host === host) return true;
+  await loadActiveContext(current);
+  setStatus('Active page changed; review and try again', true);
+  return false;
+}
+
+async function requestPage(message) {
+  let response;
+  try {
+    response = await sendTabMessage(tabId, { protocol: PROTOCOL, ...message });
+  } catch (error) {
+    throw transportError(error, 'Page connection unavailable');
+  }
+  if (!response) throw transportError(null, 'Page response unavailable');
+  if (!response.ok) throw requestError(response, 'Page request failed');
+  return response;
+}
+
 async function refreshPageState() {
-  if (tabId === null || !host) {
+  if (tabId === null) {
     pageState = null;
     return;
   }
@@ -164,18 +270,39 @@ async function refreshPageState() {
   }
 }
 
+async function recoverActiveState() {
+  try {
+    const current = await readActiveContext();
+    if (current.tabId !== tabId || current.host !== host) await loadActiveContext(current);
+    else await refreshPageState();
+    return Boolean(pageState);
+  } catch {
+    pageState = null;
+    return false;
+  }
+}
+
 async function updateSetting(key, value) {
   setPending(true);
   setStatus('Saving…');
   try {
-    await requestSettings({
-      type: 'byebar.settings.update',
-      scope,
-      host,
-      key,
-      value
-    });
-    setStatus('Saved');
+    if (!(await confirmActiveContext())) return;
+    const requestScope = scope;
+    const requestHost = host;
+    const response = await mutateSettings(
+      {
+        type: 'byebar.settings.update',
+        scope: requestScope,
+        host: requestHost,
+        key,
+        value
+      },
+      (state) =>
+        requestScope === 'global'
+          ? state?.global?.[key] === value
+          : state?.site?.host === requestHost && state?.site?.overrides?.[key] === value
+    );
+    setStatus(response.reconciled ? 'Saved and verified' : 'Saved');
   } catch (error) {
     setStatus(error.message, true);
   } finally {
@@ -191,21 +318,69 @@ Object.entries(FEATURE_ROWS).forEach(([key, row]) => {
 scopeSiteEl.addEventListener('click', () => {
   if (!host) return;
   scope = 'site';
+  setStatus();
   render();
 });
 
 scopeGlobalEl.addEventListener('click', () => {
   scope = 'global';
+  setStatus();
   render();
 });
 
 resetSiteEl.addEventListener('click', async () => {
   setPending(true);
   try {
-    await requestSettings({ type: 'byebar.settings.clearSite', host });
-    setStatus('Using global defaults');
+    if (!(await confirmActiveContext())) return;
+    const requestHost = host;
+    const response = await mutateSettings(
+      { type: 'byebar.settings.clearSite', host: requestHost },
+      (state) => state?.site?.host === requestHost && state?.site?.hasOverrides === false
+    );
+    setStatus(response.reconciled ? 'Global defaults verified' : 'Using global defaults');
   } catch (error) {
     setStatus(error.message, true);
+  } finally {
+    setPending(false);
+    render();
+  }
+});
+
+sweepPageEl.addEventListener('click', async () => {
+  if (!pageState || tabId === null) return;
+  setPending(true);
+  setStatus('Sweeping this page...');
+  let attemptedDocumentId = '';
+  let requestAttempted = false;
+  try {
+    if (!(await confirmActiveContext())) return;
+    if (!pageState || tabId === null) return;
+    attemptedDocumentId = pageState.documentId;
+    requestAttempted = true;
+    const response = await requestPage({
+      type: 'byebar.page.sweep',
+      documentId: pageState.documentId
+    });
+    pageState = response;
+    if (!response.sweep?.effective?.enabled) setStatus('ByeBar is paused on this page');
+    else setStatus('Sweep complete');
+  } catch (error) {
+    const recovered = await recoverActiveState();
+    if (!requestAttempted) setStatus(error.message, true);
+    else if (error.code === 'stale-document') {
+      setStatus(
+        recovered ? 'Page changed; sweep state refreshed' : 'Page changed; current state unavailable',
+        true
+      );
+    } else if (error.code === 'unknown-message') setStatus('Reload this page to use Sweep', true);
+    else if (error.isTransportError) {
+      const documentChanged = Boolean(pageState?.documentId) && pageState.documentId !== attemptedDocumentId;
+      if (documentChanged) setStatus('Page changed during Sweep; the action may already have run', true);
+      else if (!recovered) setStatus('Sweep status unknown; page state unavailable', true);
+      else setStatus('Sweep status unknown; review the latest action', true);
+    } else {
+      setStatus(error.message, true);
+    }
   } finally {
     setPending(false);
     render();
@@ -216,17 +391,18 @@ undoActionEl.addEventListener('click', async () => {
   if (!pageState?.undoAction || tabId === null) return;
   setPending(true);
   try {
-    const response = await sendTabMessage(tabId, {
-      protocol: PROTOCOL,
+    if (!(await confirmActiveContext())) return;
+    if (!pageState?.undoAction || tabId === null) return;
+    const response = await requestPage({
       type: 'byebar.page.undo',
       documentId: pageState.documentId,
       actionId: pageState.undoAction.id
     });
-    if (!response?.ok) throw new Error(response?.error?.code || 'Undo failed');
     pageState = response;
     setStatus('Hidden elements restored');
   } catch (error) {
-    setStatus(error.message, true);
+    await refreshPageState();
+    setStatus(error.code === 'stale-document' ? 'Page changed; actions refreshed' : error.message, true);
   } finally {
     setPending(false);
     render();
@@ -234,15 +410,18 @@ undoActionEl.addEventListener('click', async () => {
 });
 
 debugEnabledEl.addEventListener('change', async () => {
+  const enabled = debugEnabledEl.checked;
   setPending(true);
   try {
-    await requestSettings({
-      type: 'byebar.debug.set',
-      host,
-      enabled: debugEnabledEl.checked
-    });
+    if (!(await confirmActiveContext())) return;
+    const requestHost = host;
+    const response = await mutateSettings(
+      { type: 'byebar.debug.set', host: requestHost, enabled },
+      (state) => state?.debugEnabled === enabled
+    );
     await refreshPageState();
-    setStatus(debugEnabledEl.checked ? 'Local diagnostics enabled' : 'Local diagnostics disabled');
+    const label = enabled ? 'Local diagnostics enabled' : 'Local diagnostics disabled';
+    setStatus(response.reconciled ? `${label} and verified` : label);
   } catch (error) {
     setStatus(error.message, true);
   } finally {
@@ -255,15 +434,17 @@ clearDebugEl.addEventListener('click', async () => {
   if (!pageState || tabId === null) return;
   setPending(true);
   try {
-    const response = await sendTabMessage(tabId, {
-      protocol: PROTOCOL,
+    if (!(await confirmActiveContext())) return;
+    if (!pageState || tabId === null) return;
+    const response = await requestPage({
       type: 'byebar.page.debug.clear',
       documentId: pageState.documentId
     });
-    if (response?.ok) pageState = response;
+    pageState = response;
     setStatus('Page decisions cleared');
   } catch (error) {
-    setStatus(error.message, true);
+    await refreshPageState();
+    setStatus(error.code === 'stale-document' ? 'Page changed; decisions refreshed' : error.message, true);
   } finally {
     setPending(false);
     render();
@@ -273,13 +454,10 @@ clearDebugEl.addEventListener('click', async () => {
 async function init() {
   setPending(true);
   try {
-    const [tab] = await tabsQuery({ active: true, currentWindow: true });
-    tabId = Number.isInteger(tab?.id) ? tab.id : null;
-    host = tab?.incognito ? '' : window.ByeBar.lib.host.normalizeHost(tab?.url || '');
-    if (!host) scope = 'global';
-    await requestSettings({ type: 'byebar.settings.get', host });
-    await refreshPageState();
+    await loadActiveContext(await readActiveContext(), true);
+    initializationState = 'ready';
   } catch (error) {
+    initializationState = 'error';
     setStatus(error.message, true);
   } finally {
     setPending(false);
