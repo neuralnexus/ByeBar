@@ -113,8 +113,9 @@
     const previousTabIndex = fallback.getAttribute('tabindex');
     fallback.setAttribute('tabindex', '-1');
     fallback.focus({ preventScroll: true });
-    if (previousTabIndex === null) fallback.removeAttribute('tabindex');
-    else fallback.setAttribute('tabindex', previousTabIndex);
+    if (previousTabIndex === null) {
+      fallback.addEventListener('blur', () => fallback.removeAttribute('tabindex'), { once: true });
+    } else fallback.setAttribute('tabindex', previousTabIndex);
   }
 
   function repairFocusAfterHide(previousFocus, targets) {

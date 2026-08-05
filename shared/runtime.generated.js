@@ -651,15 +651,29 @@
     "button",
     "checkbox",
     "combobox",
+    "grid",
+    "gridcell",
     "link",
+    "listbox",
+    "menu",
+    "menubar",
     "menuitem",
+    "menuitemcheckbox",
+    "menuitemradio",
     "option",
     "radio",
+    "radiogroup",
+    "scrollbar",
+    "searchbox",
     "slider",
     "spinbutton",
     "switch",
     "tab",
-    "textbox"
+    "tablist",
+    "textbox",
+    "tree",
+    "treegrid",
+    "treeitem"
   ]);
   var APP_ROOT_IDS = /* @__PURE__ */ new Set(["app", "root", "__next", "__nuxt"]);
   var PROTECTED_ROLES = /* @__PURE__ */ new Set(["application", "banner", "contentinfo", "main", "navigation"]);
@@ -670,8 +684,12 @@
   function isInteractive(el) {
     const tagName = String(el?.tagName || "").toUpperCase();
     const role = String(el?.getAttribute?.("role") || "").toLowerCase();
+    const modalContainer = tagName === "DIALOG" || role === "dialog" || el?.getAttribute?.("aria-modal") === "true";
+    const linked = (tagName === "A" || tagName === "AREA") && el?.hasAttribute?.("href");
+    const mediaControl = (tagName === "AUDIO" || tagName === "VIDEO") && el?.hasAttribute?.("controls");
+    const keyboardFocusable = !modalContainer && el?.hasAttribute?.("tabindex") && Number(el.tabIndex) >= 0;
     return Boolean(
-      INTERACTIVE_TAGS.has(tagName) || tagName === "A" && el.getAttribute?.("href") || el?.isContentEditable || INTERACTIVE_ROLES.has(role)
+      INTERACTIVE_TAGS.has(tagName) || linked || mediaControl || keyboardFocusable || el?.isContentEditable || INTERACTIVE_ROLES.has(role)
     );
   }
   function isNativeModal(el) {

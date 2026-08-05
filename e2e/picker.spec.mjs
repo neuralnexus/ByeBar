@@ -45,6 +45,7 @@ test('picks one interruption without firing its control and restores it through 
 }) => {
   await page.goto('/picker.html');
   await page.evaluate(() => window.lockForManualDialog());
+  await page.locator('#manual-control').focus();
   const tabId = await fixtureTabId(serviceWorker);
   const popup = await openPopup(context, serviceWorker, extensionId, tabId);
   const target = page.locator('#manual-interruption');
@@ -66,6 +67,7 @@ test('picks one interruption without firing its control and restores it through 
     keydowns: 0
   });
   await expect(page.locator('[data-byebar-picker-root]')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('protected-main');
 
   await serviceWorker.evaluate((id) => chrome.tabs.update(id, { active: true }), tabId);
   await popup.reload();
@@ -81,6 +83,71 @@ test('picks one interruption without firing its control and restores it through 
   await clickCenter(page, page.locator('#manual-control'));
   await expect(target).toHaveAttribute('data-byebar-hidden', /manual/);
   expect(await page.evaluate(() => window.fixtureEvents.actionClicks)).toBe(0);
+});
+
+test('cycles safe keyboard targets and restores page focus after success or cancellation', async ({
+  page,
+  context,
+  serviceWorker,
+  extensionId
+}) => {
+  await page.goto('/picker.html');
+  const safeFocus = page.locator('#safe-focus');
+  await safeFocus.focus();
+  const tabId = await fixtureTabId(serviceWorker);
+  const popup = await openPopup(context, serviceWorker, extensionId, tabId);
+
+  await popup.locator('#pick-page').click();
+  await page.bringToFront();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  const target = page.locator('#manual-interruption');
+  await expect(target).toHaveAttribute('data-byebar-hidden', /manual/);
+  await expect(page.locator('[data-byebar-picker-root]')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('safe-focus');
+
+  await serviceWorker.evaluate((id) => chrome.tabs.update(id, { active: true }), tabId);
+  await popup.reload();
+  await popup.locator('#undo-action').click();
+  await expect(target).toBeVisible();
+  await safeFocus.focus();
+  await popup.locator('#pick-page').click();
+  await page.bringToFront();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-byebar-picker-root]')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('safe-focus');
+});
+
+test('offers trusted in-page controls for target cycling, hiding, and cancellation', async ({
+  page,
+  context,
+  serviceWorker,
+  extensionId
+}) => {
+  await page.goto('/picker.html');
+  const tabId = await fixtureTabId(serviceWorker);
+  const popup = await openPopup(context, serviceWorker, extensionId, tabId);
+  const target = page.locator('#manual-interruption');
+  const viewportCenter = page.viewportSize().width / 2;
+  const controlCenterY = 87;
+
+  await popup.locator('#pick-page').click();
+  await page.bringToFront();
+  await page.mouse.click(viewportCenter - 60, controlCenterY);
+  await page.mouse.click(viewportCenter + 60, controlCenterY);
+  await expect(target).toHaveAttribute('data-byebar-hidden', /manual/);
+  expect(await page.evaluate(() => window.fixtureEvents.actionClicks)).toBe(0);
+  await expect(page.locator('[data-byebar-picker-root]')).toHaveCount(0);
+
+  await serviceWorker.evaluate((id) => chrome.tabs.update(id, { active: true }), tabId);
+  await popup.reload();
+  await popup.locator('#undo-action').click();
+  await expect(target).toBeVisible();
+  await popup.locator('#pick-page').click();
+  await page.bringToFront();
+  await page.mouse.click(viewportCenter + 181, controlCenterY);
+  await expect(page.locator('[data-byebar-picker-root]')).toHaveCount(0);
+  await expect(target).toBeVisible();
 });
 
 test('rejects unshieldable dialogs and ignores protected or framed targets before Escape', async ({

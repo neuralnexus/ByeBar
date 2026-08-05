@@ -50,6 +50,7 @@
     <main id="protected-main">
       <h1>Article workspace</h1>
       <p>The open area of this landmark must never become a picker target.</p>
+      <button type="button" id="safe-focus">Continue reading</button>
     </main>
 
     <iframe
@@ -95,6 +96,7 @@
       let closedPopoverClicks = 0;
       const closedPopoverHost = document.createElement('div');
       closedPopoverHost.style.cssText = 'position:fixed;left:80px;top:80px;width:120px;height:60px';
+      closedPopoverHost.hidden = true;
       const closedPopoverRoot = closedPopoverHost.attachShadow({ mode: 'closed' });
       const closedPopover = document.createElement('button');
       closedPopover.popover = 'manual';
@@ -106,8 +108,14 @@
       });
       closedPopoverRoot.append(closedPopover);
       document.body.append(closedPopoverHost);
-      window.openClosedPopover = () => closedPopover.showPopover();
-      window.closeClosedPopover = () => closedPopover.hidePopover();
+      window.openClosedPopover = () => {
+        closedPopoverHost.hidden = false;
+        closedPopover.showPopover();
+      };
+      window.closeClosedPopover = () => {
+        closedPopover.hidePopover();
+        closedPopoverHost.hidden = true;
+      };
       window.closedPopoverClicks = () => closedPopoverClicks;
       window.closedPopoverRect = () => {
         const rect = closedPopover.getBoundingClientRect();

@@ -52,7 +52,7 @@ document_start
 | **Per-site feature controls**   | Inherit or override each global feature for the current host                                      |
 | **Local diagnostics**           | Optionally shows rule/result metadata in page memory without recording page text or telemetry     |
 
-Open the toolbar popup to toggle behavior globally or per-site, use **Sweep page** for a fresh pass, or choose **Pick to hide** and point to one interruption. Pick intercepts the selection click instead of sending it to the page; press `Escape` or reopen ByeBar to cancel. Page roots, controls without an eligible interruption container, iframes, and active browser-level dialogs are not selectable. ByeBar stores no selector or page text from a Pick.
+Open the toolbar popup to toggle behavior globally or per-site, use **Sweep page** for a fresh pass, or choose **Pick to hide** for one interruption. Point and click, use the in-page Previous/Next and Hide controls, or cycle safe targets with `Tab`/arrow keys and press `Enter`. Pick intercepts those actions instead of sending them to the page; use its Cancel control, press `Escape`, or reopen ByeBar to cancel. Focus returns to the prior page control or a safe page landmark. Page roots, standalone controls, iframes, and active browser-level dialogs are not selectable. ByeBar stores no selector or page text from a Pick.
 
 Press `Ctrl+Shift+Y` (`Command+Shift+Y` on macOS) to Sweep without opening the popup; remap it in your browser's extension-shortcut settings where supported.
 

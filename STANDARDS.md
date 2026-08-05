@@ -136,6 +136,7 @@ Manual checks:
 - Keyboard Sweep uses the state/document handshake and never retries an ambiguous request
 - Pick uses document/session handshakes, ignores synthetic input and protected/frame targets, and never retries an ambiguous start or cancel
 - Pick cancellation, timeout, navigation, settings pause, and active top-layer UI leave the page interactive
+- Pick remains operable by pointer, keyboard, and its semantic in-page controls, then restores focus outside a hidden target
 - A successful Pick records one manual marker hide as the newest reversible Undo action without persisting a selector
 - Diagnostics record metadata without page text and clear decisions on reload
 - Same-origin and cross-origin iframe contents remain untouched

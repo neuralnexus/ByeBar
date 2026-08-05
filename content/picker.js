@@ -8,16 +8,37 @@
   const SESSION_TIMEOUT_MS = 60_000;
   const CLICK_TAIL_MS = 500;
   const SUCCESS_NOTICE_MS = 1_800;
+  const MAX_KEYBOARD_SCAN_ELEMENTS = 5_000;
+  const KEYBOARD_SEED_SELECTOR = [
+    'dialog',
+    '[role="dialog"]',
+    '[aria-modal="true"]',
+    'button',
+    'a[href]',
+    'area[href]',
+    'input',
+    'select',
+    'textarea',
+    'summary',
+    '[contenteditable="true"]',
+    '[tabindex]'
+  ].join(',');
   const eventOptions = { capture: true, passive: false };
   const activePointers = new Set();
   let mode = 'idle';
   let sessionId = '';
   let host = null;
+  let pickerRoot = null;
   let shield = null;
   let outline = null;
   let coach = null;
   let coachTitle = null;
   let coachCopy = null;
+  let coachControls = null;
+  let previousTargetButton = null;
+  let nextTargetButton = null;
+  let hideTargetButton = null;
+  let cancelButton = null;
   let candidate = null;
   let pressed = null;
   let highlightFrame = null;
@@ -31,6 +52,10 @@
   let sessionGeneration = 0;
   let lastPointerPoint = null;
   let startupCanResume = false;
+  let returnFocus = null;
+  let hiddenFocusTarget = null;
+  let keyboardCandidateCount = 0;
+  let keyboardCandidateIndex = -1;
 
   function isSessionActive() {
     return mode === 'starting' || mode === 'active';
@@ -109,7 +134,7 @@
     host = document.createElement('div');
     host.setAttribute('data-byebar-picker-root', '');
     setHostStyle(host);
-    const root = host.attachShadow({ mode: 'closed' });
+    pickerRoot = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
     style.textContent = `
       :host {
@@ -144,7 +169,7 @@
         left: 50%;
         z-index: 2;
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr);
         gap: 10px;
         align-items: center;
         width: min(500px, calc(100vw - 24px));
@@ -170,16 +195,32 @@
       .copy { display: grid; min-width: 0; }
       strong { color: #fffef9; font-size: 13px; }
       small { color: #b9f0df; font-size: 11px; }
-      kbd {
-        padding: 2px 5px;
+      .controls {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        pointer-events: auto;
+      }
+      .controls[hidden] { display: none; }
+      button {
+        min-height: 44px;
+        padding: 6px 8px;
         color: #052f2d;
         font: inherit;
         font-size: 10px;
         font-weight: 800;
-        white-space: nowrap;
         background: #f6f3e8;
         border: 1px solid #45d7b5;
-        border-radius: 5px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      button[data-action="hide"] { background: #ff7358; border-color: #ff7358; }
+      button[data-action="cancel"] { color: #f6f3e8; background: #0a514c; }
+      button:disabled { cursor: not-allowed; filter: grayscale(.4); opacity: .48; }
+      button:focus-visible {
+        outline: 2px solid #fffef9;
+        outline-offset: 2px;
       }
       .coach.success { border-color: #45d7b5; border-top-color: #45d7b5; }
       .coach.success .mark { background: #ff7358; }
@@ -191,7 +232,7 @@
         .coach { color: CanvasText; background: Canvas; border: 2px solid CanvasText; box-shadow: none; }
         strong, small { color: CanvasText; }
         .mark { background: Highlight; border-color: Canvas; }
-        kbd { color: ButtonText; background: ButtonFace; border-color: ButtonText; }
+        button { color: ButtonText; background: ButtonFace; border-color: ButtonText; }
         .outline { background: transparent; border: 3px solid Highlight; outline-color: CanvasText; }
       }
     `;
@@ -214,13 +255,25 @@
     coachTitle = document.createElement('strong');
     coachTitle.textContent = 'Pick to hide';
     coachCopy = document.createElement('small');
-    coachCopy.textContent = 'Point to one interruption, then click. Esc cancels.';
+    coachCopy.textContent = 'Point and click, or choose Next target. Esc cancels.';
     copy.append(coachTitle, coachCopy);
-    const key = document.createElement('kbd');
-    key.textContent = 'Esc';
-    key.setAttribute('aria-hidden', 'true');
-    coach.append(mark, copy, key);
-    root.append(style, shield, outline, coach);
+    coachControls = document.createElement('div');
+    coachControls.className = 'controls';
+    const createControl = (label, action) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.dataset.action = action;
+      return button;
+    };
+    previousTargetButton = createControl('Previous', 'previous');
+    nextTargetButton = createControl('Next target', 'next');
+    hideTargetButton = createControl('Hide target', 'hide');
+    cancelButton = createControl('Cancel', 'cancel');
+    hideTargetButton.disabled = true;
+    coachControls.append(previousTargetButton, nextTargetButton, hideTargetButton, cancelButton);
+    coach.append(mark, copy, coachControls);
+    pickerRoot.append(style, shield, outline, coach);
     document.documentElement.append(host);
   }
 
@@ -240,15 +293,66 @@
     noticeTimer = null;
     host?.remove();
     host = null;
+    pickerRoot = null;
     shield = null;
     outline = null;
     coach = null;
     coachTitle = null;
     coachCopy = null;
+    coachControls = null;
+    previousTargetButton = null;
+    nextTargetButton = null;
+    hideTargetButton = null;
+    cancelButton = null;
     candidate = null;
     pressed = null;
     lastPointerPoint = null;
+    keyboardCandidateCount = 0;
+    keyboardCandidateIndex = -1;
     activePointers.clear();
+  }
+
+  function isWithinTarget(element, target) {
+    let node = element;
+    while (node) {
+      if (node === target) return true;
+      node = BYEBAR.lib.pick.composedParent(node);
+    }
+    return false;
+  }
+
+  function canRestoreFocus(element) {
+    if (!element?.isConnected || typeof element.focus !== 'function') return false;
+    if (hiddenFocusTarget && isWithinTarget(element, hiddenFocusTarget)) return false;
+    return !BYEBAR.visibility.isHidden(element);
+  }
+
+  function restorePageFocus() {
+    if (!returnFocus || mode !== 'idle' || !document.hasFocus()) return;
+    const rootFocus = returnFocus === document.body || returnFocus === document.documentElement;
+    const target =
+      !rootFocus && canRestoreFocus(returnFocus)
+        ? returnFocus
+        : document.querySelector('main') || document.body;
+    if (!canRestoreFocus(target)) return;
+    const hadTabIndex = target.hasAttribute?.('tabindex');
+    const previousTabIndex = target.getAttribute?.('tabindex');
+    if (!hadTabIndex) target.setAttribute?.('tabindex', '-1');
+    try {
+      target.focus({ preventScroll: true });
+    } catch {
+      if (!hadTabIndex) target.removeAttribute?.('tabindex');
+      return;
+    }
+    if (document.activeElement === target) {
+      returnFocus = null;
+      hiddenFocusTarget = null;
+      if (!hadTabIndex) {
+        target.addEventListener('blur', () => target.removeAttribute('tabindex'), { once: true });
+      } else if (previousTabIndex !== null) target.setAttribute?.('tabindex', previousTabIndex);
+    } else if (!hadTabIndex) {
+      target.removeAttribute?.('tabindex');
+    }
   }
 
   function finishIdle(resume = true) {
@@ -257,6 +361,7 @@
     pressed = null;
     startupCanResume = false;
     if (resume) BYEBAR.engine?.resumeAutomation?.();
+    restorePageFocus();
   }
 
   function completePointerSettle() {
@@ -305,8 +410,7 @@
     return hit;
   }
 
-  function resolveAt(x, y) {
-    const hit = hitTest(x, y);
+  function resolveElement(hit) {
     return BYEBAR.lib.pick.resolvePickCandidate(hit, {
       getStyle: getComputedStyle,
       viewport: { width: window.innerWidth, height: window.innerHeight },
@@ -317,8 +421,13 @@
     });
   }
 
+  function resolveAt(x, y) {
+    return resolveElement(hitTest(x, y));
+  }
+
   function renderCandidate(next) {
     candidate = next;
+    if (hideTargetButton) hideTargetButton.disabled = !next;
     if (!outline || !next) {
       if (outline) outline.hidden = true;
       return;
@@ -334,7 +443,60 @@
     outline.hidden = false;
   }
 
+  function collectKeyboardCandidates() {
+    const candidates = [];
+    const targets = new Set();
+    const add = (seed) => {
+      const resolved = resolveElement(seed);
+      if (!resolved || targets.has(resolved.target)) return;
+      targets.add(resolved.target);
+      candidates.push(resolved);
+    };
+    const seeded = BYEBAR.shadow?.queryAll?.(KEYBOARD_SEED_SELECTOR, document) || [];
+    seeded.slice(0, MAX_KEYBOARD_SCAN_ELEMENTS).forEach(add);
+
+    const all = BYEBAR.shadow?.queryAll?.('*', document) || [];
+    for (const element of all.slice(0, MAX_KEYBOARD_SCAN_ELEMENTS)) {
+      const style = getComputedStyle(element);
+      if (
+        style.position === 'fixed' ||
+        style.position === 'sticky' ||
+        element.tagName === 'DIALOG' ||
+        element.getAttribute?.('role') === 'dialog' ||
+        element.getAttribute?.('aria-modal') === 'true'
+      ) {
+        add(element);
+      }
+    }
+    return candidates.sort(
+      (left, right) => left.rect.top - right.rect.top || left.rect.left - right.rect.left
+    );
+  }
+
+  function cycleKeyboardCandidate(direction) {
+    const candidates = collectKeyboardCandidates();
+    keyboardCandidateCount = candidates.length;
+    if (candidates.length === 0) {
+      keyboardCandidateIndex = -1;
+      renderCandidate(null);
+      if (coachCopy) coachCopy.textContent = 'No safe keyboard target found. Point to an item or cancel.';
+      return;
+    }
+    const currentIndex = candidates.findIndex((entry) => entry.target === candidate?.target);
+    const base = currentIndex >= 0 ? currentIndex : direction > 0 ? -1 : 0;
+    keyboardCandidateIndex = (base + direction + candidates.length) % candidates.length;
+    renderCandidate(candidates[keyboardCandidateIndex]);
+    if (coachCopy) {
+      coachCopy.textContent = `Target ${keyboardCandidateIndex + 1} of ${keyboardCandidateCount}. Enter hides; Esc cancels.`;
+    }
+  }
+
   function scheduleCandidate(x, y) {
+    if (keyboardCandidateIndex >= 0) {
+      keyboardCandidateIndex = -1;
+      keyboardCandidateCount = 0;
+      if (coachCopy) coachCopy.textContent = 'Point and click, or choose Next target. Esc cancels.';
+    }
     lastPointerPoint = { x, y };
     if (highlightFrame !== null) cancelAnimationFrame(highlightFrame);
     highlightFrame = requestAnimationFrame(() => {
@@ -356,12 +518,12 @@
   }
 
   function commitCandidate(next, point = lastPointerPoint) {
-    if (mode !== 'active' || !next?.target?.isConnected || !point) return false;
-    if (activeTopLayerError() || !shieldOwnsPoint(point.x, point.y)) {
+    if (mode !== 'active' || !next?.target?.isConnected) return false;
+    if (activeTopLayerError() || (point ? !shieldOwnsPoint(point.x, point.y) : !shieldCoversViewport())) {
       stop('top-layer-changed');
       return false;
     }
-    const current = resolveAt(point.x, point.y);
+    const current = point ? resolveAt(point.x, point.y) : resolveElement(next.target);
     if (!current || current.target !== next.target) {
       renderCandidate(current);
       if (coachCopy) coachCopy.textContent = 'That item changed. Pick another.';
@@ -374,6 +536,7 @@
       operation: 'hide',
       reason: 'user-picked'
     });
+    hiddenFocusTarget = next.target;
     if (
       !BYEBAR.actions.hide(action, next.target, 'manual', {
         blocksScroll: blocksScroll(next.target, next.rect),
@@ -381,6 +544,7 @@
       }) ||
       !BYEBAR.actions.commit(action)
     ) {
+      hiddenFocusTarget = null;
       renderCandidate(null);
       if (coachCopy) coachCopy.textContent = 'That item changed. Pick another.';
       return false;
@@ -392,13 +556,17 @@
     sessionId = '';
     renderCandidate(null);
     if (coach) coach.classList.add('success');
+    if (coachControls) coachControls.hidden = true;
     if (coachTitle) coachTitle.textContent = 'Item hidden';
     if (coachCopy) coachCopy.textContent = 'Reopen ByeBar to undo.';
     settleTimer = setTimeout(() => {
       if (host) host.style.setProperty('pointer-events', 'none', 'important');
       if (shield) shield.style.pointerEvents = 'none';
       finishIdle(false);
-      noticeTimer = setTimeout(removeUi, SUCCESS_NOTICE_MS);
+      noticeTimer = setTimeout(() => {
+        removeUi();
+        restorePageFocus();
+      }, SUCCESS_NOTICE_MS);
     }, CLICK_TAIL_MS);
     return true;
   }
@@ -420,6 +588,36 @@
     );
   }
 
+  function pickerControls() {
+    return [previousTargetButton, nextTargetButton, hideTargetButton, cancelButton].filter(Boolean);
+  }
+
+  function controlAtPoint(x, y) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return (
+      pickerControls().find((control) => {
+        const rect = control.getBoundingClientRect();
+        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+      }) || null
+    );
+  }
+
+  function controlForEvent(event) {
+    const pointed = controlAtPoint(event.clientX, event.clientY);
+    if (pointed) return pointed;
+    const active = pickerRoot?.activeElement;
+    return pickerControls().includes(active) ? active : null;
+  }
+
+  function activateControl(control) {
+    if (!control || control.disabled || mode !== 'active') return;
+    const action = control.dataset.action;
+    if (action === 'previous') cycleKeyboardCandidate(-1);
+    else if (action === 'next') cycleKeyboardCandidate(1);
+    else if (action === 'hide' && candidate) commitCandidate(candidate, null);
+    else if (action === 'cancel') stop('coach-cancel');
+  }
+
   function handlePointer(event) {
     if (!capturesInput()) return;
     if (mode === 'settling') {
@@ -439,6 +637,20 @@
       suppress(event);
       return;
     }
+    const control = controlAtPoint(event.clientX, event.clientY);
+    if (control) {
+      suppress(event);
+      if (event.type === 'pointerdown') activePointers.add(event.pointerId);
+      else if (
+        event.type === 'pointerup' ||
+        event.type === 'pointercancel' ||
+        event.type === 'lostpointercapture'
+      ) {
+        activePointers.delete(event.pointerId);
+        pressed = null;
+      }
+      return;
+    }
     if (event.type === 'pointermove') {
       suppress(event, false);
       scheduleCandidate(event.clientX, event.clientY);
@@ -447,6 +659,8 @@
     suppress(event);
     if (event.type === 'pointerdown') {
       activePointers.add(event.pointerId);
+      keyboardCandidateIndex = -1;
+      keyboardCandidateCount = 0;
       if (!validPrimaryPointer(event)) {
         pressed = null;
         return;
@@ -459,9 +673,9 @@
         : null;
       return;
     }
-    if (event.type === 'pointercancel') {
+    if (event.type === 'pointercancel' || event.type === 'lostpointercapture') {
       activePointers.delete(event.pointerId);
-      pressed = null;
+      if (!pressed || pressed.pointerId === event.pointerId) pressed = null;
       return;
     }
     if (event.type !== 'pointerup') return;
@@ -480,7 +694,16 @@
   }
 
   function handleCompatibilityEvent(event) {
-    if (capturesInput()) suppress(event);
+    if (!capturesInput()) return;
+    if (mode === 'active' && event.type === 'click' && event.isTrusted) {
+      const control = controlForEvent(event);
+      if (control) {
+        suppress(event);
+        activateControl(control);
+        return;
+      }
+    }
+    suppress(event);
   }
 
   function handleKeydown(event) {
@@ -491,9 +714,27 @@
       suppress(event);
       suppressEscapeKeyup = true;
       stop('escape');
-    } else if (event.key === 'Enter' && candidate && lastPointerPoint) {
+      return;
+    }
+    const activeControl = pickerControls().includes(pickerRoot?.activeElement)
+      ? pickerRoot.activeElement
+      : null;
+    if ((event.key === 'Enter' || event.key === ' ') && activeControl) {
       suppress(event);
-      commitCandidate(candidate, lastPointerPoint);
+      activateControl(activeControl);
+    } else if (
+      event.key === 'Tab' ||
+      event.key === 'ArrowRight' ||
+      event.key === 'ArrowDown' ||
+      event.key === 'ArrowLeft' ||
+      event.key === 'ArrowUp'
+    ) {
+      suppress(event);
+      const backward = event.shiftKey || event.key === 'ArrowLeft' || event.key === 'ArrowUp';
+      cycleKeyboardCandidate(backward ? -1 : 1);
+    } else if ((event.key === 'Enter' || event.key === ' ') && candidate) {
+      suppress(event);
+      commitCandidate(candidate, keyboardCandidateIndex >= 0 ? null : lastPointerPoint);
     } else suppress(event);
   }
 
@@ -506,6 +747,9 @@
 
   function handleFocusEvent(event) {
     if (capturesInput()) suppress(event, false);
+    else if (mode === 'idle' && event.type === 'focus' && event.target === window && returnFocus) {
+      requestAnimationFrame(restorePageFocus);
+    }
   }
 
   async function loadSettingsWithTimeout() {
@@ -539,6 +783,8 @@
     const topLayerError = activeTopLayerError();
     if (topLayerError) return { ok: false, error: { code: topLayerError } };
 
+    returnFocus = document.activeElement;
+    hiddenFocusTarget = null;
     removeUi();
     mode = 'starting';
     startupCanResume = false;

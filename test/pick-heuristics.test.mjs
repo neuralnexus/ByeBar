@@ -9,7 +9,9 @@ function mockElement({
   id = '',
   role = '',
   ariaModal = '',
-  href = '',
+  href = null,
+  tabIndex = null,
+  controls = false,
   parentElement = null,
   ownerDocument = null,
   rect = visibleRect,
@@ -28,12 +30,19 @@ function mockElement({
     ownerDocument,
     open,
     isConnected,
+    tabIndex: tabIndex ?? -1,
     styleFixture: { display: 'block', visibility: 'visible', opacity: '1', position: 'static', ...style },
     getAttribute(name) {
       if (name === 'role') return role;
       if (name === 'aria-modal') return ariaModal;
       if (name === 'href') return href;
       return '';
+    },
+    hasAttribute(name) {
+      if (name === 'href') return href !== null;
+      if (name === 'tabindex') return tabIndex !== null;
+      if (name === 'controls') return controls;
+      return false;
     },
     getBoundingClientRect() {
       return rect;
@@ -83,6 +92,21 @@ describe('manual picker candidate policy', () => {
     expect(resolve(link)).toBeNull();
   });
 
+  it.each([
+    { values: { tagName: 'A', href: '' }, label: 'empty-link anchor' },
+    { values: { role: 'treeitem' }, label: 'ARIA tree item' },
+    { values: { role: 'menuitemcheckbox' }, label: 'ARIA menu item' },
+    { values: { tabIndex: 0 }, label: 'focusable custom control' },
+    { values: { tagName: 'VIDEO', controls: true }, label: 'native media control' }
+  ])('rejects an interactive $label', ({ values }) => {
+    expect(resolve(mockElement(values))).toBeNull();
+  });
+
+  it('still allows a focusable ARIA dialog container to be selected', () => {
+    const dialog = mockElement({ role: 'dialog', tabIndex: 0, style: { position: 'fixed' } });
+    expect(resolve(dialog)?.target).toBe(dialog);
+  });
+
   it('uses the parent of a non-interactive inline hit', () => {
     const banner = mockElement();
     const copy = mockElement({ tagName: 'SPAN', parentElement: banner, style: { display: 'inline' } });
@@ -91,12 +115,12 @@ describe('manual picker candidate policy', () => {
   });
 
   it.each([
-    [{ tagName: 'MAIN' }, 'page landmark'],
-    [{ id: '__next' }, 'application root'],
-    [{ tagName: 'IFRAME' }, 'frame'],
-    [{ role: 'navigation' }, 'ARIA landmark'],
-    [{ containsLandmark: true }, 'landmark container']
-  ])('rejects a protected %s', (values) => {
+    { values: { tagName: 'MAIN' }, label: 'page landmark' },
+    { values: { id: '__next' }, label: 'application root' },
+    { values: { tagName: 'IFRAME' }, label: 'frame' },
+    { values: { role: 'navigation' }, label: 'ARIA landmark' },
+    { values: { containsLandmark: true }, label: 'landmark container' }
+  ])('rejects a protected $label', ({ values }) => {
     expect(resolve(mockElement(values))).toBeNull();
   });
 
