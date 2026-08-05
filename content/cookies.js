@@ -128,6 +128,11 @@
     if (count >= 2) return;
     setTimeout(() => {
       if (!banner.isConnected || !isVisible(banner)) return;
+      if (BYEBAR.picker?.blocksAutomation?.()) {
+        clicked.delete(control);
+        actedBanners.delete(banner);
+        return;
+      }
       clicked.delete(control);
       actedBanners.delete(banner);
       decline(banner.getRootNode?.() || document);
@@ -240,7 +245,9 @@
   }
 
   function decline(root = document) {
-    if (!BYEBAR.engine?.featureEnabled?.('cookieDecline')) return false;
+    if (BYEBAR.picker?.blocksAutomation?.() || !BYEBAR.engine?.featureEnabled?.('cookieDecline')) {
+      return false;
+    }
 
     return declineViaDidomiUi(root) || declineViaSelectors(root) || declineViaTextScan(root);
   }

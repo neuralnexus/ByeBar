@@ -176,6 +176,8 @@ async function sweepActiveTab(commandTab, pendingMutations) {
     if (
       !state?.ok ||
       !state.capabilities?.includes('sweep') ||
+      state.picker?.active === true ||
+      state.picker?.busy === true ||
       typeof state.documentId !== 'string' ||
       !state.documentId
     ) {

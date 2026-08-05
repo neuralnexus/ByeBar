@@ -53,6 +53,7 @@
         "content/shadow.js",
         "content/visibility.js",
         "content/actions.js",
+        "content/picker.js",
         "content/engine.js",
         "content/cookies.js",
         "content/tos.js",

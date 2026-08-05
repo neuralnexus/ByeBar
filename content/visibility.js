@@ -321,9 +321,9 @@
 
     const hiddenModal = hasConnectedScrollBlocker();
     const visibleModal = hiddenModal
-      ? Array.from(
-          document.querySelectorAll('dialog[open], [role="dialog"][aria-modal="true"], [aria-modal="true"]')
-        ).some(isVisibleModal)
+      ? Array.from(document.querySelectorAll('dialog[open], [role="dialog"], [aria-modal="true"]')).some(
+          isVisibleModal
+        )
       : false;
 
     html.toggleAttribute('data-byebar-scroll-unlock', hiddenModal && !visibleModal);

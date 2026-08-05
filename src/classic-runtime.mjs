@@ -4,6 +4,7 @@ import * as constants from '../lib/constants.mjs';
 import * as cookie from '../lib/cookie-heuristics.mjs';
 import * as host from '../lib/host.mjs';
 import * as overlay from '../lib/overlay-heuristics.mjs';
+import * as pick from '../lib/pick-heuristics.mjs';
 import * as safari from '../lib/safari.mjs';
 import * as settings from '../lib/settings.mjs';
 import * as substack from '../lib/substack-heuristics.mjs';
@@ -20,6 +21,7 @@ BYEBAR.lib = Object.freeze({
   cookie,
   host,
   overlay,
+  pick,
   safari,
   settings,
   substack,

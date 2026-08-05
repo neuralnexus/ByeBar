@@ -1,6 +1,7 @@
 const { api, tabsQuery, sendRuntimeMessage, sendTabMessage } = window.ByeBar.browser;
 const ISSUES_BASE = 'https://github.com/neuralnexus/ByeBar/issues/new';
 const PROTOCOL = globalThis.ByeBar.lib.constants.MESSAGE_PROTOCOL_VERSION;
+const PICKER_SETTLE_REFRESH_MS = 650;
 const FEATURE_ROWS = {
   enabled: {
     input: document.getElementById('site-enabled'),
@@ -28,6 +29,8 @@ const enabledLabelEl = document.getElementById('enabled-label');
 const hostLabelEl = document.getElementById('host-label');
 const resetSiteEl = document.getElementById('reset-site');
 const sweepPageEl = document.getElementById('sweep-page');
+const pickPageEl = document.getElementById('pick-page');
+const pickPageLabelEl = document.getElementById('pick-page-label');
 const actionSummaryEl = document.getElementById('action-summary');
 const undoActionEl = document.getElementById('undo-action');
 const debugEnabledEl = document.getElementById('debug-enabled');
@@ -44,6 +47,7 @@ let settingsState = null;
 let pageState = null;
 let pending = false;
 let initializationState = 'loading';
+let pickerSettleRefreshTimer = null;
 
 function setStatus(message = '', isError = false) {
   statusEl.textContent = message;
@@ -93,6 +97,9 @@ function renderSiteState() {
   } else if (settingsState && (!host || !pageState)) {
     state = 'unavailable';
     label = 'No access';
+  } else if (pageState?.picker?.active === true) {
+    state = 'picking';
+    label = 'Picking';
   } else if (settingsState?.site?.effective.enabled) {
     state = 'ready';
     label = 'Ready';
@@ -137,6 +144,7 @@ function actionCopy(action) {
   if (action.operation === 'decline') return 'Clicked a cookie reject control; this cannot be undone';
   if (action.operation === 'accept') return 'Clicked a legal accept control; this cannot be undone';
   if (action.operation === 'dismiss') return 'Triggered a popup close action; this cannot be undone';
+  if (action.feature === 'manualHide') return 'Hidden an item you picked';
   return action.canUndo ? 'Hidden intrusive page elements' : 'Page action completed';
 }
 
@@ -171,15 +179,41 @@ function renderPageState() {
   const undoAction = pageState?.undoAction || null;
   const undoCount = undoActionCount();
   const supportsSweep = pageState?.capabilities?.includes('sweep') === true;
+  const supportsPick = pageState?.capabilities?.includes('pick') === true;
+  const pickerActive = pageState?.picker?.active === true;
+  const pickerBusy = pageState?.picker?.busy === true;
   actionSummaryEl.textContent = pageState ? actionCopy(action) : 'Unavailable on this page';
   const undoText = undoCount > 1 ? `Undo hide (${undoCount})` : 'Undo hide';
   undoActionEl.textContent = undoText;
-  undoActionEl.disabled = pending || !undoAction?.canUndo || undoCount === 0;
+  undoActionEl.disabled = pending || pickerBusy || !undoAction?.canUndo || undoCount === 0;
   const undoLabel = undoCount > 0 ? `${undoText}; newest hide first` : undoText;
   undoActionEl.setAttribute('aria-label', undoLabel);
-  undoActionEl.title = undoCount > 0 ? undoLabel : '';
-  sweepPageEl.disabled = pending || tabId === null || !supportsSweep;
-  sweepPageEl.title = pageState && !supportsSweep ? 'Reload this page to use Sweep' : '';
+  undoActionEl.title = pickerBusy
+    ? 'Wait for Pick to finish before using Undo'
+    : undoCount > 0
+      ? undoLabel
+      : '';
+  sweepPageEl.disabled = pending || pickerBusy || tabId === null || !supportsSweep;
+  sweepPageEl.title = pickerBusy
+    ? 'Cancel Pick before using Sweep'
+    : pageState && !supportsSweep
+      ? 'Reload this page to use Sweep'
+      : '';
+  pickPageLabelEl.textContent = pickerActive ? 'Cancel pick' : 'Pick to hide';
+  pickPageEl.dataset.active = String(pickerActive);
+  pickPageEl.setAttribute('aria-pressed', String(pickerActive));
+  pickPageEl.disabled =
+    pending ||
+    (pickerBusy && !pickerActive) ||
+    tabId === null ||
+    !supportsPick ||
+    (!pickerActive && settingsState?.site?.effective.enabled !== true);
+  pickPageEl.title =
+    pageState && !supportsPick
+      ? 'Reload this page to use Pick'
+      : !pickerActive && settingsState?.site?.effective.enabled === false
+        ? 'Enable ByeBar on this site to use Pick'
+        : '';
   debugListEl.replaceChildren();
   const decisions = pageState?.decisions || [];
   decisions.forEach((decision) => {
@@ -206,6 +240,16 @@ function render() {
   renderPageState();
   reportBugEl.href = buildIssueUrl('bug');
   requestFeatureEl.href = buildIssueUrl('feature');
+  clearTimeout(pickerSettleRefreshTimer);
+  pickerSettleRefreshTimer = null;
+  if (pageState?.picker?.busy === true && pageState.picker.active !== true) {
+    pickerSettleRefreshTimer = setTimeout(async () => {
+      pickerSettleRefreshTimer = null;
+      if (pending) return render();
+      await refreshPageState();
+      render();
+    }, PICKER_SETTLE_REFRESH_MS);
+  }
 }
 
 function requestError(response, fallback) {
@@ -314,6 +358,26 @@ async function recoverActiveState() {
   }
 }
 
+async function reconcilePageAfterSettings() {
+  if (
+    settingsState?.site?.effective.enabled === false &&
+    pageState?.picker?.active === true &&
+    tabId !== null
+  ) {
+    try {
+      pageState = await requestPage({
+        type: 'byebar.page.pick.cancel',
+        documentId: pageState.documentId,
+        sessionId: pageState.picker.sessionId
+      });
+      return;
+    } catch {
+      /* A state read below safely reconciles cancellation or navigation. */
+    }
+  }
+  await refreshPageState();
+}
+
 async function updateSetting(key, value) {
   setPending(true);
   setStatus('Saving…');
@@ -334,6 +398,7 @@ async function updateSetting(key, value) {
           ? state?.global?.[key] === value
           : state?.site?.host === requestHost && state?.site?.overrides?.[key] === value
     );
+    await reconcilePageAfterSettings();
     setStatus(response.reconciled ? 'Saved and verified' : 'Saved');
   } catch (error) {
     setStatus(error.message, true);
@@ -369,6 +434,7 @@ resetSiteEl.addEventListener('click', async () => {
       { type: 'byebar.settings.clearSite', host: requestHost },
       (state) => state?.site?.host === requestHost && state?.site?.hasOverrides === false
     );
+    await reconcilePageAfterSettings();
     setStatus(response.reconciled ? 'Global defaults verified' : 'Using global defaults');
   } catch (error) {
     setStatus(error.message, true);
@@ -413,6 +479,76 @@ sweepPageEl.addEventListener('click', async () => {
     } else {
       setStatus(error.message, true);
     }
+  } finally {
+    setPending(false);
+    render();
+  }
+});
+
+function nextPickerSessionId() {
+  return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+pickPageEl.addEventListener('click', async () => {
+  if (!pageState || tabId === null) return;
+  setPending(true);
+  let cancelling = false;
+  let attemptedDocumentId = '';
+  let attemptedSessionId = '';
+  let requestAttempted = false;
+  try {
+    if (!(await confirmActiveContext())) return;
+    if (!pageState || tabId === null) return;
+    cancelling = pageState.picker?.active === true;
+    attemptedDocumentId = pageState.documentId;
+    attemptedSessionId = cancelling ? pageState.picker?.sessionId || '' : nextPickerSessionId();
+    setStatus(cancelling ? 'Cancelling Pick...' : 'Starting Pick...');
+    requestAttempted = true;
+    const response = await requestPage({
+      type: cancelling ? 'byebar.page.pick.cancel' : 'byebar.page.pick.start',
+      documentId: attemptedDocumentId,
+      sessionId: attemptedSessionId
+    });
+    pageState = response;
+    setStatus(cancelling ? 'Pick cancelled' : 'Pick is active. Point to an interruption and click.');
+  } catch (error) {
+    const recovered = await recoverActiveState();
+    const sameDocument = recovered && pageState?.documentId === attemptedDocumentId;
+    const activeSession = sameDocument && pageState?.picker?.active === true;
+    const pickerBusy = sameDocument && pageState?.picker?.busy === true;
+    const sameSession = activeSession && pageState.picker.sessionId === attemptedSessionId;
+    if (!requestAttempted) setStatus(error.message, true);
+    else if (error.code === 'stale-document') {
+      setStatus(recovered ? 'Page changed; Pick state refreshed' : 'Page changed; Pick unavailable', true);
+    } else if (error.code === 'unknown-message' || error.code === 'picker-unavailable') {
+      setStatus('Reload this page to use Pick', true);
+    } else if (error.code === 'paused') {
+      setStatus('ByeBar is paused on this page', true);
+    } else if (error.code === 'settings-timeout') {
+      setStatus('Page settings took too long; try Pick again', true);
+    } else if (error.code === 'page-hidden' || error.code === 'page-changed') {
+      setStatus('Page changed; reopen it and start Pick again', true);
+    } else if (error.code === 'picker-cancelled') {
+      setStatus('Pick was cancelled');
+    } else if (error.code === 'picker-busy') {
+      setStatus('Pick is finishing; try again in a moment', true);
+    } else if (
+      error.code === 'native-modal-active' ||
+      error.code === 'fullscreen-active' ||
+      error.code === 'top-layer-active'
+    ) {
+      setStatus('Close the active dialog or full-screen view before using Pick', true);
+    } else if (error.code === 'picker-active' && activeSession) {
+      setStatus('Pick is already active on this page');
+    } else if (error.isTransportError && !cancelling && sameSession) {
+      setStatus('Pick is active. Point to an interruption and click.');
+    } else if (error.isTransportError && cancelling && sameDocument && !activeSession && !pickerBusy) {
+      setStatus('Pick cancelled');
+    } else if (error.isTransportError && cancelling && activeSession && !sameSession) {
+      setStatus('Pick session changed; reopen ByeBar to verify', true);
+    } else if (error.isTransportError) {
+      setStatus('Pick status unknown; reopen ByeBar to verify', true);
+    } else setStatus(error.message, true);
   } finally {
     setPending(false);
     render();

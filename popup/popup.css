@@ -168,6 +168,11 @@ button {
   box-shadow: 0 0 0 3px rgb(69 215 181 / 15%);
 }
 
+.site-state[data-state='picking'] .site-state-dot {
+  background: var(--coral-500);
+  box-shadow: 0 0 0 3px rgb(255 115 88 / 18%);
+}
+
 .site-state[data-state='paused'] .site-state-dot {
   background: var(--coral-500);
   box-shadow: 0 0 0 3px rgb(255 115 88 / 15%);
@@ -335,19 +340,24 @@ button {
   font-size: 9px;
 }
 
-#sweep-page {
+.page-tools {
+  display: grid;
+  gap: 6px;
+  min-width: 104px;
+}
+
+.page-tool {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 8px 10px;
+  padding: 7px 9px;
   color: var(--ink-950);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   white-space: nowrap;
-  background: var(--coral-500);
   border: 0;
-  border-radius: 9px;
-  box-shadow: 0 4px 0 #c84d39;
+  border-radius: 8px;
   cursor: pointer;
   transition:
     transform 120ms ease,
@@ -355,9 +365,25 @@ button {
     filter 120ms ease;
 }
 
-#sweep-page svg {
-  width: 15px;
-  height: 15px;
+#sweep-page {
+  background: var(--coral-500);
+  box-shadow: 0 3px 0 #c84d39;
+}
+
+#pick-page {
+  background: var(--mint-200);
+  box-shadow: 0 3px 0 #75bdaa;
+}
+
+#pick-page[data-active='true'] {
+  color: var(--white);
+  background: var(--ink-800);
+  box-shadow: 0 3px 0 var(--ink-950);
+}
+
+.page-tool svg {
+  width: 14px;
+  height: 14px;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -365,7 +391,7 @@ button {
   stroke-width: 2.3;
 }
 
-#sweep-page:not(:disabled):hover {
+.page-tool:not(:disabled):hover {
   filter: saturate(1.08) brightness(1.03);
   transform: translateY(-1px);
 }
@@ -373,6 +399,15 @@ button {
 #sweep-page:not(:disabled):active {
   box-shadow: 0 1px 0 #c84d39;
   transform: translateY(3px);
+}
+
+#pick-page:not(:disabled):active {
+  box-shadow: 0 1px 0 #75bdaa;
+  transform: translateY(3px);
+}
+
+#pick-page[data-active='true']:not(:disabled):active {
+  box-shadow: 0 1px 0 var(--ink-950);
 }
 
 .section-label {

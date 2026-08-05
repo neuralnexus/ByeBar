@@ -9,9 +9,11 @@
   let settingsReady = null;
 
   const runPasses = () => {
+    if (window.ByeBar.picker?.blocksAutomation?.()) return;
     settingsReady ||= Promise.all([window.ByeBar.actions.ready, engine.loadSettings()]);
     void settingsReady
       .then(() => {
+        if (window.ByeBar.picker?.blocksAutomation?.()) return;
         engine.nukeAll(document);
         cookies.decline(document);
         tos?.accept?.(document);

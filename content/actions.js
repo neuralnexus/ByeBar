@@ -151,7 +151,15 @@
   }
 
   function hide(action, el, reason, options = {}) {
-    if (!action || !el || suppressed.has(el) || BYEBAR.visibility.isHidden(el)) return false;
+    if (
+      !action ||
+      !el ||
+      (suppressed.has(el) && options.userInitiated !== true) ||
+      BYEBAR.visibility.isHidden(el)
+    ) {
+      return false;
+    }
+    if (options.userInitiated === true) suppressed.delete(el);
     const hidden = BYEBAR.visibility.hide(el, reason, { ...options, actionId: action.id });
     if (hidden) {
       action.targets.push(el);
@@ -233,7 +241,8 @@
     return {
       ok: true,
       documentId,
-      capabilities: ['sweep'],
+      capabilities: ['sweep', 'pick'],
+      picker: BYEBAR.picker?.state?.() || { active: false, busy: false, sessionId: '' },
       lastAction: action,
       undoAction,
       undoActionCount: undoHistory.length,
@@ -244,6 +253,9 @@
 
   function undo(message) {
     if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    if (BYEBAR.picker?.blocksAutomation?.()) {
+      return { ok: false, error: { code: 'picker-active' } };
+    }
     const latestReversibleAction = pruneUndoHistory();
     if (!latestReversibleAction || message.actionId !== latestReversibleAction.id) {
       return { ok: false, error: { code: 'not-latest-hide' } };
@@ -268,11 +280,28 @@
 
   async function sweep(message) {
     if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    if (BYEBAR.picker?.blocksAutomation?.()) {
+      return { ok: false, error: { code: 'picker-active' } };
+    }
     const result = await BYEBAR.engine.sweepPage();
     return {
       ...pageState(),
       sweep: result
     };
+  }
+
+  async function startPicker(message) {
+    if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    if (!BYEBAR.picker?.start) return { ok: false, error: { code: 'picker-unavailable' } };
+    const response = await BYEBAR.picker.start(message.sessionId);
+    return response.ok ? pageState() : response;
+  }
+
+  function cancelPicker(message) {
+    if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    if (!BYEBAR.picker?.cancel) return { ok: false, error: { code: 'picker-unavailable' } };
+    const response = BYEBAR.picker.cancel(message.sessionId);
+    return response.ok ? pageState() : response;
   }
 
   BYEBAR.browser.onStorageChanged((changes, area) => {
@@ -303,6 +332,8 @@
         if (message.type === 'byebar.page.getState') sendResponse(pageState());
         else if (message.type === 'byebar.page.undo') sendResponse(undo(message));
         else if (message.type === 'byebar.page.sweep') sendResponse(await sweep(message));
+        else if (message.type === 'byebar.page.pick.start') sendResponse(await startPicker(message));
+        else if (message.type === 'byebar.page.pick.cancel') sendResponse(cancelPicker(message));
         else if (message.type === 'byebar.page.debug.clear') {
           if (message.documentId !== documentId)
             sendResponse({ ok: false, error: { code: 'stale-document' } });

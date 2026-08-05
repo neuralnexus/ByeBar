@@ -14,8 +14,10 @@ describe('manifest.json', () => {
     expect(scripts[1]).toBe('shared/browser.js');
     expect(scripts[2]).toBe('shared/substack-detect.js');
     expect(scripts).toContain('content/safari-compat.js');
+    expect(scripts).toContain('content/picker.js');
     expect(scripts.indexOf('content/visibility.js')).toBeLessThan(scripts.indexOf('content/engine.js'));
     expect(scripts.indexOf('content/actions.js')).toBeLessThan(scripts.indexOf('content/engine.js'));
+    expect(scripts.indexOf('content/picker.js')).toBeLessThan(scripts.indexOf('content/engine.js'));
   });
 
   it('runs only in the top frame and has no unconditional site CSS', () => {

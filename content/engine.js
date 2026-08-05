@@ -42,6 +42,10 @@
   const relevantClassMutation =
     /popup|modal|overlay|backdrop|scrim|newsletter|subscribe|optin|opt-in|discount|coupon|sticky|bottom|cookie|gdpr|consent|onetrust|truste|usercentrics|didomi|cky-|cmp|klaviyo|mailchimp|om-holder|optinmonster|poptin|privy|sumo|lottery|turntable|spin-?wheel|coupon-?spin|lucky-?wheel|fortune-wheel|vue-coupon|_showOn(?:Mobile|Desktop)/i;
 
+  function automationBlocked() {
+    return BYEBAR.picker?.blocksAutomation?.() === true;
+  }
+
   function addInteractionContainers(candidates, element) {
     if (!element) return;
     const enclosing =
@@ -94,7 +98,7 @@
   }
 
   function beginTrustedInteractionCapture(event) {
-    if (!event.isTrusted || !document.documentElement) return;
+    if (automationBlocked() || !event.isTrusted || !document.documentElement) return;
     if (event.type === 'keydown') {
       if (event.repeat) return;
       activeKeys.add(event.code || event.key);
@@ -142,7 +146,7 @@
   }
 
   function finishTrustedInteractionCapture(event) {
-    if (!event.isTrusted) return;
+    if (automationBlocked() || !event.isTrusted) return;
     let releasedInput = false;
     if (event.type === 'keyup') {
       activeKeys.delete(event.code || event.key);
@@ -279,6 +283,10 @@
         if (attempts < 2) {
           setTimeout(() => {
             if (!el.isConnected || !isVisibleControl(el)) return;
+            if (automationBlocked()) {
+              dismissed.delete(el);
+              return;
+            }
             dismissed.delete(el);
             nukeAll(el.getRootNode?.() || document);
           }, 2000);
@@ -460,7 +468,7 @@
   }
 
   function nukeAll(root = document) {
-    if (!siteEnabled()) return;
+    if (automationBlocked() || !siteEnabled()) return;
     if (featureEnabled('genericBlocking')) {
       const onSubstack = BYEBAR.substackDetect?.recheckSubstackPage?.() ?? BYEBAR.isSubstack();
       nukeSubstackLayers(root, onSubstack);
@@ -472,7 +480,7 @@
   }
 
   function runRootPasses(root) {
-    if (!root || (root !== document && root.isConnected === false)) return;
+    if (automationBlocked() || !root || (root !== document && root.isConnected === false)) return;
     BYEBAR.visibility.ensureHidden(root);
     nukeAll(root);
     if (featureEnabled('cookieDecline')) BYEBAR.cookies?.decline?.(root);
@@ -483,6 +491,7 @@
     pending = false;
     const roots = [...pendingRoots];
     pendingRoots.clear();
+    if (automationBlocked()) return;
     metrics.mutationFlushes += 1;
     metrics.mutationRoots += roots.length;
     roots.forEach((root) => {
@@ -575,6 +584,7 @@
   function applySettings(next) {
     settings = BYEBAR.settings.normalizeSettings(next, DEFAULTS);
     resolved = BYEBAR.settings.resolveSettingsForHost(settings, location.hostname);
+    BYEBAR.picker?.onEffectiveSettingsChanged?.(resolved.effective);
     clearDisabledFeatures();
 
     if (
@@ -586,6 +596,11 @@
     }
     runRootPasses(document);
     startObserver();
+  }
+
+  function resumeAutomation() {
+    if (automationBlocked() || !siteEnabled()) return;
+    runRootPasses(document);
   }
 
   async function withFreshSettings(consume) {
@@ -632,6 +647,7 @@
     nukeAll,
     siteEnabled,
     featureEnabled,
+    resumeAutomation,
     hostKey,
     resetMetrics() {
       metrics.mutationFlushes = 0;

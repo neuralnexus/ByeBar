@@ -5,7 +5,11 @@ import { MESSAGE_PROTOCOL_VERSION } from '../lib/constants.mjs';
 
 const source = readFileSync(new URL('../content/actions.js', import.meta.url), 'utf8');
 
-function loadActions(localGet = async (defaults) => defaults, visibilityOverrides = {}) {
+function loadActions(
+  localGet = async (defaults) => defaults,
+  visibilityOverrides = {},
+  pickerOverrides = {}
+) {
   const listeners = {};
   const browser = {
     localGet: vi.fn(localGet),
@@ -40,7 +44,14 @@ function loadActions(localGet = async (defaults) => defaults, visibilityOverride
       }
     }))
   };
-  const ByeBar = { browser, engine, visibility, lib: { constants: { MESSAGE_PROTOCOL_VERSION } } };
+  const picker = {
+    state: () => ({ active: false, busy: false, sessionId: '' }),
+    blocksAutomation: () => false,
+    start: vi.fn(async () => ({ ok: true })),
+    cancel: vi.fn(() => ({ ok: true })),
+    ...pickerOverrides
+  };
+  const ByeBar = { browser, engine, picker, visibility, lib: { constants: { MESSAGE_PROTOCOL_VERSION } } };
   const window = { ByeBar };
   const context = vm.createContext({
     window,
@@ -51,7 +62,7 @@ function loadActions(localGet = async (defaults) => defaults, visibilityOverride
     console
   });
   vm.runInContext(source, context);
-  return { actions: ByeBar.actions, engine, listeners };
+  return { actions: ByeBar.actions, engine, listeners, picker };
 }
 
 function createActionVisibility() {
@@ -167,7 +178,8 @@ describe('page action state', () => {
         expect.objectContaining({
           ok: true,
           documentId: 'document-id',
-          capabilities: ['sweep'],
+          capabilities: ['sweep', 'pick'],
+          picker: { active: false, busy: false, sessionId: '' },
           sweep: {
             effective: { enabled: true },
             result: {
@@ -199,6 +211,65 @@ describe('page action state', () => {
       outcome: 'applied',
       counts: { reversibleHides: 2, dismissActions: 1, cookieDeclines: 1, legalAccepts: 1 }
     });
+  });
+
+  it('routes document-scoped picker sessions and blocks other page actions while active', async () => {
+    let activeSessionId = '';
+    const picker = {
+      state: () => ({
+        active: Boolean(activeSessionId),
+        busy: Boolean(activeSessionId),
+        sessionId: activeSessionId
+      }),
+      blocksAutomation: () => Boolean(activeSessionId),
+      start: vi.fn(async (requestedSessionId) => {
+        activeSessionId = requestedSessionId;
+        return { ok: true };
+      }),
+      cancel: vi.fn((requestedSessionId) => {
+        if (requestedSessionId !== activeSessionId) {
+          return { ok: false, error: { code: 'stale-picker-session' } };
+        }
+        activeSessionId = '';
+        return { ok: true };
+      })
+    };
+    const loaded = loadActions(undefined, {}, picker);
+    await loaded.actions.ready;
+
+    expect(
+      await sendPageRequest(loaded.listeners, 'byebar.page.pick.start', {
+        documentId: 'old-document',
+        sessionId: 'pick-1'
+      })
+    ).toEqual({ ok: false, error: { code: 'stale-document' } });
+    expect(picker.start).not.toHaveBeenCalled();
+
+    const started = await sendPageRequest(loaded.listeners, 'byebar.page.pick.start', {
+      documentId: 'document-id',
+      sessionId: 'pick-1'
+    });
+    expect(started).toMatchObject({
+      ok: true,
+      documentId: 'document-id',
+      picker: { active: true, busy: true, sessionId: 'pick-1' }
+    });
+    expect(
+      await sendPageRequest(loaded.listeners, 'byebar.page.sweep', { documentId: 'document-id' })
+    ).toEqual({ ok: false, error: { code: 'picker-active' } });
+    expect(loaded.engine.sweepPage).not.toHaveBeenCalled();
+
+    expect(
+      await sendPageRequest(loaded.listeners, 'byebar.page.pick.cancel', {
+        documentId: 'document-id',
+        sessionId: 'other-pick'
+      })
+    ).toEqual({ ok: false, error: { code: 'stale-picker-session' } });
+    const cancelled = await sendPageRequest(loaded.listeners, 'byebar.page.pick.cancel', {
+      documentId: 'document-id',
+      sessionId: 'pick-1'
+    });
+    expect(cancelled.picker).toEqual({ active: false, busy: false, sessionId: '' });
   });
 
   it('reports a no-op for skipped and unsuccessful sweep actions', () => {
@@ -295,5 +366,23 @@ describe('page action state', () => {
       undoAction: { id: first.action.id },
       undoActionCount: 1
     });
+  });
+
+  it('allows an explicit manual pick to hide an element again after Undo suppression', async () => {
+    const visibility = createActionVisibility();
+    const { actions, listeners } = loadActions(undefined, visibility);
+    const { action, element } = commitHide(actions);
+    await actions.ready;
+
+    await sendPageRequest(listeners, 'byebar.page.undo', {
+      documentId: 'document-id',
+      actionId: action.id
+    });
+    expect(actions.isSuppressed(element)).toBe(true);
+
+    const repick = actions.begin({ operation: 'hide', feature: 'manualHide' });
+    expect(actions.hide(repick, element, 'manual', { userInitiated: true })).toBe(true);
+    expect(actions.commit(repick)).toBe(true);
+    expect(actions.isSuppressed(element)).toBe(false);
   });
 });

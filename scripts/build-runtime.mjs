@@ -13,6 +13,7 @@ const expectedInputs = [
   'lib/cookie-heuristics.mjs',
   'lib/host.mjs',
   'lib/overlay-heuristics.mjs',
+  'lib/pick-heuristics.mjs',
   'lib/safari.mjs',
   'lib/settings.mjs',
   'lib/substack-detect.mjs',

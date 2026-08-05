@@ -100,7 +100,13 @@
   }
 
   function nukeSpinners(root = document) {
-    if (!BYEBAR.isChinaCommerce?.() || !BYEBAR.engine?.featureEnabled?.('genericBlocking')) return false;
+    if (
+      BYEBAR.picker?.blocksAutomation?.() ||
+      !BYEBAR.isChinaCommerce?.() ||
+      !BYEBAR.engine?.featureEnabled?.('genericBlocking')
+    ) {
+      return false;
+    }
 
     const seen = new Set();
     let handledAny = false;

@@ -5,7 +5,7 @@ import * as settings from '../lib/settings.mjs';
 
 const source = readFileSync(new URL('../content/engine.js', import.meta.url), 'utf8');
 
-function loadEngine(storageGet) {
+function loadEngine(storageGet, picker = null) {
   const listeners = {};
   const cookies = { decline: vi.fn(), closestBanner: () => null };
   const visibility = {
@@ -38,6 +38,7 @@ function loadEngine(storageGet) {
       onStorageChanged: (listener) => (listeners.storage = listener)
     },
     actions,
+    picker,
     visibility,
     shadow: {
       observedAttributes: [],
@@ -70,7 +71,14 @@ function loadEngine(storageGet) {
     console
   });
   vm.runInContext(source, context);
-  return { engine: ByeBar.engine, listeners, cookies, actions, storageGet: ByeBar.browser.storageGet };
+  return {
+    engine: ByeBar.engine,
+    listeners,
+    cookies,
+    actions,
+    visibility,
+    storageGet: ByeBar.browser.storageGet
+  };
 }
 
 describe('content settings state', () => {
@@ -143,5 +151,27 @@ describe('content settings state', () => {
     await expect(sweep).resolves.toMatchObject({ effective: { genericBlocking: false } });
     expect(storageGet).toHaveBeenCalledTimes(2);
     expect(actions.captureSweepResult).toHaveBeenCalledOnce();
+  });
+
+  it('pauses automatic passes for Pick and resumes with a full document pass', async () => {
+    let blocked = true;
+    const picker = {
+      blocksAutomation: () => blocked,
+      onEffectiveSettingsChanged: vi.fn()
+    };
+    const stored = { ...settings.DEFAULT_SETTINGS, genericBlocking: false, tosAccept: false };
+    const { engine, cookies, visibility } = loadEngine(async () => stored, picker);
+
+    await engine.loadSettings();
+    expect(picker.onEffectiveSettingsChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true })
+    );
+    expect(cookies.decline).not.toHaveBeenCalled();
+    expect(visibility.ensureHidden).not.toHaveBeenCalled();
+
+    blocked = false;
+    engine.resumeAutomation();
+    expect(visibility.ensureHidden).toHaveBeenCalledOnce();
+    expect(cookies.decline).toHaveBeenCalledOnce();
   });
 });

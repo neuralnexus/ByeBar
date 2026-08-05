@@ -16,7 +16,7 @@
 
     <main>
       <section class="card">
-        <p><strong>Last updated:</strong> July 30, 2026</p>
+        <p><strong>Last updated:</strong> August 4, 2026</p>
         <p>
           ByeBar is built by Matt Ivan. This policy describes how the extension handles information on your
           device.
@@ -56,8 +56,10 @@
         <p>
           ByeBar runs content scripts in eligible top-level pages to hide intrusive overlays and to click
           confirmed decline/accept buttons when you have those options enabled. Embedded frame contents are
-          not processed. It evaluates limited page text locally to recognize an overlay, but does not store
-          that text, use it for analytics, intercept network traffic, or block ads.
+          not processed. The one-shot Pick to hide tool evaluates only the element you point to and its
+          top-document ancestors; it does not save a selector or page text. ByeBar evaluates limited page text
+          locally to recognize automatic overlays, but does not store that text, use it for analytics,
+          intercept network traffic, or block ads.
         </p>
       </section>
 

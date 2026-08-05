@@ -314,6 +314,44 @@ describe('service worker Sweep command', () => {
     expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce();
   });
 
+  it('does not run the keyboard Sweep while Pick is active', async () => {
+    const worker = loadWorker({
+      sendTabMessage: async (_tabId, message) =>
+        message.type === 'byebar.page.getState'
+          ? {
+              ok: true,
+              documentId: 'document-id',
+              capabilities: ['sweep', 'pick'],
+              picker: { active: true, sessionId: 'pick-1' }
+            }
+          : sweepResponse()
+    });
+
+    await worker.command('sweep-page', { id: 13 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce();
+  });
+
+  it('does not run the keyboard Sweep while Pick is settling', async () => {
+    const worker = loadWorker({
+      sendTabMessage: async (_tabId, message) =>
+        message.type === 'byebar.page.getState'
+          ? {
+              ok: true,
+              documentId: 'document-id',
+              capabilities: ['sweep', 'pick'],
+              picker: { active: false, busy: true, sessionId: '' }
+            }
+          : sweepResponse()
+    });
+
+    await worker.command('sweep-page', { id: 13 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce();
+  });
+
   it('suppresses key repeats that arrive after the first Sweep completes', async () => {
     const worker = loadWorker();
     await worker.command('sweep-page', { id: 14 });

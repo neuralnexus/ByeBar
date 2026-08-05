@@ -9,6 +9,7 @@ describe('target manifests', () => {
     expect(manifest.icons).toEqual(source.icons);
     expect(manifest.action.default_icon).toEqual(source.action.default_icon);
     expect(manifest.commands).toEqual(source.commands);
+    expect(manifest.content_scripts[0].js).toContain('content/picker.js');
   }
 
   it('creates a Chrome-only service worker manifest', () => {

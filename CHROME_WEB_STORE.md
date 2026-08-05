@@ -76,7 +76,7 @@ Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem
 
 **Description (listing tab):**
 
-> ByeBar hides validated newsletter modals and subscribe bars, and can click confirmed cookie-reject or optional terms controls. Its toolbar popup reports the direct actions from an on-demand conservative Sweep, which can also run from a configurable keyboard shortcut with brief badge feedback. Up to 10 recent marker-based hide actions are reversible, while site control clicks are not. Not an ad blocker; it does not block ads, trackers, or network requests. No telemetry.
+> ByeBar hides validated newsletter modals and subscribe bars, and can click confirmed cookie-reject or optional terms controls. Its toolbar popup offers a conservative on-demand Sweep and a one-shot Pick to hide for an interruption you point to. Pick intercepts the selection click, stores no selector, and adds one reversible marker hide. Sweep can also run from a configurable keyboard shortcut with brief badge feedback. Up to 10 recent marker-based hide actions are reversible, while site control clicks are not. Not an ad blocker; it does not block ads, trackers, or network requests. No telemetry.
 
 ## Privacy practices tab (copy-paste)
 
@@ -91,7 +91,7 @@ Open your item → **Privacy practices** → fill every required field → **Sav
 | Field                              | Justification                                                                                                                                                                                                                          |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **storage**                        | Saves global defaults, hostname-keyed site overrides, and the diagnostics preference in device-local extension storage. Nothing is sent to the developer.                                                                              |
-| **activeTab**                      | Identifies the active tab so the popup can show the current site and the keyboard shortcut can target the page active at keypress. No page content is collected or transmitted.                                                        |
+| **activeTab**                      | Identifies the active tab so the popup can show the current site, start or cancel a one-shot Pick, and let the keyboard shortcut target the page active at keypress. No page content is collected or transmitted.                      |
 | **Host permission** (`<all_urls>`) | Injects content scripts into eligible top-level pages to detect and remove intrusive overlays in the page DOM. Embedded frame contents are not processed. ByeBar does not send browsing data or diagnostic decisions to the developer. |
 | **Remote code**                    | ByeBar does not use remote code. All JavaScript and CSS are bundled in the published package. The extension does not fetch, load, or execute scripts from external servers at runtime.                                                 |
 

@@ -623,6 +623,140 @@
     return isBar || isPopup;
   }
 
+  // lib/pick-heuristics.mjs
+  var pick_heuristics_exports = {};
+  __export(pick_heuristics_exports, {
+    composedParent: () => composedParent,
+    resolvePickCandidate: () => resolvePickCandidate
+  });
+  var PROTECTED_TAGS = /* @__PURE__ */ new Set([
+    "HTML",
+    "BODY",
+    "HEAD",
+    "MAIN",
+    "ARTICLE",
+    "HEADER",
+    "NAV",
+    "FOOTER",
+    "SCRIPT",
+    "STYLE",
+    "LINK",
+    "META",
+    "TITLE",
+    "TEMPLATE",
+    "IFRAME"
+  ]);
+  var INTERACTIVE_TAGS = /* @__PURE__ */ new Set(["BUTTON", "INPUT", "SELECT", "TEXTAREA", "OPTION", "LABEL", "SUMMARY"]);
+  var INTERACTIVE_ROLES = /* @__PURE__ */ new Set([
+    "button",
+    "checkbox",
+    "combobox",
+    "link",
+    "menuitem",
+    "option",
+    "radio",
+    "slider",
+    "spinbutton",
+    "switch",
+    "tab",
+    "textbox"
+  ]);
+  var APP_ROOT_IDS = /* @__PURE__ */ new Set(["app", "root", "__next", "__nuxt"]);
+  var PROTECTED_ROLES = /* @__PURE__ */ new Set(["application", "banner", "contentinfo", "main", "navigation"]);
+  function composedParent(el) {
+    if (!el) return null;
+    return el.assignedSlot || el.parentElement || el.getRootNode?.()?.host || null;
+  }
+  function isInteractive(el) {
+    const tagName = String(el?.tagName || "").toUpperCase();
+    const role = String(el?.getAttribute?.("role") || "").toLowerCase();
+    return Boolean(
+      INTERACTIVE_TAGS.has(tagName) || tagName === "A" && el.getAttribute?.("href") || el?.isContentEditable || INTERACTIVE_ROLES.has(role)
+    );
+  }
+  function isNativeModal(el) {
+    if (String(el?.tagName || "").toUpperCase() !== "DIALOG") return false;
+    try {
+      return el.matches?.(":modal") === true;
+    } catch {
+      return el.open === true;
+    }
+  }
+  function styleFor(el, getStyle) {
+    try {
+      return getStyle(el) || {};
+    } catch {
+      return {};
+    }
+  }
+  function visibleRect(el, style, viewport) {
+    const rect = el?.getBoundingClientRect?.();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+    if (style.display === "none" || style.visibility === "hidden" || style.contentVisibility === "hidden" || style.pointerEvents === "none" || Number.parseFloat(style.opacity || "1") <= 0.01) {
+      return null;
+    }
+    const right = rect.right ?? rect.left + rect.width;
+    const bottom = rect.bottom ?? rect.top + rect.height;
+    if (right <= 0 || bottom <= 0 || rect.left >= viewport.width || rect.top >= viewport.height) return null;
+    return rect;
+  }
+  function containsPageLandmark(el) {
+    try {
+      return Boolean(
+        el.querySelector?.(
+          'main, article, nav, [role="application"], [role="banner"], [role="contentinfo"], [role="main"], [role="navigation"]'
+        )
+      );
+    } catch {
+      return true;
+    }
+  }
+  function resolvePickCandidate(hit, {
+    getStyle = () => ({}),
+    viewport = { width: 0, height: 0 },
+    documentRoot = null,
+    pickerHost = null,
+    fullscreenElement = null,
+    isHidden = () => false
+  } = {}) {
+    if (!hit || hit === pickerHost) return null;
+    let node = hit;
+    let promoted = null;
+    let interactiveAncestor = null;
+    for (let depth = 0; depth < 12 && node; depth += 1) {
+      if (node === pickerHost) return null;
+      if (isInteractive(node)) interactiveAncestor ||= node;
+      const style2 = styleFor(node, getStyle);
+      const modal = String(node.tagName || "").toUpperCase() === "DIALOG" || node.getAttribute?.("role") === "dialog" || node.getAttribute?.("aria-modal") === "true";
+      if (modal || style2.position === "fixed" || style2.position === "sticky") {
+        promoted = node;
+        break;
+      }
+      const parent = composedParent(node);
+      if (!parent || ["HTML", "BODY"].includes(String(parent.tagName || "").toUpperCase())) break;
+      node = parent;
+    }
+    let candidate = promoted || hit;
+    if (!promoted) {
+      if (interactiveAncestor) return null;
+      const style2 = styleFor(candidate, getStyle);
+      const parent = composedParent(candidate);
+      if ((style2.display === "inline" || style2.display === "contents") && parent) candidate = parent;
+    }
+    const tagName = String(candidate?.tagName || "").toUpperCase();
+    const role = String(candidate?.getAttribute?.("role") || "").toLowerCase();
+    if (!candidate || candidate === pickerHost || candidate.isConnected === false || PROTECTED_TAGS.has(tagName) || PROTECTED_ROLES.has(role) || APP_ROOT_IDS.has(String(candidate.id || "").toLowerCase()) || isInteractive(candidate) || isNativeModal(candidate) || isHidden(candidate)) {
+      return null;
+    }
+    if (documentRoot && candidate.ownerDocument && candidate.ownerDocument !== documentRoot) return null;
+    if (fullscreenElement && (fullscreenElement === candidate || fullscreenElement.contains?.(candidate)))
+      return null;
+    if (containsPageLandmark(candidate)) return null;
+    const style = styleFor(candidate, getStyle);
+    const rect = visibleRect(candidate, style, viewport);
+    return rect ? { target: candidate, rect } : null;
+  }
+
   // lib/safari.mjs
   var safari_exports = {};
   __export(safari_exports, {
@@ -785,6 +919,7 @@
     cookie: cookie_heuristics_exports,
     host: host_exports,
     overlay: overlay_heuristics_exports,
+    pick: pick_heuristics_exports,
     safari: safari_exports,
     settings: settings_exports,
     substack: substack_heuristics_exports,

@@ -162,7 +162,9 @@
   }
 
   function accept(root = document) {
-    if (!BYEBAR.engine?.featureEnabled?.('tosAccept')) return false;
+    if (BYEBAR.picker?.blocksAutomation?.() || !BYEBAR.engine?.featureEnabled?.('tosAccept')) {
+      return false;
+    }
 
     const accepted = acceptViaSelectors(root) || acceptViaTextScan(root);
     return accepted;

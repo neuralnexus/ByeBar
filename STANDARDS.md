@@ -26,6 +26,7 @@ content/selectors.js    → SITE_RULES, selector registries
 content/shadow.js       → shadow DOM query helpers
 content/visibility.js   → reversible hiding and scroll handling
 content/actions.js      → action ledger, Undo, focus safety, diagnostics
+content/picker.js       → isolated one-shot manual picker and input shield
 content/engine.js       → validation engine, scoped mutation observer
 content/cookies.js
 content/tos.js
@@ -39,7 +40,7 @@ The content script declaration has `all_frames: false`; embedded frames are not 
 
 ```
 popup.js → versioned messages → service-worker.js (sole settings writer)
-        └→ document-scoped sweep/Undo → actions.js
+        └→ document-scoped sweep/Pick/Undo → actions.js
 browser shortcut → service-worker.js → state handshake → document-scoped sweep → transient badge
                                    ↓ settings: storage.local
 content scripts read global + host feature settings on load/change
@@ -62,6 +63,7 @@ decision metadata      → current page memory only
 4. **Site-specific before generic** ; add targeted candidates under `content/selectors.js` (`SITE_RULES`) before widening generic heuristics.
 5. **Canonical logic in `lib/`** ; regexes, host checks, settings, and text heuristics belong in `lib/*.mjs` with Vitest coverage. Export them from `src/classic-runtime.mjs`, run `npm run build:runtime`, and consume them through `ByeBar.lib`; do not duplicate or hand-edit generated logic.
 6. **Not an ad blocker** ; do not block ads, trackers, or network requests. DOM-only overlay/popup removal.
+7. **Manual Pick remains one-shot** ; never invoke the selected control, inspect frame contents, persist a selector, or let automatic passes run while the page shield is active. Every committed Pick must use the marker ledger and Undo.
 
 ## Adding a new site rule
 
@@ -132,6 +134,9 @@ Manual checks:
 - Expired Undo metadata never restores elements or breaks reason-based settings restoration
 - Sweep reports only actions captured during its final fresh-settings pass; no-op leaves Undo intact
 - Keyboard Sweep uses the state/document handshake and never retries an ambiguous request
+- Pick uses document/session handshakes, ignores synthetic input and protected/frame targets, and never retries an ambiguous start or cancel
+- Pick cancellation, timeout, navigation, settings pause, and active top-layer UI leave the page interactive
+- A successful Pick records one manual marker hide as the newest reversible Undo action without persisting a selector
 - Diagnostics record metadata without page text and clear decisions on reload
 - Same-origin and cross-origin iframe contents remain untouched
 
@@ -165,6 +170,8 @@ npm run validate:packages
 | China commerce       | `test/china-commerce-heuristics.test.mjs` | Spinner wheels                                                                           |
 | TOS modals           | `test/tos-heuristics.test.mjs`            | Bloomberg CMP                                                                            |
 | Generic overlays     | `test/overlay-heuristics.test.mjs`        | Promotional text + geometry; inline/functional negatives                                 |
+| Manual picker policy | `test/pick-heuristics.test.mjs`           | Promotion, protected targets, frames, visibility, fullscreen, and shadow ancestry        |
+| Picker lifecycle     | `test/picker.test.mjs`                    | Startup timeout and hidden-document safety                                               |
 | Extension scope      | `test/extension-scope.test.mjs`           | Marker-only CSS and unrelated behavior exclusions                                        |
 | Host / settings      | `test/host.test.mjs`                      | Per-site overrides                                                                       |
 | Manifest             | `test/manifest.test.mjs`                  | MV3 structure                                                                            |
@@ -172,7 +179,7 @@ npm run validate:packages
 | Worker protocol      | `test/service-worker.test.mjs`            | Settings serialization, shortcut orchestration, migration, failures, and quotas          |
 | Target manifests     | `test/staging.test.mjs`                   | Chrome, Firefox, and Safari background shapes                                            |
 
-Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, and popup Sweep result/multi-step Undo/diagnostics behavior.
+Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, popup Sweep/multi-step Undo/diagnostics behavior, and one-shot Pick input isolation, cancellation, transport reconciliation, and Undo.
 
 Live-site manual checks still include:
 

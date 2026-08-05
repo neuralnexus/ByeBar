@@ -27,7 +27,8 @@ ByeBar is a Manifest V3 extension that injects content scripts at `document_star
 2. **Candidate pass** ; selectors identify possible overlays, but generic candidates must also have promotional text and modal/fixed-position geometry.
 3. **Interaction pass** ; cookie and optional legal handlers act only on visible controls inside confirmed dialogs, then let the site clean up its own modal state.
 4. **Reversible hide** ; confirmed elements stay in the DOM with a `data-byebar-hidden` marker, so disabling the relevant setting or using Undo can restore them without reloading. Site button clicks are intentionally not described as reversible.
-5. **Mutation observer** ; watches changed subtrees for late-injected overlays instead of repeatedly rescanning every page element and style change.
+5. **Manual picker** ; Pick to hide shields the page, lets you point to one top-document interruption without invoking it, and records one reversible hide without saving a selector.
+6. **Mutation observer** ; watches changed subtrees for late-injected overlays instead of repeatedly rescanning every page element and style change.
 
 ```
 document_start
@@ -46,11 +47,14 @@ document_start
 | **Optional legal dialogs**      | Can accept confirmed legal/TOS popups; disabled by default                                        |
 | **Reversible marker hides**     | Hides without deleting DOM nodes and keeps up to 10 recent hide actions available for Undo        |
 | **On-demand page sweep**        | Reruns the same conservative rules and reports each direct action or that no safe action ran      |
+| **Pick to hide**                | Safely selects one missed interruption and adds its marker hide to the same Undo history          |
 | **Site-specific rules**         | Targeted, host-limited heuristics for known offenders                                             |
 | **Per-site feature controls**   | Inherit or override each global feature for the current host                                      |
 | **Local diagnostics**           | Optionally shows rule/result metadata in page memory without recording page text or telemetry     |
 
-Open the toolbar popup to toggle behavior globally or per-site, or use **Sweep page** for a fresh pass. Press `Ctrl+Shift+Y` (`Command+Shift+Y` on macOS) to Sweep without opening the popup; remap it in your browser's extension-shortcut settings where supported.
+Open the toolbar popup to toggle behavior globally or per-site, use **Sweep page** for a fresh pass, or choose **Pick to hide** and point to one interruption. Pick intercepts the selection click instead of sending it to the page; press `Escape` or reopen ByeBar to cancel. Page roots, controls without an eligible interruption container, iframes, and active browser-level dialogs are not selectable. ByeBar stores no selector or page text from a Pick.
+
+Press `Ctrl+Shift+Y` (`Command+Shift+Y` on macOS) to Sweep without opening the popup; remap it in your browser's extension-shortcut settings where supported.
 
 After a keyboard Sweep, the toolbar badge briefly shows the direct-action count, `0` when no safe action ran, or `OFF` when ByeBar is paused.
 
@@ -147,7 +151,7 @@ Open the popup from the toolbar:
 
 Use **This site** to inherit or override each setting for the current host. **Global defaults** changes the values inherited by sites without an override. **Use global defaults** clears every override for the current host.
 
-Global defaults, hostname-keyed site overrides, and the diagnostics preference stay in device-local extension storage. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Sweep page** reruns the enabled safe rules without broadening what ByeBar may act on and reports counts for direct actions from that pass. **Undo hide** restores up to 10 recent marker-based hide actions in the current document, newest first. Cookie, legal, and site close-button clicks cannot be undone.
+Global defaults, hostname-keyed site overrides, and the diagnostics preference stay in device-local extension storage. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Sweep page** reruns the enabled safe rules without broadening what ByeBar may act on and reports counts for direct actions from that pass. **Pick to hide** pauses automatic passes while its isolated page shield is active, commits at most one manual marker hide, and stores no selector. **Undo hide** restores up to 10 recent marker-based hide actions in the current document, newest first. Cookie, legal, and site close-button clicks cannot be undone.
 
 ## Troubleshooting
 
@@ -160,6 +164,10 @@ Check **Enabled on this site** and each feature under **This site**. Use **Use g
 **The Sweep shortcut does nothing**
 
 Reload the page after installing or updating ByeBar, then confirm the shortcut is assigned in your browser's extension-shortcut settings. Browser-internal pages and extension stores do not allow ByeBar content scripts.
+
+**Pick to hide will not start or select an item**
+
+Reload the page after installing or updating ByeBar and confirm ByeBar is enabled for the site. Close any native modal dialog, popover, or full-screen view first. Pick intentionally ignores page roots, navigation, application landmarks, iframes, and controls that are not inside an eligible fixed, sticky, or dialog container.
 
 **Cookie banner keeps returning**  
 Some CMPs re-inject on interaction. Ensure **Auto-decline cookie banners** is on. Didomi/Usercentrics sites may need a new rule ; see [Contributing](#contributing).
@@ -193,6 +201,7 @@ background/   Settings owner and versioned message protocol
 content/      Content scripts, CSS, site modules
   engine.js   Settings, validated overlay passes, scoped mutation observer
   actions.js  Action ledger, Undo, focus safety, local diagnostics
+  picker.js   One-shot isolated manual picker and input shield
   visibility.js  Reversible hiding and scroll-lock override
   cookies.js  Confirmed visible Cookie CMP decline controls
   tos.js      Terms-of-service auto-accept
@@ -213,6 +222,7 @@ scripts/      Runtime generation, target staging, validation, and packaging
 | ------------------------------- | ----------------------------------------- |
 | `cookie-heuristics.mjs`         | CookieYes, Usercentrics, Didomi detection |
 | `overlay-heuristics.mjs`        | Generic text, layout, and geometry checks |
+| `pick-heuristics.mjs`           | Manual target promotion and safety checks |
 | `substack-heuristics.mjs`       | Radix/pencraft Substack signup modals     |
 | `bloomberg-heuristics.mjs`      | Bloomberg promo strips                    |
 | `china-commerce-heuristics.mjs` | Coupon spinner / lottery wheels           |
