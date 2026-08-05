@@ -20,7 +20,7 @@ npm run lint:firefox
 npm run build:firefox
 ```
 
-The build creates `dist/byebar-firefox-0.7.0.zip`, verifies that its entries and bytes exactly match the clean Firefox stage, and prints a SHA-256 digest.
+The build checks that generated source assets are current, creates `dist/byebar-firefox-0.7.0.zip` with sorted entries and fixed metadata, verifies that its entries and bytes exactly match the clean Firefox stage, and writes a SHA-256 checksum. Packaging fails rather than modifying source files when generated assets are stale.
 
 `web-ext lint` currently reports two allowed warnings because Firefox 115 predates the `data_collection_permissions` manifest key now required by AMO. The lint script allows only these warning codes and fails on any other warning or error:
 

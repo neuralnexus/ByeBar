@@ -8,7 +8,7 @@ npm run test:e2e
 npm run build:store
 ```
 
-The build regenerates the canonical runtime and icons, stages only declared Chrome files, validates the target manifest, verifies the ZIP entry set and contents, and prints its SHA-256 digest.
+The build checks that the tracked runtime and icons are current, stages only declared Chrome files, and creates a deterministic ZIP with sorted entries, fixed metadata, and a SHA-256 checksum. Packaging fails rather than modifying source files when generated assets are stale.
 
 Upload a package in the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole):
 
@@ -59,7 +59,9 @@ npm run build:store:crx
 
 Upload the versioned `.crx` in `dist/` with **Upload New Package** (not the zip).
 
-Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem`. Set `CHROME_PATH` if Chrome is not in the default macOS location.
+Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem`. The build signs and verifies the CRX3 directly, so Chrome is not required. It prints the SHA-256 fingerprint of the signer public key and creates a checksum beside the CRX.
+
+For release automation, set `BYEBAR_CRX_PUBLIC_KEY_SHA256` to the expected 64-character signer fingerprint. The build then fails if the supplied private key does not match the pinned release identity. Given the same source tree and private key, repeated builds produce byte-identical ZIP and CRX artifacts.
 
 ## Store listing
 
@@ -121,7 +123,10 @@ Add screenshots to `store/screenshots/` before publishing (not bundled in the zi
 
 ## Pre-submit checklist
 
-- [ ] `npm run validate`, `npm run test:e2e`, and `npm run build:store`
+- [ ] `npm run validate` and `npm run test:e2e`
+- [ ] Default ZIP upload: `npm run build:store`
+- [ ] Verified CRX upload: pin `BYEBAR_CRX_PUBLIC_KEY_SHA256` and run `npm run build:store:crx`
+- [ ] Verify the selected artifact against its adjacent `.sha256` checksum
 - [ ] Support URL live: https://byebar.mattivan.com/support.html
 - [ ] Privacy policy live: https://byebar.mattivan.com/privacy.html
 - [ ] Privacy practices tab: all justifications + single purpose + data certification

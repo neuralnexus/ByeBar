@@ -16,7 +16,7 @@ npm run build:safari
 open safari/ByeBar/ByeBar.xcodeproj
 ```
 
-If Xcode is not the active developer directory, the build uses `/Applications/Xcode.app` when available. For another location, set `DEVELOPER_DIR` or select it with `xcode-select`. `npm run build:safari` regenerates the canonical runtime and icons, creates a clean Safari-only stage under `dist/stage/safari`, and converts only that stage with noninteractive/no-open flags.
+If Xcode is not the active developer directory, the build uses `/Applications/Xcode.app` when available. For another location, set `DEVELOPER_DIR` or select it with `xcode-select`. `npm run build:safari` checks that the tracked runtime and icons are current, creates a clean Safari-only stage under `dist/stage/safari`, and converts only that stage with noninteractive/no-open flags. It fails rather than modifying source files when generated assets are stale.
 
 The generated `safari/` project is disposable. Re-running the command replaces it, so keep source changes in the extension and configure signing through reproducible Xcode settings rather than editing copied extension resources.
 

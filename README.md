@@ -232,7 +232,7 @@ scripts/      Runtime generation, target staging, validation, and packaging
 
 Pure logic lives in `lib/` and is tested with Vitest. `scripts/build-runtime.mjs` bundles that canonical logic through `src/classic-runtime.mjs` into `shared/runtime.generated.js` for classic extension contexts. Do not edit the generated runtime by hand; run `npm run build:runtime` after changing `lib/`.
 
-CI runs source validation, staged Chrome Playwright tests, Chrome/Firefox package validation, Firefox lint, and a no-sign Safari conversion/build on pushes and pull requests.
+CI runs source validation, staged Chrome Playwright tests, deterministic Chrome/Firefox package validation, direct signed CRX3 verification with an ephemeral key, Firefox lint, and a no-sign Safari conversion/build on pushes and pull requests.
 
 ## Contributing
 

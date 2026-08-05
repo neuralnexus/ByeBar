@@ -15,8 +15,6 @@ if [[ ! -x "$CONVERTER" ]]; then
   exit 1
 fi
 
-node "$ROOT/scripts/build-runtime.mjs"
-node "$ROOT/scripts/generate-icons.mjs"
 node "$ROOT/scripts/stage-extension.mjs" safari
 
 rm -rf "$ROOT/safari"

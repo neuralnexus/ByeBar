@@ -159,7 +159,7 @@ npm run validate:packages
 - Prettier check
 - Vitest unit tests
 
-`npm run test:e2e` runs the persistent Chromium extension suite. `npm run validate:packages` stages, lints, builds, and verifies Chrome and Firefox ZIPs. On a machine with full Xcode, `npm run validate:safari` converts the clean Safari stage and performs a no-sign macOS build.
+`npm run test:e2e` runs the persistent Chromium extension suite. `npm run validate:packages` stages, lints, builds, and verifies deterministic Chrome and Firefox ZIPs. Package builds require current generated assets and never rewrite source files. On a machine with full Xcode, `npm run validate:safari` converts the clean Safari stage and performs no-sign macOS and generic iOS device builds.
 
 ## Tests
 
@@ -179,6 +179,9 @@ npm run validate:packages
 | Visibility ownership | `test/visibility.test.mjs`                | Bounded Undo metadata without changing marker or settings ownership                      |
 | Worker protocol      | `test/service-worker.test.mjs`            | Settings serialization, shortcut orchestration, migration, failures, and quotas          |
 | Target manifests     | `test/staging.test.mjs`                   | Chrome, Firefox, and Safari background shapes                                            |
+| Package output       | `test/package.test.mjs`                   | Canonical ZIP bytes, ordering, timestamps, modes, and exact staged content               |
+| CRX3 signing         | `test/crx3.test.mjs`                      | Deterministic signatures, signer identity, embedded ZIP, and tamper rejection            |
+| Artifact publication | `test/artifact-output.test.mjs`           | Validation-before-publication, rollback, file types, and normalized modes                |
 
 Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, popup Sweep/multi-step Undo/diagnostics behavior, and one-shot Pick input isolation, cancellation, transport reconciliation, and Undo.
 

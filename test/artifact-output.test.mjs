@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -7,6 +8,8 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -71,14 +74,22 @@ describe('validated artifact publication', () => {
     const bytes = Buffer.from('validated package');
     const expectedHash = createHash('sha256').update(bytes).digest('hex');
 
-    const result = await buildValidatedFile(finalPath, {
-      build: async (candidatePath) => writeFileSync(candidatePath, bytes),
-      validate: async (candidatePath) => expect(readFileSync(candidatePath)).toEqual(bytes)
-    });
+    const previousUmask = process.umask(0o077);
+    let result;
+    try {
+      result = await buildValidatedFile(finalPath, {
+        build: async (candidatePath) => writeFileSync(candidatePath, bytes),
+        validate: async (candidatePath) => expect(readFileSync(candidatePath)).toEqual(bytes)
+      });
+    } finally {
+      process.umask(previousUmask);
+    }
 
     expect(result.sha256).toBe(expectedHash);
     expect(readFileSync(finalPath)).toEqual(bytes);
     expect(readFileSync(`${finalPath}.sha256`, 'utf8')).toBe(`${expectedHash}  package.zip\n`);
+    expect(statSync(finalPath).mode & 0o777).toBe(0o644);
+    expect(statSync(`${finalPath}.sha256`).mode & 0o777).toBe(0o644);
     expect(readdirSync(root).sort()).toEqual(['package.zip', 'package.zip.sha256']);
   });
 
@@ -99,10 +110,48 @@ describe('validated artifact publication', () => {
       })
     ).rejects.toThrow('rename failed');
 
-    expect(destinations).toEqual([`${finalPath}.sha256`, finalPath]);
+    expect(destinations).toEqual([finalPath]);
     expect(existsSync(finalPath)).toBe(false);
     expect(existsSync(`${finalPath}.sha256`)).toBe(false);
     expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('rolls back the artifact if the checksum commit rename fails', async () => {
+    const root = temporaryRoot();
+    const finalPath = join(root, 'package.zip');
+    const destinations = [];
+
+    await expect(
+      buildValidatedFile(finalPath, {
+        build: async (candidatePath) => writeFileSync(candidatePath, 'validated'),
+        validate: async () => {},
+        renameFile(source, destination) {
+          destinations.push(destination);
+          if (destination === `${finalPath}.sha256`) throw new Error('checksum rename failed');
+          renameSync(source, destination);
+        }
+      })
+    ).rejects.toThrow('checksum rename failed');
+
+    expect(destinations).toEqual([finalPath, `${finalPath}.sha256`]);
+    expect(existsSync(finalPath)).toBe(false);
+    expect(existsSync(`${finalPath}.sha256`)).toBe(false);
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it('rejects a symlink artifact candidate', async () => {
+    const root = temporaryRoot();
+    const finalPath = join(root, 'package.zip');
+    const source = join(root, 'source.zip');
+    writeFileSync(source, 'bytes');
+
+    await expect(
+      buildValidatedFile(finalPath, {
+        build: async (candidatePath) => symlinkSync(source, candidatePath),
+        validate: async () => {}
+      })
+    ).rejects.toThrow('not a regular file');
+    expect(existsSync(finalPath)).toBe(false);
   });
 });
 
@@ -136,7 +185,8 @@ describe('validated stage publication', () => {
     await buildValidatedDirectory(finalDirectory, {
       build: async (candidateDirectory) => {
         mkdirSync(candidateDirectory);
-        writeFileSync(join(candidateDirectory, 'manifest.json'), '{}');
+        chmodSync(candidateDirectory, 0o700);
+        writeFileSync(join(candidateDirectory, 'manifest.json'), '{}', { mode: 0o600 });
       },
       validate: async (candidateDirectory) => {
         expect(readFileSync(join(candidateDirectory, 'manifest.json'), 'utf8')).toBe('{}');
@@ -144,6 +194,8 @@ describe('validated stage publication', () => {
     });
 
     expect(readdirSync(finalDirectory)).toEqual(['manifest.json']);
+    expect(statSync(finalDirectory).mode & 0o777).toBe(0o755);
+    expect(statSync(join(finalDirectory, 'manifest.json')).mode & 0o777).toBe(0o644);
     expect(readdirSync(root)).toEqual(['chrome']);
   });
 });
