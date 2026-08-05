@@ -142,12 +142,12 @@ For Safari, see [SAFARI.md](SAFARI.md).
 
 Open the popup from the toolbar:
 
-| Setting                         | Global default | Description                                                              |
-| ------------------------------- | -------------- | ------------------------------------------------------------------------ |
-| Enabled                         | On             | Global gate with an optional positive or negative override for each host |
-| Block promotional popups & bars | On             | Text-and-layout-validated promotional overlays                           |
-| Auto-decline cookie banners     | On             | Reject through visible controls inside confirmed CMP banners             |
-| Auto-accept legal dialogs       | Off            | Click through confirmed TOS/legal modals; this action cannot be undone   |
+| Setting                         | Global default | Description                                                                        |
+| ------------------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| Enabled                         | On             | Global gate with an optional positive or negative override for each host           |
+| Block promotional popups & bars | On             | Text-and-layout-validated promotional overlays                                     |
+| Auto-decline cookie banners     | On             | Reject through visible controls inside confirmed CMP banners                       |
+| Auto-accept legal dialogs       | Off            | Click through confirmed TOS/legal modals after an irreversible-action confirmation |
 
 Use **This site** to inherit or override each setting for the current host. **Global defaults** changes the values inherited by sites without an override. **Use global defaults** clears every override for the current host.
 

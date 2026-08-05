@@ -729,6 +729,86 @@ a:focus-visible {
   text-decoration: underline;
 }
 
+.legal-confirm {
+  width: min(326px, calc(100vw - 28px));
+  padding: 0;
+  overflow: hidden;
+  color: var(--text);
+  background: var(--white);
+  border: 1px solid var(--ink-800);
+  border-top: 5px solid var(--coral-500);
+  border-radius: 16px;
+  box-shadow:
+    5px 5px 0 var(--ink-950),
+    0 18px 50px rgb(5 47 45 / 28%);
+}
+
+.legal-confirm::backdrop {
+  background: rgb(5 47 45 / 58%);
+  backdrop-filter: blur(2px);
+}
+
+.legal-confirm form {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.legal-confirm-kicker {
+  color: var(--coral-700);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.legal-confirm h2 {
+  margin: 0;
+  color: var(--ink-950);
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.legal-confirm p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.legal-confirm-scope {
+  padding: 7px 9px;
+  color: var(--ink-800) !important;
+  font-weight: 750;
+  background: var(--mint-100);
+  border-left: 3px solid var(--mint-500);
+  border-radius: 7px;
+}
+
+.legal-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.legal-confirm-actions button {
+  min-height: 34px;
+  padding: 7px 9px;
+  color: var(--ink-800);
+  font-size: 9px;
+  font-weight: 800;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.legal-confirm-actions .legal-confirm-enable {
+  color: var(--white);
+  background: var(--coral-700);
+  border-color: var(--coral-700);
+}
+
 .scope,
 .sweep-card,
 .settings,
@@ -790,6 +870,11 @@ a:focus-visible {
     background: none;
     border: initial;
     accent-color: Highlight;
+  }
+
+  .legal-confirm {
+    border: 2px solid CanvasText;
+    box-shadow: none;
   }
 }
 

@@ -132,6 +132,22 @@
       </footer>
     </main>
 
+    <dialog class="legal-confirm" id="legal-confirm" aria-labelledby="legal-confirm-title">
+      <form method="dialog">
+        <span class="legal-confirm-kicker">Irreversible action</span>
+        <h2 id="legal-confirm-title">Enable legal auto-accept?</h2>
+        <p>
+          ByeBar may click confirmed terms or legal consent controls as soon as they appear. Those clicks
+          cannot be undone.
+        </p>
+        <p class="legal-confirm-scope" id="legal-confirm-scope"></p>
+        <div class="legal-confirm-actions">
+          <button type="submit" value="cancel">Keep it off</button>
+          <button type="submit" class="legal-confirm-enable" value="confirm">Enable auto-accept</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="../shared/runtime.generated.js"></script>
     <script src="../shared/browser.js"></script>
     <script src="popup.js"></script>

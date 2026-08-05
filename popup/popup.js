@@ -39,6 +39,8 @@ const clearDebugEl = document.getElementById('clear-debug');
 const statusEl = document.getElementById('status');
 const reportBugEl = document.getElementById('report-bug');
 const requestFeatureEl = document.getElementById('request-feature');
+const legalConfirmEl = document.getElementById('legal-confirm');
+const legalConfirmScopeEl = document.getElementById('legal-confirm-scope');
 
 let scope = 'site';
 let host = '';
@@ -409,7 +411,25 @@ async function updateSetting(key, value) {
 }
 
 Object.entries(FEATURE_ROWS).forEach(([key, row]) => {
-  row.input.addEventListener('change', () => void updateSetting(key, row.input.checked));
+  row.input.addEventListener('change', () => {
+    if (key === 'tosAccept' && row.input.checked) {
+      row.input.checked = false;
+      legalConfirmScopeEl.textContent =
+        scope === 'site'
+          ? `This applies only to ${host || 'the current site'}.`
+          : 'This becomes the default for every site without an override.';
+      legalConfirmEl.showModal();
+      return;
+    }
+    void updateSetting(key, row.input.checked);
+  });
+});
+
+legalConfirmEl.addEventListener('close', () => {
+  const confirmed = legalConfirmEl.returnValue === 'confirm';
+  legalConfirmEl.returnValue = '';
+  render();
+  if (confirmed) void updateSetting('tosAccept', true);
 });
 
 scopeSiteEl.addEventListener('click', () => {

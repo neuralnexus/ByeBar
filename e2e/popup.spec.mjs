@@ -136,6 +136,54 @@ test('refreshes its context before writing a site override', async ({
     .toEqual({ localhost: { genericBlocking: false } });
 });
 
+test('requires confirmation before enabling irreversible legal auto-accept', async ({
+  page,
+  context,
+  serviceWorker,
+  extensionId
+}) => {
+  await page.goto('/settings-restoration.html');
+  const fixtureTabId = await serviceWorker.evaluate(async () => {
+    const tabs = await chrome.tabs.query({});
+    return tabs.find((tab) => tab.url?.includes('settings-restoration.html'))?.id;
+  });
+  const popup = await context.newPage();
+  await serviceWorker.evaluate((tabId) => chrome.tabs.update(tabId, { active: true }), fixtureTabId);
+  await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+
+  await popup.locator('#tos-accept').click();
+  const confirmation = popup.locator('#legal-confirm');
+  await expect(confirmation).toBeVisible();
+  await expect(confirmation).toContainText('cannot be undone');
+  await expect(popup.locator('#legal-confirm-scope')).toContainText('127.0.0.1');
+  expect(
+    await serviceWorker.evaluate(
+      async () => (await chrome.storage.local.get('siteFeatureOverrides')).siteFeatureOverrides
+    )
+  ).toEqual({});
+
+  await confirmation.getByRole('button', { name: 'Keep it off' }).click();
+  await expect(confirmation).toBeHidden();
+  await expect(popup.locator('#tos-accept')).not.toBeChecked();
+  expect(
+    await serviceWorker.evaluate(
+      async () => (await chrome.storage.local.get('siteFeatureOverrides')).siteFeatureOverrides
+    )
+  ).toEqual({});
+
+  await popup.locator('#tos-accept').click();
+  await confirmation.getByRole('button', { name: 'Enable auto-accept' }).click();
+  await expect(popup.locator('#status')).toContainText('Saved');
+  await expect(popup.locator('#tos-accept')).toBeChecked();
+  await expect
+    .poll(() =>
+      serviceWorker.evaluate(
+        async () => (await chrome.storage.local.get('siteFeatureOverrides')).siteFeatureOverrides
+      )
+    )
+    .toEqual({ '127.0.0.1': { tosAccept: true } });
+});
+
 test('refreshes stale undo state after the page reloads', async ({
   page,
   context,
