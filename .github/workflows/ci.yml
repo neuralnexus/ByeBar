@@ -39,10 +39,9 @@ jobs:
         shell: bash
         run: |
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/byebar-ci.pem"
-          CHROME_PATH="$(node --input-type=module -e "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())")" \
-          BYEBAR_CRX_PRIVATE_KEY="$RUNNER_TEMP/byebar-ci.pem" \
-          BYEBAR_CRX_NO_SANDBOX=1 \
-          npm run build:store:crx
+          BYEBAR_CRX_PRIVATE_KEY="$RUNNER_TEMP/byebar-ci.pem" npm run build:store:crx
+      - name: Verify packaging did not modify source
+        run: git diff --exit-code
       - run: npm run test:e2e
         env:
           BYEBAR_EXTENSION_PATH: ${{ github.workspace }}/dist/stage/chrome
@@ -75,3 +74,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run validate:safari
+      - name: Verify Safari packaging did not modify source
+        run: git diff --exit-code

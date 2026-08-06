@@ -37,14 +37,23 @@
         <div class="sweep-copy">
           <span class="sweep-kicker">On demand</span>
           <h2 id="sweep-heading">Clear the way</h2>
-          <p>Run a fresh, conservative pass on this page.</p>
+          <p>Run a fresh pass, or point to one interruption.</p>
         </div>
-        <button type="button" id="sweep-page" disabled>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 12h13M13 7l5 5-5 5" />
-          </svg>
-          Sweep page
-        </button>
+        <div class="page-tools">
+          <button type="button" class="page-tool" id="sweep-page" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 12h13M13 7l5 5-5 5" />
+            </svg>
+            Sweep page
+          </button>
+          <button type="button" class="page-tool" id="pick-page" aria-pressed="false" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+            </svg>
+            <span id="pick-page-label">Pick to hide</span>
+          </button>
+        </div>
       </section>
 
       <p class="section-label">Protection</p>
@@ -122,6 +131,22 @@
         </p>
       </footer>
     </main>
+
+    <dialog class="legal-confirm" id="legal-confirm" aria-labelledby="legal-confirm-title">
+      <form method="dialog">
+        <span class="legal-confirm-kicker">Irreversible action</span>
+        <h2 id="legal-confirm-title">Enable legal auto-accept?</h2>
+        <p>
+          ByeBar may click confirmed terms or legal consent controls as soon as they appear. Those clicks
+          cannot be undone.
+        </p>
+        <p class="legal-confirm-scope" id="legal-confirm-scope"></p>
+        <div class="legal-confirm-actions">
+          <button type="submit" value="cancel">Keep it off</button>
+          <button type="submit" class="legal-confirm-enable" value="confirm">Enable auto-accept</button>
+        </div>
+      </form>
+    </dialog>
 
     <script src="../shared/runtime.generated.js"></script>
     <script src="../shared/browser.js"></script>

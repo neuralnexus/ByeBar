@@ -6,6 +6,7 @@ import {
   isSubstackPageHtml,
   isSubstackSite,
   normalizeHost,
+  parseUrlContext,
   siteEnabledForHost
 } from '../lib/host.mjs';
 import {
@@ -50,6 +51,19 @@ describe('isSubstackSite', () => {
 describe('normalizeHost', () => {
   it('parses urls', () => {
     expect(normalizeHost('https://www.ibm.com/path')).toBe('ibm.com');
+  });
+
+  it('preserves a normalized IPv6 hostname', () => {
+    expect(normalizeHost('https://[2001:db8::1]/path')).toBe('[2001:db8::1]');
+  });
+});
+
+describe('parseUrlContext', () => {
+  it('distinguishes readable hostless URLs from missing or malformed values', () => {
+    expect(parseUrlContext('file:///tmp/article.html')).toEqual({ readable: true, host: '' });
+    expect(parseUrlContext('https://[::1]/')).toEqual({ readable: true, host: '[::1]' });
+    expect(parseUrlContext('not a url')).toEqual({ readable: false, host: '' });
+    expect(parseUrlContext('')).toEqual({ readable: false, host: '' });
   });
 });
 

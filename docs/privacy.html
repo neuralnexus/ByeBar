@@ -16,7 +16,7 @@
 
     <main>
       <section class="card">
-        <p><strong>Last updated:</strong> July 30, 2026</p>
+        <p><strong>Last updated:</strong> August 5, 2026</p>
         <p>
           ByeBar is built by Matt Ivan. This policy describes how the extension handles information on your
           device.
@@ -43,11 +43,13 @@
           </li>
         </ul>
         <p>
-          Settings, including browsing hostnames used for site overrides, are not placed in browser sync. The
-          Local diagnostics preference also stays in device-local extension storage. When diagnostics are
-          enabled, up to 100 rule/result decisions are kept only in the current page&apos;s memory. They
-          contain no page text, are never sent to the developer, and clear on reload, when diagnostics are
-          disabled, or when you clear them.
+          Current versions do not place settings or browsing hostnames in browser sync. Versions before 0.7
+          may have synchronized settings; after successfully migrating them to device-local storage, ByeBar
+          removes that obsolete browser-managed copy. Current versions ignore legacy sync data, but an older
+          version still installed on another device may recreate it. The Local diagnostics preference also
+          stays in device-local extension storage. When diagnostics are enabled, up to 100 rule/result
+          decisions are kept only in the current page&apos;s memory. They contain no page text, are never sent
+          to the developer, and clear on reload, when diagnostics are disabled, or when you clear them.
         </p>
       </section>
 
@@ -56,8 +58,12 @@
         <p>
           ByeBar runs content scripts in eligible top-level pages to hide intrusive overlays and to click
           confirmed decline/accept buttons when you have those options enabled. Embedded frame contents are
-          not processed. It evaluates limited page text locally to recognize an overlay, but does not store
-          that text, use it for analytics, intercept network traffic, or block ads.
+          not processed. The one-shot Pick to hide tool evaluates the element you point to and its composed
+          top-document ancestry. During the session it retains only opaque browser navigation-entry identity
+          so it can reject a stale selection; it does not read or store browser history or route URLs. ByeBar
+          does not save a selector or page text. It evaluates limited page text locally to recognize automatic
+          overlays, but does not store that text, use it for analytics, intercept network traffic, or block
+          ads.
         </p>
       </section>
 

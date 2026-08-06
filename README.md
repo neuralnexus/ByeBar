@@ -27,7 +27,8 @@ ByeBar is a Manifest V3 extension that injects content scripts at `document_star
 2. **Candidate pass** ; selectors identify possible overlays, but generic candidates must also have promotional text and modal/fixed-position geometry.
 3. **Interaction pass** ; cookie and optional legal handlers act only on visible controls inside confirmed dialogs, then let the site clean up its own modal state.
 4. **Reversible hide** ; confirmed elements stay in the DOM with a `data-byebar-hidden` marker, so disabling the relevant setting or using Undo can restore them without reloading. Site button clicks are intentionally not described as reversible.
-5. **Mutation observer** ; watches changed subtrees for late-injected overlays instead of repeatedly rescanning every page element and style change.
+5. **Manual picker** ; Pick to hide shields the page, lets you point to one top-document interruption without invoking it, and records one reversible hide without saving a selector.
+6. **Mutation observer** ; watches changed subtrees for late-injected overlays instead of repeatedly rescanning every page element and style change.
 
 ```
 document_start
@@ -39,18 +40,23 @@ document_start
 
 ## Features
 
-| Feature                         | What it does                                                                                       |
-| ------------------------------- | -------------------------------------------------------------------------------------------------- |
-| **Generic overlay blocking**    | Removes supported newsletter nags, subscribe prompts, and email popups when text and layout agree  |
-| **Auto-decline cookie banners** | Clicks visible reject/deny controls inside confirmed CMP banners and lets the CMP close itself     |
-| **Optional legal dialogs**      | Can accept confirmed legal/TOS popups; disabled by default                                         |
-| **Reversible marker hides**     | Hides matched elements without deleting DOM nodes and supports Undo for the latest reversible hide |
-| **On-demand page sweep**        | Reruns the same conservative rules when a CSS-only page change slips past automatic observation    |
-| **Site-specific rules**         | Targeted, host-limited heuristics for known offenders                                              |
-| **Per-site feature controls**   | Inherit or override each global feature for the current host                                       |
-| **Local diagnostics**           | Optionally shows rule/result metadata in page memory without recording page text or telemetry      |
+| Feature                         | What it does                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Generic overlay blocking**    | Removes supported newsletter nags, subscribe prompts, and email popups when text and layout agree |
+| **Auto-decline cookie banners** | Clicks visible reject/deny controls inside confirmed CMP banners and lets the CMP close itself    |
+| **Optional legal dialogs**      | Can accept confirmed legal/TOS popups; disabled by default                                        |
+| **Reversible marker hides**     | Hides without deleting DOM nodes and keeps up to 10 recent hide actions available for Undo        |
+| **On-demand page sweep**        | Reruns the same conservative rules and reports each direct action or that no safe action ran      |
+| **Pick to hide**                | Safely selects one missed interruption and adds its marker hide to the same Undo history          |
+| **Site-specific rules**         | Targeted, host-limited heuristics for known offenders                                             |
+| **Per-site feature controls**   | Inherit or override each global feature for the current host                                      |
+| **Local diagnostics**           | Optionally shows rule/result metadata in page memory without recording page text or telemetry     |
 
-Open the toolbar popup to toggle behavior globally or per-site, or use **Sweep page** for a fresh pass.
+Open the toolbar popup to toggle behavior globally or per-site, use **Sweep page** for a fresh pass, or choose **Pick to hide** for one interruption. Point and click, use the in-page Previous/Next and Hide controls, or cycle safe targets with `Tab`/arrow keys and press `Enter`. Pick intercepts those actions instead of sending them to the page; use its Cancel control, press `Escape`, or reopen ByeBar to cancel. Focus returns to the prior page control or a safe page landmark. Page roots, standalone controls, iframes, and active browser-level dialogs are not selectable. ByeBar stores no selector or page text from a Pick.
+
+Press `Ctrl+Shift+Y` (`Command+Shift+Y` on macOS) to Sweep without opening the popup; remap it in your browser's extension-shortcut settings where supported.
+
+After a keyboard Sweep, the toolbar badge briefly shows the direct-action count, `0` when no safe action ran, or `OFF` when ByeBar is paused.
 
 ## Site coverage
 
@@ -92,8 +98,10 @@ When **Block promotional popups & bars** is enabled, ByeBar hides modal or fixed
 | Browser              | Minimum version | Install                                          |
 | -------------------- | --------------- | ------------------------------------------------ |
 | Chrome / Edge        | 109+            | [Load unpacked](#install-chrome--edge--firefox)  |
-| Firefox              | 115+            | [Staged temporary add-on or package](FIREFOX.md) |
+| Firefox (desktop)    | 140+            | [Staged temporary add-on or package](FIREFOX.md) |
 | Safari (macOS / iOS) | 16.4+           | [SAFARI.md](SAFARI.md)                           |
+
+Automatic blocking, Sweep, settings, and Undo support the minimum versions above. Pick additionally requires closed-shadow-root inspection and Navigation API entry identity, so it is available in Chrome/Edge 109+, Firefox 147+, and Safari 26.2+; older Firefox and Safari versions keep Pick disabled rather than risk committing a stale or protected selection.
 
 ## Install (Chrome / Edge / Firefox)
 
@@ -136,16 +144,16 @@ For Safari, see [SAFARI.md](SAFARI.md).
 
 Open the popup from the toolbar:
 
-| Setting                         | Global default | Description                                                              |
-| ------------------------------- | -------------- | ------------------------------------------------------------------------ |
-| Enabled                         | On             | Global gate with an optional positive or negative override for each host |
-| Block promotional popups & bars | On             | Text-and-layout-validated promotional overlays                           |
-| Auto-decline cookie banners     | On             | Reject through visible controls inside confirmed CMP banners             |
-| Auto-accept legal dialogs       | Off            | Click through confirmed TOS/legal modals; this action cannot be undone   |
+| Setting                         | Global default | Description                                                                        |
+| ------------------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| Enabled                         | On             | Global gate with an optional positive or negative override for each host           |
+| Block promotional popups & bars | On             | Text-and-layout-validated promotional overlays                                     |
+| Auto-decline cookie banners     | On             | Reject through visible controls inside confirmed CMP banners                       |
+| Auto-accept legal dialogs       | Off            | Click through confirmed TOS/legal modals after an irreversible-action confirmation |
 
 Use **This site** to inherit or override each setting for the current host. **Global defaults** changes the values inherited by sites without an override. **Use global defaults** clears every override for the current host.
 
-Global defaults, hostname-keyed site overrides, and the diagnostics preference stay in device-local extension storage. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Sweep page** reruns the enabled safe rules without broadening what ByeBar may act on. **Undo hide** restores only the latest marker-based hide in the current document. Cookie, legal, and site close-button clicks cannot be undone.
+Global defaults, hostname-keyed site overrides, and the diagnostics preference use device-local extension storage. After a successful pre-0.7 migration, ByeBar removes the obsolete browser-sync settings so a later downgrade cannot revive stale site or irreversible-action choices. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Sweep page** reruns the enabled safe rules without broadening what ByeBar may act on and reports counts for direct actions from that pass. **Pick to hide** pauses automatic passes while its isolated page shield is active, commits at most one manual marker hide, and stores no selector. During that one-shot session it retains only opaque Navigation API entry identity so a selection cannot cross routes. **Undo hide** restores up to 10 recent marker-based hide actions in the current document, newest first. Cookie, legal, and site close-button clicks cannot be undone.
 
 ## Troubleshooting
 
@@ -154,6 +162,14 @@ Expected for late-injected modals. ByeBar retries at 500 ms, 1.5 s, 4 s, and 8 s
 
 **ByeBar does nothing on a site**  
 Check **Enabled on this site** and each feature under **This site**. Use **Use global defaults** to clear stale whole-site or per-feature overrides. ByeBar intentionally does not process overlays inside iframes.
+
+**The Sweep shortcut does nothing**
+
+Reload the page after installing or updating ByeBar, then confirm the shortcut is assigned in your browser's extension-shortcut settings. Browser-internal pages and extension stores do not allow ByeBar content scripts.
+
+**Pick to hide will not start or select an item**
+
+Reload the page after installing or updating ByeBar and confirm ByeBar is enabled for the site. Close any native modal dialog, popover, or full-screen view first. Pick intentionally ignores page roots, navigation, application landmarks, iframes, and controls that are not inside an eligible fixed, sticky, or dialog container.
 
 **Cookie banner keeps returning**  
 Some CMPs re-inject on interaction. Ensure **Auto-decline cookie banners** is on. Didomi/Usercentrics sites may need a new rule ; see [Contributing](#contributing).
@@ -168,7 +184,7 @@ Re-load `manifest.json` from `about:debugging` after each browser restart.
 
 ```bash
 npm ci
-npm run icons      # generate icon sizes from icons/logo.svg
+npm run icons      # generate brand and toolbar sizes from icons/*.svg
 npm run build:runtime
 npm run validate   # generated runtime + manifest + lint + format + Vitest
 npm run test       # vitest watch mode
@@ -187,6 +203,7 @@ background/   Settings owner and versioned message protocol
 content/      Content scripts, CSS, site modules
   engine.js   Settings, validated overlay passes, scoped mutation observer
   actions.js  Action ledger, Undo, focus safety, local diagnostics
+  picker.js   One-shot isolated manual picker and input shield
   visibility.js  Reversible hiding and scroll-lock override
   cookies.js  Confirmed visible Cookie CMP decline controls
   tos.js      Terms-of-service auto-accept
@@ -207,6 +224,7 @@ scripts/      Runtime generation, target staging, validation, and packaging
 | ------------------------------- | ----------------------------------------- |
 | `cookie-heuristics.mjs`         | CookieYes, Usercentrics, Didomi detection |
 | `overlay-heuristics.mjs`        | Generic text, layout, and geometry checks |
+| `pick-heuristics.mjs`           | Manual target promotion and safety checks |
 | `substack-heuristics.mjs`       | Radix/pencraft Substack signup modals     |
 | `bloomberg-heuristics.mjs`      | Bloomberg promo strips                    |
 | `china-commerce-heuristics.mjs` | Coupon spinner / lottery wheels           |
@@ -216,7 +234,7 @@ scripts/      Runtime generation, target staging, validation, and packaging
 
 Pure logic lives in `lib/` and is tested with Vitest. `scripts/build-runtime.mjs` bundles that canonical logic through `src/classic-runtime.mjs` into `shared/runtime.generated.js` for classic extension contexts. Do not edit the generated runtime by hand; run `npm run build:runtime` after changing `lib/`.
 
-CI runs source validation, staged Chrome Playwright tests, Chrome/Firefox package validation, Firefox lint, and a no-sign Safari conversion/build on pushes and pull requests.
+CI runs source validation, staged Chrome Playwright tests, deterministic Chrome/Firefox package validation, direct signed CRX3 verification with an ephemeral key, Firefox lint, and a no-sign Safari conversion/build on pushes and pull requests.
 
 ## Contributing
 

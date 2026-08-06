@@ -1,6 +1,10 @@
-# Firefox Setup
+# Firefox Desktop Setup
 
 ByeBar uses a Firefox-specific Manifest V3 stage because Firefox requires ordered `background.scripts` while Chromium uses `background.service_worker`.
+
+The Firefox artifact supports Firefox desktop 140 or newer. Firefox for Android is not currently a supported or tested target.
+
+Automatic blocking, Sweep, settings, and Undo support Firefox 140+. Pick additionally requires Navigation API entry identity and is exposed on Firefox 147+.
 
 ## Temporary installation
 
@@ -20,14 +24,11 @@ npm run lint:firefox
 npm run build:firefox
 ```
 
-The build creates `dist/byebar-firefox-0.7.0.zip`, verifies that its entries and bytes exactly match the clean Firefox stage, and prints a SHA-256 digest.
+The build checks that generated source assets are current, creates `dist/byebar-firefox-0.8.0.zip` with sorted entries and fixed metadata, verifies that its entries and bytes exactly match the clean Firefox stage, and writes a SHA-256 checksum. Packaging fails rather than modifying source files when generated assets are stale.
 
-`web-ext lint` currently reports two allowed warnings because Firefox 115 predates the `data_collection_permissions` manifest key now required by AMO. The lint script allows only these warning codes and fails on any other warning or error:
+The manifest sets Firefox desktop 140 as its strict minimum because earlier releases reject the AMO-required `data_collection_permissions` declaration. This keeps the install metadata aligned with the artifact instead of claiming Firefox 115 compatibility.
 
-- `KEY_FIREFOX_UNSUPPORTED_BY_MIN_VERSION`
-- `KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION`
-
-This preserves Firefox 115 ESR support without dropping AMO's required no-data declaration. Revisit the policy when the minimum supported Firefox version reaches 140 desktop and 142 Android.
+`web-ext lint` also evaluates inferred Firefox for Android compatibility, where that key was introduced in 142. Because ByeBar does not claim Android support, the lint script permits exactly one `KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION` warning for `data_collection_permissions`. Any desktop compatibility warning, error, unrelated warning, or changed warning count fails the build.
 
 ## Distribution
 

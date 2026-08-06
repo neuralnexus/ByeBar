@@ -6,15 +6,41 @@
   const DEBUG_KEY = 'byebar.debug';
   const PROTOCOL = BYEBAR.lib.constants.MESSAGE_PROTOCOL_VERSION;
   const MAX_DECISIONS = 100;
+  const MAX_UNDO_ACTIONS = 10;
   const documentId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const decisions = [];
   const suppressed = new WeakSet();
   const focusHistory = [];
+  const undoHistory = [];
   let debugEnabled = false;
   let sequence = 0;
   let latestAction = null;
-  let latestReversibleAction = null;
   let debugGeneration = 0;
+  let activeSweepCounts = null;
+
+  function createSweepCounts() {
+    return {
+      reversibleHides: 0,
+      dismissActions: 0,
+      cookieDeclines: 0,
+      legalAccepts: 0
+    };
+  }
+
+  function captureSweepResult(run) {
+    const previous = activeSweepCounts;
+    const counts = createSweepCounts();
+    activeSweepCounts = counts;
+    try {
+      run();
+    } finally {
+      activeSweepCounts = previous;
+    }
+    return {
+      outcome: Object.values(counts).some((count) => count > 0) ? 'applied' : 'no-op',
+      counts: { ...counts }
+    };
+  }
 
   function nextId() {
     sequence += 1;
@@ -87,8 +113,16 @@
     const previousTabIndex = fallback.getAttribute('tabindex');
     fallback.setAttribute('tabindex', '-1');
     fallback.focus({ preventScroll: true });
-    if (previousTabIndex === null) fallback.removeAttribute('tabindex');
-    else fallback.setAttribute('tabindex', previousTabIndex);
+    if (fallback.getAttribute('tabindex') !== '-1') return;
+    if (previousTabIndex === null) {
+      fallback.addEventListener(
+        'blur',
+        () => {
+          if (fallback.getAttribute('tabindex') === '-1') fallback.removeAttribute('tabindex');
+        },
+        { once: true }
+      );
+    } else fallback.setAttribute('tabindex', previousTabIndex);
   }
 
   function repairFocusAfterHide(previousFocus, targets) {
@@ -125,15 +159,34 @@
   }
 
   function hide(action, el, reason, options = {}) {
-    if (!action || !el || suppressed.has(el) || BYEBAR.visibility.isHidden(el)) return false;
+    if (
+      !action ||
+      !el ||
+      (suppressed.has(el) && options.userInitiated !== true) ||
+      BYEBAR.visibility.isHidden(el)
+    ) {
+      return false;
+    }
+    if (options.userInitiated === true) suppressed.delete(el);
     const hidden = BYEBAR.visibility.hide(el, reason, { ...options, actionId: action.id });
-    if (hidden) action.targets.push(el);
+    if (hidden) {
+      action.targets.push(el);
+      if (activeSweepCounts) activeSweepCounts.reversibleHides += 1;
+    }
     return hidden;
   }
 
-  function commit(action) {
+  function pruneUndoHistory() {
+    for (let index = undoHistory.length - 1; index >= 0; index -= 1) {
+      if (!BYEBAR.visibility.hasAction(undoHistory[index].id)) undoHistory.splice(index, 1);
+    }
+    return undoHistory[undoHistory.length - 1] || null;
+  }
+
+  function commit(action, validate = null) {
     if (!action?.targets.length) return false;
     repairFocusAfterHide(action.previousFocus, action.targets);
+    if (validate && !validate()) return false;
     const completed = {
       id: action.id,
       at: action.at,
@@ -142,7 +195,11 @@
       canUndo: true
     };
     latestAction = completed;
-    latestReversibleAction = completed;
+    pruneUndoHistory();
+    undoHistory.push(completed);
+    while (undoHistory.length > MAX_UNDO_ACTIONS) {
+      BYEBAR.visibility.forgetAction(undoHistory.shift().id);
+    }
     pushDecision(action.meta, 'applied', true);
     return true;
   }
@@ -152,15 +209,22 @@
   }
 
   function recordIrreversible(meta) {
+    const normalized = safeMeta(meta);
     const action = {
       id: nextId(),
       at: Date.now(),
-      ...safeMeta(meta),
+      ...normalized,
       reversible: false,
       canUndo: false
     };
+    const countKey = {
+      dismiss: 'dismissActions',
+      decline: 'cookieDeclines',
+      accept: 'legalAccepts'
+    }[normalized.operation];
+    if (activeSweepCounts && countKey) activeSweepCounts[countKey] += 1;
     latestAction = action;
-    pushDecision(meta, 'applied', false);
+    pushDecision(normalized, 'applied', false);
     requestAnimationFrame(repairFocusAfterIrreversible);
     return action;
   }
@@ -169,7 +233,14 @@
     return suppressed.has(el);
   }
 
+  function suppress(el) {
+    if (el) suppressed.add(el);
+  }
+
   function pageState() {
+    const latestReversibleAction = pruneUndoHistory();
+    const pickerState = BYEBAR.picker?.state?.() || { active: false, busy: false, sessionId: '' };
+    const supportsPick = BYEBAR.picker?.available?.() !== false;
     const action = latestAction
       ? {
           ...latestAction,
@@ -179,15 +250,17 @@
     const undoAction = latestReversibleAction
       ? {
           ...latestReversibleAction,
-          canUndo: Boolean(BYEBAR.visibility.hasAction(latestReversibleAction.id))
+          canUndo: true
         }
       : null;
     return {
       ok: true,
       documentId,
-      capabilities: ['sweep'],
+      capabilities: supportsPick ? ['sweep', 'pick'] : ['sweep'],
+      picker: pickerState,
       lastAction: action,
       undoAction,
+      undoActionCount: undoHistory.length,
       debugEnabled,
       decisions: debugEnabled ? [...decisions] : []
     };
@@ -195,31 +268,57 @@
 
   function undo(message) {
     if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    if (BYEBAR.picker?.blocksAutomation?.()) {
+      return { ok: false, error: { code: 'picker-active' } };
+    }
+    const latestReversibleAction = pruneUndoHistory();
     if (!latestReversibleAction || message.actionId !== latestReversibleAction.id) {
       return { ok: false, error: { code: 'not-latest-hide' } };
     }
 
     const restored = BYEBAR.visibility.restoreAction(latestReversibleAction.id);
-    if (restored.length === 0) return { ok: false, error: { code: 'target-gone' } };
-    restored.forEach((el) => suppressed.add(el));
+    if (restored.length === 0) {
+      undoHistory.pop();
+      return { ok: false, error: { code: 'target-gone' } };
+    }
+    undoHistory.pop();
+    restored.forEach(suppress);
     pushDecision({ ...latestReversibleAction, operation: 'undo', reason: 'user-request' }, 'applied', false);
-    latestReversibleAction = {
+    latestAction = {
       ...latestReversibleAction,
       canUndo: false,
       reversible: false,
       operation: 'undo'
     };
-    latestAction = latestReversibleAction;
     return pageState();
   }
 
   async function sweep(message) {
     if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
-    const effective = await BYEBAR.engine.sweepPage();
+    if (BYEBAR.picker?.blocksAutomation?.()) {
+      return { ok: false, error: { code: 'picker-active' } };
+    }
+    const result = await BYEBAR.engine.sweepPage();
     return {
       ...pageState(),
-      sweep: { effective }
+      sweep: result
     };
+  }
+
+  async function startPicker(message) {
+    if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    if (!BYEBAR.picker?.start || BYEBAR.picker.available?.() === false) {
+      return { ok: false, error: { code: 'picker-unavailable' } };
+    }
+    const response = await BYEBAR.picker.start(message.sessionId);
+    return response.ok ? pageState() : response;
+  }
+
+  function cancelPicker(message) {
+    if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
+    if (!BYEBAR.picker?.cancel) return { ok: false, error: { code: 'picker-unavailable' } };
+    const response = BYEBAR.picker.cancel(message.sessionId);
+    return response.ok ? pageState() : response;
   }
 
   BYEBAR.browser.onStorageChanged((changes, area) => {
@@ -250,6 +349,8 @@
         if (message.type === 'byebar.page.getState') sendResponse(pageState());
         else if (message.type === 'byebar.page.undo') sendResponse(undo(message));
         else if (message.type === 'byebar.page.sweep') sendResponse(await sweep(message));
+        else if (message.type === 'byebar.page.pick.start') sendResponse(await startPicker(message));
+        else if (message.type === 'byebar.page.pick.cancel') sendResponse(cancelPicker(message));
         else if (message.type === 'byebar.page.debug.clear') {
           if (message.documentId !== documentId)
             sendResponse({ ok: false, error: { code: 'stale-document' } });
@@ -277,6 +378,8 @@
     commit,
     skip,
     recordIrreversible,
+    captureSweepResult,
+    suppress,
     isSuppressed,
     pageState
   };

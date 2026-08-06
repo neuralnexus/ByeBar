@@ -42,7 +42,7 @@
     substack: {
       hosts: BYEBAR.lib.constants.SUBSTACK_HOST_PATTERNS,
       remove: [
-        '[role="dialog"][aria-label="Subscribe modal"]',
+        '[role~="dialog" i][aria-label="Subscribe modal"]',
         '[class*="subscribeDialog"]',
         '[class*="subscribeModal"]',
         '[class*="subscribeWidget"]',
@@ -56,18 +56,18 @@
         '[class*="emailPopup"]',
         '[class*="subscribe-overlay"]',
         '[class*="SubscribeOverlay"]',
-        '[role="dialog"][data-testid="modal"]'
+        '[role~="dialog" i][data-testid="modal"]'
       ]
     }
   };
 
   // Candidate selectors only. engine.js still requires promotional text and overlay geometry.
   BYEBAR.GENERIC_HIDE = [
-    '[role="dialog"][aria-label*="subscribe" i]',
-    '[role="dialog"][aria-label*="newsletter" i]',
-    '[role="dialog"][aria-label*="sign up" i]',
-    '[role="dialog"][aria-label*="signup" i]',
-    '[role="dialog"][aria-label*="email" i]',
+    '[role~="dialog" i][aria-label*="subscribe" i]',
+    '[role~="dialog" i][aria-label*="newsletter" i]',
+    '[role~="dialog" i][aria-label*="sign up" i]',
+    '[role~="dialog" i][aria-label*="signup" i]',
+    '[role~="dialog" i][aria-label*="email" i]',
     '[aria-modal="true"][class*="newsletter" i]',
     '[aria-modal="true"][class*="subscribe" i]',
     '[aria-modal="true"][class*="popup" i]',
@@ -197,7 +197,7 @@
     'iframe[src*="trustarc.com" i]',
     'iframe[src*="consent.trustarc.com" i]',
     'iframe[src*="consent-pref.trustarc.com" i]',
-    '[aria-label*="cookie" i][role="dialog"]',
+    '[aria-label*="cookie" i][role~="dialog" i]',
     '#didomi-popup',
     '.didomi-popup-backdrop',
     '.didomi-popup-notice',
@@ -280,13 +280,13 @@
     '[id*="tos_modal" i]',
     '[id*="terms_modal" i]',
     '[data-testid*="tos-modal" i]',
-    '[aria-label*="terms of service" i][role="dialog"]',
-    '[aria-label*="updated terms" i][role="dialog"]'
+    '[aria-label*="terms of service" i][role~="dialog" i]',
+    '[aria-label*="updated terms" i][role~="dialog" i]'
   ];
 
   BYEBAR.TOS_BANNER_ANCESTORS =
     BYEBAR.TOS_HIDE.join(',') +
-    ',[class*="tos" i][class*="modal" i],[class*="terms" i][class*="modal" i],[id*="tos" i][role="dialog"],[id*="terms" i][role="dialog"]';
+    ',[class*="tos" i][class*="modal" i],[class*="terms" i][class*="modal" i],[id*="tos" i][role~="dialog" i],[id*="terms" i][role~="dialog" i]';
 
   BYEBAR.TOS_ACCEPT_SELECTORS = ['#cmp-consent-button', '#cmp-consent-modal #cmp-consent-button'];
 

@@ -31,7 +31,7 @@
 
   function tryDismiss(el) {
     if (!el?.querySelectorAll || dismissed.has(el)) return false;
-    for (const control of el.querySelectorAll('button, [role="button"]')) {
+    for (const control of el.querySelectorAll('button, [role~="button" i]')) {
       const label = BYEBAR.lib.text.normalizeText(
         control.getAttribute('aria-label') ||
           control.getAttribute('title') ||
@@ -76,7 +76,7 @@
 
     const rect = el.getBoundingClientRect?.();
     const blocksScroll =
-      el.getAttribute?.('role') === 'dialog' ||
+      BYEBAR.lib.aria.hasRole(el, 'dialog') ||
       el.getAttribute?.('aria-modal') === 'true' ||
       Boolean(rect && rect.width >= window.innerWidth * 0.75 && rect.height >= window.innerHeight * 0.6);
     if (blocksScroll || pageHasInteractionLock()) {
@@ -100,13 +100,19 @@
   }
 
   function nukeSpinners(root = document) {
-    if (!BYEBAR.isChinaCommerce?.() || !BYEBAR.engine?.featureEnabled?.('genericBlocking')) return false;
+    if (
+      BYEBAR.picker?.blocksAutomation?.() ||
+      !BYEBAR.isChinaCommerce?.() ||
+      !BYEBAR.engine?.featureEnabled?.('genericBlocking')
+    ) {
+      return false;
+    }
 
     const seen = new Set();
     let handledAny = false;
     const candidates = [
       ...queryAll(BYEBAR.CHINA_COMMERCE_TRIGGERS, root),
-      ...queryAll('[role="dialog"], [aria-modal="true"]', root)
+      ...queryAll('[role~="dialog" i], [aria-modal="true"]', root)
     ];
     candidates.forEach((candidate) => {
       const spinnerRoot = BYEBAR.lib.chinaCommerce.findSpinnerRoot(candidate, getComputedStyle);

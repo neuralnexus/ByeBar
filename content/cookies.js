@@ -128,6 +128,11 @@
     if (count >= 2) return;
     setTimeout(() => {
       if (!banner.isConnected || !isVisible(banner)) return;
+      if (BYEBAR.picker?.blocksAutomation?.()) {
+        clicked.delete(control);
+        actedBanners.delete(banner);
+        return;
+      }
       clicked.delete(control);
       actedBanners.delete(banner);
       decline(banner.getRootNode?.() || document);
@@ -216,7 +221,7 @@
 
   function declineViaTextScan(root = document) {
     const controls = queryAll(
-      'button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]',
+      'button, a[role~="button" i], input[type="button"], input[type="submit"], [role~="button" i]',
       root
     );
     for (const el of controls) {
@@ -240,7 +245,9 @@
   }
 
   function decline(root = document) {
-    if (!BYEBAR.engine?.featureEnabled?.('cookieDecline')) return false;
+    if (BYEBAR.picker?.blocksAutomation?.() || !BYEBAR.engine?.featureEnabled?.('cookieDecline')) {
+      return false;
+    }
 
     return declineViaDidomiUi(root) || declineViaSelectors(root) || declineViaTextScan(root);
   }

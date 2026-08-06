@@ -17,30 +17,26 @@ export function runFirefoxLint(stageDir) {
     { encoding: 'utf8' }
   );
   const result = JSON.parse(output);
-  const allowedWarnings = new Set([
-    'KEY_FIREFOX_UNSUPPORTED_BY_MIN_VERSION',
-    'KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION'
-  ]);
   const expectedWarnings = result.warnings.filter(
     (warning) =>
-      allowedWarnings.has(warning.code) &&
+      warning.code === 'KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION' &&
       warning.file === 'manifest.json' &&
-      warning.description.includes('data_collection_permissions')
+      warning.description.includes('data_collection_permissions') &&
+      warning.description.includes('version 142')
   );
   const unexpectedWarnings = result.warnings.filter((warning) => !expectedWarnings.includes(warning));
-  if (result.errors.length || unexpectedWarnings.length || expectedWarnings.length !== 2) {
+  if (result.errors.length || unexpectedWarnings.length || expectedWarnings.length !== 1) {
     const failures = [...result.errors, ...unexpectedWarnings]
       .map((item) => `${item.code}: ${item.message}`)
       .join('\n');
     throw new Error(`Firefox lint failed:\n${failures || 'expected compatibility warnings changed'}`);
   }
   console.log(
-    `Firefox lint passed (${result.summary.errors} errors, ${result.summary.warnings} allowed warnings)`
+    `Firefox desktop lint passed (${result.summary.errors} errors, ${result.summary.warnings} allowed non-target warnings)`
   );
 }
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
 if (isMain) {
-  const stageDir = await stageExtension('firefox');
-  runFirefoxLint(stageDir);
+  await stageExtension('firefox', runFirefoxLint);
 }

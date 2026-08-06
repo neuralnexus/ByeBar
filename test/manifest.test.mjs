@@ -14,8 +14,10 @@ describe('manifest.json', () => {
     expect(scripts[1]).toBe('shared/browser.js');
     expect(scripts[2]).toBe('shared/substack-detect.js');
     expect(scripts).toContain('content/safari-compat.js');
+    expect(scripts).toContain('content/picker.js');
     expect(scripts.indexOf('content/visibility.js')).toBeLessThan(scripts.indexOf('content/engine.js'));
     expect(scripts.indexOf('content/actions.js')).toBeLessThan(scripts.indexOf('content/engine.js'));
+    expect(scripts.indexOf('content/picker.js')).toBeLessThan(scripts.indexOf('content/engine.js'));
   });
 
   it('runs only in the top frame and has no unconditional site CSS', () => {
@@ -24,12 +26,24 @@ describe('manifest.json', () => {
     expect(manifest.content_scripts[0].css).toEqual(['content/styles.css']);
   });
 
+  it('declares only the permissions required for settings, active-tab UI, and route safety', () => {
+    expect(manifest.permissions).toEqual(['storage', 'activeTab']);
+  });
+
   it('declares safari minimum version', () => {
     expect(manifest.browser_specific_settings?.safari?.strict_min_version).toBe('16.4');
   });
 
-  it('supports currently signed Firefox releases', () => {
-    expect(manifest.browser_specific_settings?.gecko?.strict_min_version).toBe('115.0');
+  it('targets Firefox desktop 140 with the AMO no-data declaration', () => {
+    expect(manifest.browser_specific_settings?.gecko).toEqual({
+      id: 'byebar@neuralnexus.dev',
+      strict_min_version: '140.0',
+      data_collection_permissions: {
+        required: ['none'],
+        optional: []
+      }
+    });
+    expect(manifest.browser_specific_settings).not.toHaveProperty('gecko_android');
   });
 
   it('declares crisp extension and toolbar icon sizes', () => {
@@ -39,16 +53,29 @@ describe('manifest.json', () => {
       )
     );
     expect(manifest.action.default_icon).toEqual(
-      Object.fromEntries([16, 24, 32, 48, 64].map((size) => [size, `icons/icon-${size}.png`]))
+      Object.fromEntries([16, 24, 32, 48, 64].map((size) => [size, `icons/toolbar-${size}.png`]))
     );
+  });
+
+  it('declares a configurable shortcut for the conservative page Sweep', () => {
+    expect(manifest.commands).toEqual({
+      'sweep-page': {
+        suggested_key: { default: 'Ctrl+Shift+Y', mac: 'Command+Shift+Y' },
+        description: 'Run ByeBar Sweep on the active page'
+      }
+    });
   });
 
   it('keeps description within Chrome Web Store limit', () => {
     expect(manifest.description.length).toBeLessThanOrEqual(132);
   });
 
-  it('matches package version', () => {
+  it('matches the current package and lockfile release version', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    const lock = JSON.parse(readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'));
+    expect(manifest.version).toBe('0.8.0');
     expect(manifest.version).toBe(pkg.version);
+    expect(lock.version).toBe(pkg.version);
+    expect(lock.packages[''].version).toBe(pkg.version);
   });
 });

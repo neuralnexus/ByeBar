@@ -6,12 +6,65 @@ import * as settings from '../lib/settings.mjs';
 
 const source = readFileSync(new URL('../background/service-worker.js', import.meta.url), 'utf8');
 const protocol = constants.MESSAGE_PROTOCOL_VERSION;
+const emptySweepCounts = {
+  reversibleHides: 0,
+  dismissActions: 0,
+  cookieDeclines: 0,
+  legalAccepts: 0
+};
+
+function sweepResponse({ enabled = true, counts = emptySweepCounts, documentId = 'document-id' } = {}) {
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  return {
+    ok: true,
+    documentId,
+    capabilities: ['sweep'],
+    sweep: {
+      effective: { enabled },
+      result: { outcome: total === 0 ? 'no-op' : 'applied', counts: { ...counts } }
+    }
+  };
+}
+
+function createTimerHarness() {
+  let nextId = 0;
+  const pending = new Map();
+  return {
+    setTimeout: vi.fn((callback, delay) => {
+      nextId += 1;
+      pending.set(nextId, { callback, delay });
+      return nextId;
+    }),
+    clearTimeout: vi.fn((id) => pending.delete(id)),
+    run(delay) {
+      for (const [id, timer] of [...pending]) {
+        if (timer.delay !== delay) continue;
+        pending.delete(id);
+        timer.callback();
+      }
+    }
+  };
+}
 
 function clone(value) {
   return structuredClone(value);
 }
 
-function loadWorker({ sync = {}, local = {}, storageGet, storageSet, localGet, localSet } = {}) {
+function loadWorker({
+  sync = {},
+  local = {},
+  tabs = [{ id: 7 }],
+  storageGet,
+  storageSet,
+  localGet,
+  localSet,
+  tabsQuery,
+  sendTabMessage,
+  setActionBadgeText,
+  cleanupLegacySync,
+  setTimer = setTimeout,
+  clearTimer = clearTimeout
+} = {}) {
   const listeners = {};
   const syncStore = clone(sync);
   const localStore = clone(local);
@@ -19,7 +72,8 @@ function loadWorker({ sync = {}, local = {}, storageGet, storageSet, localGet, l
     runtime: {
       onInstalled: { addListener: (listener) => (listeners.installed = listener) },
       onMessage: { addListener: (listener) => (listeners.message = listener) }
-    }
+    },
+    commands: { onCommand: { addListener: (listener) => (listeners.command = listener) } }
   };
   const browser = {
     api,
@@ -38,13 +92,38 @@ function loadWorker({ sync = {}, local = {}, storageGet, storageSet, localGet, l
     localSet: vi.fn(async (values) => {
       if (localSet) await localSet(values, localStore);
       Object.assign(localStore, clone(values));
-    })
+    }),
+    tabsQuery: vi.fn(async (query) => (tabsQuery ? tabsQuery(query) : clone(tabs))),
+    sendTabMessage: vi.fn(async (tabId, message) => {
+      if (sendTabMessage) return sendTabMessage(tabId, message);
+      if (message.type === 'byebar.page.getState') {
+        return { ok: true, documentId: 'document-id', capabilities: ['sweep'] };
+      }
+      return { ok: true };
+    }),
+    setActionBadgeText: vi.fn(async (details) => {
+      if (setActionBadgeText) return setActionBadgeText(details);
+    }),
+    configureLegacySyncCleanupWriter: vi.fn(),
+    cleanupLegacySync: vi.fn(async () => (cleanupLegacySync ? cleanupLegacySync() : true))
   };
   const context = vm.createContext({
     self: { ByeBar: { browser, settings, lib: { constants } } },
+    setTimeout: setTimer,
+    clearTimeout: clearTimer,
     console
   });
   vm.runInContext(source, context);
+  let startupSettled = false;
+
+  async function settleStartup(clearCalls) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    startupSettled = true;
+    if (clearCalls) {
+      browser.tabsQuery.mockClear();
+      browser.setActionBadgeText.mockClear();
+    }
+  }
 
   return {
     browser,
@@ -61,6 +140,13 @@ function loadWorker({ sync = {}, local = {}, storageGet, storageSet, localGet, l
     },
     install(details) {
       listeners.installed(details);
+    },
+    async command(command, tab) {
+      if (!startupSettled) await settleStartup(true);
+      listeners.command(command, tab);
+    },
+    async startup() {
+      if (!startupSettled) await settleStartup(false);
     }
   };
 }
@@ -91,6 +177,26 @@ describe('service worker protocol', () => {
       ok: false,
       error: { code: 'unknown-message', message: 'Unknown request' }
     });
+  });
+
+  it('serializes delegated legacy cleanup through the settings mutation queue', async () => {
+    let releaseCleanup;
+    const pendingCleanup = new Promise((resolve) => {
+      releaseCleanup = resolve;
+    });
+    const worker = loadWorker({ cleanupLegacySync: async () => pendingCleanup });
+    expect(worker.browser.configureLegacySyncCleanupWriter).toHaveBeenCalledOnce();
+
+    const cleanup = worker.dispatch(request('byebar.storage.cleanupLegacySync'));
+    await vi.waitFor(() => expect(worker.browser.cleanupLegacySync).toHaveBeenCalledOnce());
+    const settingsRead = worker.dispatch(request('byebar.settings.get', { host: 'example.com' }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.storageGet).not.toHaveBeenCalled();
+
+    releaseCleanup(true);
+    await expect(cleanup.response).resolves.toEqual({ ok: true });
+    await expect(settingsRead.response).resolves.toMatchObject({ ok: true });
+    expect(worker.browser.storageGet).toHaveBeenCalledOnce();
   });
 
   it('returns normalized, cloneable global, site, and debug state', async () => {
@@ -189,6 +295,255 @@ describe('service worker protocol', () => {
     expect((await send(worker, 'byebar.debug.set', { enabled: 'yes' })).error.code).toBe('invalid-setting');
     expect(worker.browser.storageSet).not.toHaveBeenCalled();
     expect(worker.browser.localSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('service worker Sweep command', () => {
+  it('uses the command tab for a document-scoped Sweep handshake', async () => {
+    const worker = loadWorker();
+    await worker.command('unrelated-command', { id: 11 });
+    expect(worker.browser.sendTabMessage).not.toHaveBeenCalled();
+
+    await worker.command('sweep-page', { id: 11 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+
+    expect(worker.browser.tabsQuery).not.toHaveBeenCalled();
+    expect(worker.browser.sendTabMessage.mock.calls).toEqual([
+      [11, { protocol, type: 'byebar.page.getState' }],
+      [11, { protocol, type: 'byebar.page.sweep', documentId: 'document-id' }]
+    ]);
+  });
+
+  it('queries the active tab when the browser omits the command tab', async () => {
+    const worker = loadWorker({ tabs: [{ id: 12 }] });
+    await worker.command('sweep-page');
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+
+    expect(worker.browser.tabsQuery).toHaveBeenCalledWith({ active: true, currentWindow: true });
+    expect(worker.browser.sendTabMessage.mock.calls[0][0]).toBe(12);
+  });
+
+  it('stops when Sweep is unsupported', async () => {
+    let resolveState;
+    const pendingState = new Promise((resolve) => {
+      resolveState = resolve;
+    });
+    const worker = loadWorker({ sendTabMessage: async () => pendingState });
+    await worker.command('sweep-page', { id: 13 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+
+    resolveState({ ok: true, documentId: 'document-id', capabilities: [] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce();
+  });
+
+  it('does not run the keyboard Sweep while Pick is active', async () => {
+    const worker = loadWorker({
+      sendTabMessage: async (_tabId, message) =>
+        message.type === 'byebar.page.getState'
+          ? {
+              ok: true,
+              documentId: 'document-id',
+              capabilities: ['sweep', 'pick'],
+              picker: { active: true, sessionId: 'pick-1' }
+            }
+          : sweepResponse()
+    });
+
+    await worker.command('sweep-page', { id: 13 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce();
+  });
+
+  it('does not run the keyboard Sweep while Pick is settling', async () => {
+    const worker = loadWorker({
+      sendTabMessage: async (_tabId, message) =>
+        message.type === 'byebar.page.getState'
+          ? {
+              ok: true,
+              documentId: 'document-id',
+              capabilities: ['sweep', 'pick'],
+              picker: { active: false, busy: true, sessionId: '' }
+            }
+          : sweepResponse()
+    });
+
+    await worker.command('sweep-page', { id: 13 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce();
+  });
+
+  it('suppresses key repeats that arrive after the first Sweep completes', async () => {
+    const worker = loadWorker();
+    await worker.command('sweep-page', { id: 14 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await worker.command('sweep-page', { id: 14 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for settings mutations queued before the shortcut', async () => {
+    let releaseWrite;
+    const pendingWrite = new Promise((resolve) => {
+      releaseWrite = resolve;
+    });
+    const worker = loadWorker({ storageSet: async () => pendingWrite });
+    const update = worker.dispatch(
+      request('byebar.settings.update', { scope: 'global', key: 'enabled', value: false })
+    );
+    await vi.waitFor(() => expect(worker.browser.storageSet).toHaveBeenCalledOnce());
+
+    await worker.command('sweep-page', { id: 15 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+    expect(worker.browser.sendTabMessage.mock.calls[0]).toEqual([
+      15,
+      { protocol, type: 'byebar.page.getState' }
+    ]);
+
+    releaseWrite();
+    expect((await update.response).ok).toBe(true);
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+    expect(worker.browser.sendTabMessage.mock.calls[1]).toEqual([
+      15,
+      { protocol, type: 'byebar.page.sweep', documentId: 'document-id' }
+    ]);
+  });
+
+  it.each([
+    ['storage', new Error('sync storage offline'), 'storage-unavailable'],
+    ['quota', new Error('QUOTA_BYTES_PER_ITEM quota exceeded'), 'quota-exceeded']
+  ])(
+    'fails closed on a pending %s write failure without poisoning a later command',
+    async (_kind, error, code) => {
+      const timers = createTimerHarness();
+      let rejectWrite;
+      const pendingWrite = new Promise((_resolve, reject) => {
+        rejectWrite = reject;
+      });
+      const worker = loadWorker({
+        storageSet: async () => pendingWrite,
+        setTimer: timers.setTimeout,
+        clearTimer: timers.clearTimeout
+      });
+      const update = worker.dispatch(
+        request('byebar.settings.update', { scope: 'global', key: 'enabled', value: false })
+      );
+      await vi.waitFor(() => expect(worker.browser.storageSet).toHaveBeenCalledOnce());
+
+      await worker.command('sweep-page', { id: 15 });
+      await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+      expect(worker.browser.sendTabMessage.mock.calls[0]).toEqual([
+        15,
+        { protocol, type: 'byebar.page.getState' }
+      ]);
+
+      rejectWrite(error);
+      expect((await update.response).error.code).toBe(code);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce();
+
+      timers.run(2_000);
+      await worker.command('sweep-page', { id: 15 });
+      await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(3));
+      expect(worker.browser.sendTabMessage.mock.calls.slice(1)).toEqual([
+        [15, { protocol, type: 'byebar.page.getState' }],
+        [15, { protocol, type: 'byebar.page.sweep', documentId: 'document-id' }]
+      ]);
+    }
+  );
+
+  it.each([
+    ['4', sweepResponse({ counts: { ...emptySweepCounts, reversibleHides: 3, cookieDeclines: 1 } })],
+    ['0', sweepResponse()],
+    ['OFF', sweepResponse({ enabled: false })]
+  ])('shows validated per-tab Sweep feedback %s', async (text, response) => {
+    const timers = createTimerHarness();
+    const worker = loadWorker({
+      setTimer: timers.setTimeout,
+      clearTimer: timers.clearTimeout,
+      sendTabMessage: async (_tabId, message) =>
+        message.type === 'byebar.page.getState'
+          ? { ok: true, documentId: 'document-id', capabilities: ['sweep'] }
+          : response
+    });
+
+    await worker.command('sweep-page', { id: 16 });
+    await vi.waitFor(() => expect(worker.browser.setActionBadgeText).toHaveBeenCalledTimes(2));
+    expect(worker.browser.setActionBadgeText.mock.calls).toEqual([
+      [{ text: '', tabId: 16 }],
+      [{ text, tabId: 16 }]
+    ]);
+
+    timers.run(3_000);
+    expect(worker.browser.setActionBadgeText).toHaveBeenLastCalledWith({ text: '', tabId: 16 });
+  });
+
+  it('does not claim malformed or ambiguous Sweep results', async () => {
+    const malformed = sweepResponse({ documentId: 'replacement-document' });
+    const malformedWorker = loadWorker({
+      sendTabMessage: async (_tabId, message) =>
+        message.type === 'byebar.page.getState'
+          ? { ok: true, documentId: 'document-id', capabilities: ['sweep'] }
+          : malformed
+    });
+    await malformedWorker.command('sweep-page', { id: 17 });
+    await vi.waitFor(() => expect(malformedWorker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+    expect(malformedWorker.browser.setActionBadgeText).toHaveBeenCalledOnce();
+    expect(malformedWorker.browser.setActionBadgeText).toHaveBeenCalledWith({ text: '', tabId: 17 });
+
+    const ambiguousWorker = loadWorker({
+      sendTabMessage: async (_tabId, message) => {
+        if (message.type === 'byebar.page.getState') {
+          return { ok: true, documentId: 'document-id', capabilities: ['sweep'] };
+        }
+        throw new Error('response lost');
+      }
+    });
+    await ambiguousWorker.command('sweep-page', { id: 18 });
+    await vi.waitFor(() => expect(ambiguousWorker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+    expect(ambiguousWorker.browser.setActionBadgeText).toHaveBeenCalledOnce();
+    expect(ambiguousWorker.browser.setActionBadgeText).toHaveBeenCalledWith({ text: '', tabId: 18 });
+  });
+
+  it('keeps Sweep independent from unavailable badge feedback', async () => {
+    const worker = loadWorker({
+      setActionBadgeText: async () => Promise.reject(new Error('badge unavailable')),
+      sendTabMessage: async (_tabId, message) =>
+        message.type === 'byebar.page.getState'
+          ? { ok: true, documentId: 'document-id', capabilities: ['sweep'] }
+          : sweepResponse()
+    });
+
+    await worker.command('sweep-page', { id: 19 });
+    await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
+    expect(worker.browser.setActionBadgeText).toHaveBeenCalled();
+  });
+
+  it('clears stale per-tab feedback when the worker restarts', async () => {
+    const writes = [];
+    const timers = createTimerHarness();
+    const badgeWriter = async (details) => writes.push(details);
+    const sendTabMessage = async (_tabId, message) =>
+      message.type === 'byebar.page.getState'
+        ? { ok: true, documentId: 'document-id', capabilities: ['sweep'] }
+        : sweepResponse({ counts: { ...emptySweepCounts, reversibleHides: 7 } });
+    const worker = loadWorker({
+      tabs: [{ id: 20 }],
+      setTimer: timers.setTimeout,
+      clearTimer: timers.clearTimeout,
+      setActionBadgeText: badgeWriter,
+      sendTabMessage
+    });
+    await worker.command('sweep-page', { id: 20 });
+    await vi.waitFor(() => expect(writes).toContainEqual({ text: '7', tabId: 20 }));
+
+    const restarted = loadWorker({ tabs: [{ id: 20 }], setActionBadgeText: badgeWriter });
+    await restarted.startup();
+    expect(writes.at(-1)).toEqual({ text: '', tabId: 20 });
   });
 });
 

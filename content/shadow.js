@@ -1,8 +1,9 @@
 /**
- * ByeBar shadow DOM helpers: inspect open shadow roots without modifying their structure.
+ * ByeBar shadow DOM helpers: inspect shadow roots without modifying their structure.
  */
 (() => {
   const BYEBAR = window.ByeBar;
+  const extensionDom = BYEBAR.browser?.api?.dom;
   const observedAttributes = Object.freeze([
     'class',
     'id',
@@ -38,15 +39,53 @@
     });
   }
 
+  function walkInspectableRoots(root, visit) {
+    if (!root) return;
+    visit(root);
+    if (root.nodeType === 1) {
+      const shadowRoot = openOrClosedRoot(root);
+      if (shadowRoot) walkInspectableRoots(shadowRoot, visit);
+    }
+    let nodes;
+    try {
+      nodes = root.querySelectorAll ? root.querySelectorAll('*') : [];
+    } catch {
+      return;
+    }
+    nodes.forEach((el) => {
+      const shadowRoot = openOrClosedRoot(el);
+      if (shadowRoot) walkInspectableRoots(shadowRoot, visit);
+    });
+  }
+
+  function canInspectClosedRoots(el) {
+    if (typeof extensionDom?.openOrClosedShadowRoot === 'function') return true;
+    try {
+      return Boolean(el && 'openOrClosedShadowRoot' in el);
+    } catch {
+      return false;
+    }
+  }
+
+  function openOrClosedRoot(el) {
+    if (!el) return null;
+    if (el.shadowRoot) return el.shadowRoot;
+    if (typeof extensionDom?.openOrClosedShadowRoot === 'function') {
+      return extensionDom.openOrClosedShadowRoot(el) || null;
+    }
+    if ('openOrClosedShadowRoot' in el) return el.openOrClosedShadowRoot || null;
+    return null;
+  }
+
   function normalizeSelector(selector) {
     return BYEBAR.safari?.normalizeSelector?.(selector) || selector;
   }
 
-  function queryAll(selector, root = document) {
+  function queryAllWithWalker(selector, root, walk) {
     if (!selector || !root) return [];
     const safeSelector = normalizeSelector(selector);
     const matches = [];
-    walkRoots(root, (scope) => {
+    walk(root, (scope) => {
       try {
         if (scope.nodeType === 1 && scope.matches?.(safeSelector)) matches.push(scope);
         scope.querySelectorAll(safeSelector).forEach((el) => matches.push(el));
@@ -57,8 +96,99 @@
     return matches;
   }
 
+  function queryAll(selector, root = document) {
+    return queryAllWithWalker(selector, root, walkRoots);
+  }
+
+  function queryAllIncludingClosed(selector, root = document) {
+    return queryAllWithWalker(selector, root, walkInspectableRoots);
+  }
+
   function query(selector, root = document) {
     return queryAll(selector, root)[0] || null;
+  }
+
+  function findIncludingClosed(selectors, root = document, limit = Infinity) {
+    const requested = (Array.isArray(selectors) ? selectors : [selectors]).filter(Boolean);
+    const normalized = requested.map(normalizeSelector);
+    const maximum = Number.isSafeInteger(limit) && limit >= 0 ? limit : Infinity;
+    const frames = [
+      root?.nodeType === 1
+        ? { next: root, single: true }
+        : { next: root?.firstElementChild || null, single: false }
+    ];
+    let inspected = 0;
+
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1];
+      const element = frame.next;
+      if (!element) {
+        frames.pop();
+        continue;
+      }
+      if (inspected >= maximum) {
+        return { element: null, selector: '', exhausted: true, inspected };
+      }
+      frame.next = frame.single ? null : element.nextElementSibling;
+      inspected += 1;
+
+      for (let index = 0; index < normalized.length; index += 1) {
+        try {
+          if (element.matches?.(normalized[index])) {
+            return { element, selector: requested[index], exhausted: false, inspected };
+          }
+        } catch {
+          /* Ignore unsupported selectors without aborting the other probes. */
+        }
+      }
+
+      if (element.firstElementChild) {
+        frames.push({ next: element.firstElementChild, single: false });
+      }
+      let shadowRoot = null;
+      try {
+        shadowRoot = openOrClosedRoot(element);
+      } catch {
+        /* Ignore inaccessible roots. */
+      }
+      if (shadowRoot?.firstElementChild) {
+        frames.push({ next: shadowRoot.firstElementChild, single: false });
+      }
+    }
+    return { element: null, selector: '', exhausted: false, inspected };
+  }
+
+  function queryIncludingClosed(selector, root = document, limit = Infinity) {
+    return findIncludingClosed(selector, root, limit).element;
+  }
+
+  function collectElements(root = document, limit = Infinity) {
+    const maximum = Number.isSafeInteger(limit) && limit >= 0 ? limit : Infinity;
+    const elements = [];
+    const frames = [
+      root?.nodeType === 1
+        ? { next: root, single: true }
+        : { next: root?.firstElementChild || null, single: false }
+    ];
+    while (frames.length > 0 && elements.length < maximum) {
+      const frame = frames[frames.length - 1];
+      const element = frame.next;
+      if (!element) {
+        frames.pop();
+        continue;
+      }
+      frame.next = frame.single ? null : element.nextElementSibling;
+      elements.push(element);
+
+      if (element.firstElementChild) {
+        frames.push({ next: element.firstElementChild, single: false });
+      }
+      const shadowRoot = element.shadowRoot;
+      if (shadowRoot?.firstElementChild) {
+        frames.push({ next: shadowRoot.firstElementChild, single: false });
+      }
+    }
+    return elements;
   }
 
   function matchesAny(el, selector) {
@@ -149,5 +279,19 @@
     discovered.forEach((shadowRoot) => onShadowRoot?.(shadowRoot));
   }
 
-  BYEBAR.shadow = { observedAttributes, walkRoots, queryAll, query, closestDeep, watchShadowRoots };
+  BYEBAR.shadow = {
+    observedAttributes,
+    walkRoots,
+    walkInspectableRoots,
+    queryAll,
+    queryAllIncludingClosed,
+    query,
+    queryIncludingClosed,
+    findIncludingClosed,
+    collectElements,
+    closestDeep,
+    watchShadowRoots,
+    canInspectClosedRoots,
+    openOrClosedRoot
+  };
 })();

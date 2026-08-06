@@ -22,9 +22,11 @@
   let settingsLoaded = false;
   const metrics = { mutationFlushes: 0, mutationRoots: 0 };
 
-  const genericCandidateSelector = ['[role="dialog"]', '[aria-modal="true"]', ...BYEBAR.GENERIC_REMOVE].join(
-    ','
-  );
+  const genericCandidateSelector = [
+    '[role~="dialog" i]',
+    '[aria-modal="true"]',
+    ...BYEBAR.GENERIC_REMOVE
+  ].join(',');
   const interactionCandidateSelector = [
     genericCandidateSelector,
     BYEBAR.COOKIE_BANNER_ANCESTORS,
@@ -41,6 +43,10 @@
     .join(',');
   const relevantClassMutation =
     /popup|modal|overlay|backdrop|scrim|newsletter|subscribe|optin|opt-in|discount|coupon|sticky|bottom|cookie|gdpr|consent|onetrust|truste|usercentrics|didomi|cky-|cmp|klaviyo|mailchimp|om-holder|optinmonster|poptin|privy|sumo|lottery|turntable|spin-?wheel|coupon-?spin|lucky-?wheel|fortune-wheel|vue-coupon|_showOn(?:Mobile|Desktop)/i;
+
+  function automationBlocked() {
+    return BYEBAR.picker?.blocksAutomation?.() === true;
+  }
 
   function addInteractionContainers(candidates, element) {
     if (!element) return;
@@ -64,7 +70,7 @@
   function collectInteractionCandidates(root = document) {
     const candidates = new Set(queryMatches(interactionCandidateSelector, root));
     const controls = queryMatches(
-      'button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]',
+      'button, a[role~="button" i], input[type="button"], input[type="submit"], [role~="button" i]',
       root
     );
     if (root?.nodeType === 1 && !controls.includes(root)) controls.unshift(root);
@@ -94,7 +100,7 @@
   }
 
   function beginTrustedInteractionCapture(event) {
-    if (!event.isTrusted || !document.documentElement) return;
+    if (automationBlocked() || !event.isTrusted || !document.documentElement) return;
     if (event.type === 'keydown') {
       if (event.repeat) return;
       activeKeys.add(event.code || event.key);
@@ -142,7 +148,7 @@
   }
 
   function finishTrustedInteractionCapture(event) {
-    if (!event.isTrusted) return;
+    if (automationBlocked() || !event.isTrusted) return;
     let releasedInput = false;
     if (event.type === 'keyup') {
       activeKeys.delete(event.code || event.key);
@@ -208,7 +214,7 @@
   function isModal(el) {
     return (
       el?.tagName === 'DIALOG' ||
-      el?.getAttribute?.('role') === 'dialog' ||
+      LIB.aria.hasRole(el, 'dialog') ||
       el?.getAttribute?.('aria-modal') === 'true'
     );
   }
@@ -261,7 +267,7 @@
 
   function tryDismiss(el, meta) {
     if (!el?.querySelectorAll || dismissed.has(el)) return false;
-    for (const control of el.querySelectorAll('button, [role="button"]')) {
+    for (const control of el.querySelectorAll('button, [role~="button" i]')) {
       const label = LIB.text.normalizeText(
         control.getAttribute('aria-label') ||
           control.getAttribute('title') ||
@@ -279,6 +285,10 @@
         if (attempts < 2) {
           setTimeout(() => {
             if (!el.isConnected || !isVisibleControl(el)) return;
+            if (automationBlocked()) {
+              dismissed.delete(el);
+              return;
+            }
             dismissed.delete(el);
             nukeAll(el.getRootNode?.() || document);
           }, 2000);
@@ -364,7 +374,7 @@
     };
     const action = BYEBAR.actions.begin(meta);
     const modalSelector = [
-      '[role="dialog"]',
+      '[role~="dialog" i]',
       '[aria-modal="true"]',
       ...BYEBAR.SITE_RULES.substack.remove
     ].join(',');
@@ -384,7 +394,7 @@
     if (hiddenAny) {
       const scope = root === document ? root : root.parentElement || root;
       const scrimSelector =
-        'div[class^="background-"], div[class*=" background-"], div[class^="overlay-"], div[class*=" overlay-"], [class*="modalScrim"], [class*="modal-scrim"], [class*="ModalScrim"], [id^="radix-"][data-state="open"]:not([role="dialog"])';
+        'div[class^="background-"], div[class*=" background-"], div[class^="overlay-"], div[class*=" overlay-"], [class*="modalScrim"], [class*="modal-scrim"], [class*="ModalScrim"], [id^="radix-"][data-state="open"]:not([role~="dialog" i])';
       queryMatches(scrimSelector, scope).forEach((el) => {
         if (
           LIB.substack.isSubstackModalScrim(el, getComputedStyle, onSubstack, {
@@ -405,7 +415,7 @@
     let hiddenAny = false;
     const seen = new Set();
     const selector =
-      '[class*="_showOnMobile"], [class*="_showOnDesktop"], a[href*="/subscriptions"], [role="banner"], div, section';
+      '[class*="_showOnMobile"], [class*="_showOnDesktop"], a[href*="/subscriptions"], [role~="banner" i], div, section';
 
     queryMatches(selector, root).forEach((el) => {
       if (
@@ -460,7 +470,7 @@
   }
 
   function nukeAll(root = document) {
-    if (!siteEnabled()) return;
+    if (automationBlocked() || !siteEnabled()) return;
     if (featureEnabled('genericBlocking')) {
       const onSubstack = BYEBAR.substackDetect?.recheckSubstackPage?.() ?? BYEBAR.isSubstack();
       nukeSubstackLayers(root, onSubstack);
@@ -472,7 +482,7 @@
   }
 
   function runRootPasses(root) {
-    if (!root || (root !== document && root.isConnected === false)) return;
+    if (automationBlocked() || !root || (root !== document && root.isConnected === false)) return;
     BYEBAR.visibility.ensureHidden(root);
     nukeAll(root);
     if (featureEnabled('cookieDecline')) BYEBAR.cookies?.decline?.(root);
@@ -483,6 +493,7 @@
     pending = false;
     const roots = [...pendingRoots];
     pendingRoots.clear();
+    if (automationBlocked()) return;
     metrics.mutationFlushes += 1;
     metrics.mutationRoots += roots.length;
     roots.forEach((root) => {
@@ -575,6 +586,7 @@
   function applySettings(next) {
     settings = BYEBAR.settings.normalizeSettings(next, DEFAULTS);
     resolved = BYEBAR.settings.resolveSettingsForHost(settings, location.hostname);
+    BYEBAR.picker?.onEffectiveSettingsChanged?.(resolved.effective);
     clearDisabledFeatures();
 
     if (
@@ -588,18 +600,31 @@
     startObserver();
   }
 
-  async function loadSettings() {
-    const generation = settingsGeneration;
-    const stored = await storageGet(DEFAULTS);
-    if (generation !== settingsGeneration) return loadSettings();
-    settingsLoaded = true;
-    applySettings(stored);
-    return settings;
+  function resumeAutomation() {
+    if (automationBlocked() || !siteEnabled()) return;
+    runRootPasses(document);
   }
 
-  async function sweepPage() {
-    await loadSettings();
-    return { ...resolved.effective };
+  async function withFreshSettings(consume) {
+    const generation = settingsGeneration;
+    const stored = await storageGet(DEFAULTS);
+    if (generation !== settingsGeneration) return withFreshSettings(consume);
+    settingsLoaded = true;
+    return consume(stored);
+  }
+
+  function loadSettings() {
+    return withFreshSettings((stored) => {
+      applySettings(stored);
+      return settings;
+    });
+  }
+
+  function sweepPage() {
+    return withFreshSettings((stored) => {
+      const result = BYEBAR.actions.captureSweepResult(() => applySettings(stored));
+      return { effective: { ...resolved.effective }, result };
+    });
   }
 
   onStorageChanged((changes) => {
@@ -624,6 +649,7 @@
     nukeAll,
     siteEnabled,
     featureEnabled,
+    resumeAutomation,
     hostKey,
     resetMetrics() {
       metrics.mutationFlushes = 0;

@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="common.css" />
+    <title>Manual picker</title>
+    <style>
+      body {
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      #protected-main {
+        min-height: 560px;
+        padding: 32px;
+        background: #eef6f2;
+      }
+
+      #manual-interruption {
+        position: fixed;
+        right: 48px;
+        bottom: 44px;
+        width: 380px;
+        min-height: 150px;
+        padding: 24px;
+        color: #fff;
+        background: #174b47;
+        border: 4px solid #ff7358;
+        border-radius: 18px;
+        box-shadow: 0 18px 50px rgb(0 0 0 / 24%);
+      }
+
+      #manual-control {
+        padding: 10px 16px;
+      }
+
+      #fixture-frame {
+        width: 260px;
+        height: 100px;
+        margin: 24px 32px;
+        border: 3px solid #174b47;
+      }
+
+      dialog {
+        padding: 28px;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="protected-main">
+      <h1>Article workspace</h1>
+      <p>The open area of this landmark must never become a picker target.</p>
+      <button type="button" id="safe-focus">Continue reading</button>
+    </main>
+
+    <iframe
+      id="fixture-frame"
+      title="Embedded control"
+      srcdoc="<!doctype html><button id='frame-control' onclick='window.clicks=(window.clicks||0)+1'>Frame action</button>"
+    ></iframe>
+
+    <aside id="manual-interruption">
+      <h2>Need a hand?</h2>
+      <p>Open a guided walkthrough for this page.</p>
+      <button type="button" id="manual-control">Open walkthrough</button>
+    </aside>
+
+    <dialog id="native-modal">
+      <p>Complete this native modal first.</p>
+      <button type="button" id="close-native-modal">Close dialog</button>
+    </dialog>
+
+    <script>
+      window.fixtureEvents = { actionClicks: 0, pageClicks: 0, keydowns: 0 };
+      document.getElementById('manual-control').addEventListener('click', () => {
+        window.fixtureEvents.actionClicks += 1;
+      });
+      document.addEventListener('click', () => {
+        window.fixtureEvents.pageClicks += 1;
+      });
+      document.addEventListener('keydown', () => {
+        window.fixtureEvents.keydowns += 1;
+      });
+      const nativeModal = document.getElementById('native-modal');
+      document.getElementById('close-native-modal').addEventListener('click', () => nativeModal.close());
+      window.openNativeModal = () => nativeModal.showModal();
+      window.closeNativeModal = () => nativeModal.close();
+      const closedModalHost = document.createElement('div');
+      const closedModalRoot = closedModalHost.attachShadow({ mode: 'closed' });
+      const closedNativeModal = document.createElement('dialog');
+      closedNativeModal.textContent = 'Closed shadow modal';
+      closedModalRoot.append(closedNativeModal);
+      document.body.append(closedModalHost);
+      window.openClosedNativeModal = () => closedNativeModal.showModal();
+      window.closeClosedNativeModal = () => closedNativeModal.close();
+      let closedPopoverClicks = 0;
+      const closedPopoverHost = document.createElement('div');
+      closedPopoverHost.style.cssText = 'position:fixed;left:80px;top:80px;width:120px;height:60px';
+      closedPopoverHost.hidden = true;
+      const closedPopoverRoot = closedPopoverHost.attachShadow({ mode: 'closed' });
+      const closedPopover = document.createElement('button');
+      closedPopover.popover = 'manual';
+      closedPopover.textContent = 'Closed popover action';
+      closedPopover.style.cssText =
+        'position:fixed;inset:80px auto auto 80px;margin:0;width:120px;height:60px;pointer-events:auto';
+      closedPopover.addEventListener('click', () => {
+        closedPopoverClicks += 1;
+      });
+      closedPopoverRoot.append(closedPopover);
+      document.body.append(closedPopoverHost);
+      window.openClosedPopover = () => {
+        closedPopoverHost.hidden = false;
+        closedPopover.showPopover();
+      };
+      window.closeClosedPopover = () => {
+        closedPopover.hidePopover();
+        closedPopoverHost.hidden = true;
+      };
+      window.closedPopoverClicks = () => closedPopoverClicks;
+      window.closedPopoverRect = () => {
+        const rect = closedPopover.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      };
+      window.frameClicks = () => document.getElementById('fixture-frame').contentWindow.clicks || 0;
+      const closedFocusHost = document.createElement('span');
+      const closedFocusRoot = closedFocusHost.attachShadow({ mode: 'closed' });
+      const closedFocusButton = document.createElement('button');
+      closedFocusButton.type = 'button';
+      closedFocusButton.textContent = 'Closed focus control';
+      closedFocusRoot.append(closedFocusButton);
+      document.getElementById('protected-main').append(closedFocusHost);
+      window.focusClosedControl = () => closedFocusButton.focus();
+      window.closedControlFocused = () => closedFocusRoot.activeElement === closedFocusButton;
+      window.lockForManualDialog = () => {
+        document.body.style.overflow = 'hidden';
+        document.getElementById('manual-interruption').setAttribute('role', 'dialog');
+      };
+      window.addAutomaticPromo = () => {
+        const promo = document.createElement('aside');
+        promo.id = 'automatic-promo';
+        promo.className = 'newsletter-popup';
+        promo.textContent = 'Subscribe to our newsletter for weekly updates';
+        promo.style.cssText =
+          'position:fixed;left:24px;bottom:24px;width:420px;height:100px;padding:20px;background:white';
+        document.body.append(promo);
+      };
+
+      let reactiveHideObserver;
+      let reactiveHideStrips = 0;
+      window.armReactiveHideStrip = () => {
+        reactiveHideObserver?.disconnect();
+        const target = document.getElementById('manual-interruption');
+        reactiveHideObserver = new MutationObserver(() => {
+          let stripped = false;
+          if (target.hasAttribute('data-byebar-hidden')) {
+            target.removeAttribute('data-byebar-hidden');
+            stripped = true;
+          }
+          if (target.style.getPropertyValue('display').includes('--byebar-hidden-display')) {
+            target.style.removeProperty('display');
+            stripped = true;
+          }
+          if (target.style.getPropertyValue('--byebar-hidden-display-7c6f2a')) {
+            target.style.removeProperty('--byebar-hidden-display-7c6f2a');
+            stripped = true;
+          }
+          if (stripped) reactiveHideStrips += 1;
+        });
+        reactiveHideObserver.observe(target, {
+          attributes: true,
+          attributeFilter: ['data-byebar-hidden', 'style']
+        });
+      };
+      window.reactiveHideStripCount = () => reactiveHideStrips;
+
+      let provisionalHideCount = 0;
+      window.watchProvisionalHide = () => {
+        const target = document.getElementById('manual-interruption');
+        const observer = new MutationObserver(() => {
+          if (!target.getAttribute('data-byebar-hidden')?.includes('manual')) return;
+          provisionalHideCount += 1;
+          observer.disconnect();
+        });
+        observer.observe(target, { attributes: true, attributeFilter: ['data-byebar-hidden'] });
+      };
+      window.provisionalHideCount = () => provisionalHideCount;
+
+      let reactiveTargetReplacementCount = 0;
+      window.armReactiveTargetReplacement = () => {
+        const target = document.getElementById('manual-interruption');
+        const observer = new MutationObserver(() => {
+          if (!target.getAttribute('data-byebar-hidden')?.includes('manual')) return;
+          const clone = target.cloneNode(true);
+          observer.disconnect();
+          target.replaceWith(clone);
+          reactiveTargetReplacementCount += 1;
+        });
+        observer.observe(target, { attributes: true, attributeFilter: ['data-byebar-hidden'] });
+      };
+      window.reactiveTargetReplacementCount = () => reactiveTargetReplacementCount;
+
+      let detachedActionCopy = null;
+      window.armDetachedActionCopyRollback = () => {
+        const target = document.getElementById('manual-interruption');
+        target.style.setProperty('display', 'grid', 'important');
+        target.style.setProperty('--byebar-hidden-display-7c6f2a', 'inline-fallback', 'important');
+        const observer = new MutationObserver(() => {
+          if (!target.getAttribute('data-byebar-hidden')?.includes('manual')) return;
+          observer.disconnect();
+          detachedActionCopy = target.cloneNode(true);
+          detachedActionCopy.id = 'late-action-copy';
+          target.setAttribute('role', 'main');
+        });
+        observer.observe(target, { attributes: true, attributeFilter: ['data-byebar-hidden'] });
+      };
+      window.detachedActionCopyReady = () => detachedActionCopy !== null;
+      window.mountDetachedActionCopy = () => {
+        if (!detachedActionCopy) return false;
+        document.body.append(detachedActionCopy);
+        detachedActionCopy = null;
+        return true;
+      };
+
+      let lateClosedActionCopy = null;
+      const lateClosedActionHost = document.createElement('div');
+      lateClosedActionHost.id = 'late-closed-action-host';
+      document.body.append(lateClosedActionHost);
+      window.armLateClosedActionCopyRollback = () => {
+        const target = document.getElementById('manual-interruption');
+        target.style.setProperty('display', 'grid');
+        const observer = new MutationObserver(() => {
+          if (!target.getAttribute('data-byebar-hidden')?.includes('manual')) return;
+          observer.disconnect();
+          lateClosedActionCopy = target.cloneNode(true);
+          lateClosedActionCopy.id = 'late-closed-action-copy';
+          target.setAttribute('role', 'main');
+        });
+        observer.observe(target, { attributes: true, attributeFilter: ['data-byebar-hidden'] });
+      };
+      window.lateClosedActionCopyReady = () => lateClosedActionCopy !== null;
+      window.mountLateClosedActionCopy = () => {
+        if (!lateClosedActionCopy || lateClosedActionHost.shadowRoot) return null;
+        const root = lateClosedActionHost.attachShadow({ mode: 'closed' });
+        root.append(lateClosedActionCopy);
+        const result = {
+          display: getComputedStyle(lateClosedActionCopy).display,
+          inlineDisplay: lateClosedActionCopy.style.getPropertyValue('display'),
+          hidden: lateClosedActionCopy.getAttribute('data-byebar-hidden'),
+          marker: lateClosedActionCopy.getAttribute('data-byebar-action-copy-7c6f2a')
+        };
+        lateClosedActionCopy = null;
+        return result;
+      };
+
+      let activeActionCopy = null;
+      let detachedActiveOriginal = null;
+      window.mountActiveActionCopy = () => {
+        const target = document.getElementById('manual-interruption');
+        if (!target?.getAttribute('data-byebar-hidden')?.includes('manual')) return false;
+        activeActionCopy = target.cloneNode(true);
+        activeActionCopy.id = 'active-action-copy';
+        activeActionCopy.style.right = '460px';
+        document.body.append(activeActionCopy);
+        return true;
+      };
+      window.mutateActiveActionCopyDisplay = () => {
+        if (!activeActionCopy) return false;
+        activeActionCopy.style.setProperty('display', 'flex');
+        activeActionCopy.style.setProperty('--byebar-hidden-display-7c6f2a', 'page-fallback');
+        return true;
+      };
+      window.detachActiveActionOriginal = () => {
+        const target = document.getElementById('manual-interruption');
+        if (!target) return false;
+        detachedActiveOriginal = target;
+        target.remove();
+        return true;
+      };
+      window.detachedActiveOriginalExists = () => detachedActiveOriginal !== null;
+      window.stripActiveActionCopyMarker = () => {
+        if (!activeActionCopy) return false;
+        activeActionCopy.removeAttribute('data-byebar-action-copy-7c6f2a');
+        return true;
+      };
+
+      let lateUndoActionCopy = null;
+      window.armLateUndoActionCopy = () => {
+        const target = document.getElementById('manual-interruption');
+        const observer = new MutationObserver(() => {
+          if (!target.getAttribute('data-byebar-hidden')?.includes('manual')) return;
+          observer.disconnect();
+          lateUndoActionCopy = target.cloneNode(true);
+          lateUndoActionCopy.id = 'late-undo-action-copy';
+          lateUndoActionCopy.classList.add('newsletter-popup');
+          lateUndoActionCopy.style.setProperty('position', 'fixed');
+          lateUndoActionCopy.style.setProperty('left', '36px');
+          lateUndoActionCopy.style.setProperty('bottom', '36px');
+          lateUndoActionCopy.style.setProperty('width', '420px');
+          lateUndoActionCopy.style.setProperty('height', '140px');
+        });
+        observer.observe(target, { attributes: true, attributeFilter: ['data-byebar-hidden'] });
+      };
+      window.lateUndoActionCopyReady = () => lateUndoActionCopy !== null;
+      window.mountLateUndoActionCopy = () => {
+        if (!lateUndoActionCopy) return false;
+        document.body.append(lateUndoActionCopy);
+        lateUndoActionCopy = null;
+        return true;
+      };
+
+      const lateActiveClosedHost = document.createElement('div');
+      lateActiveClosedHost.id = 'late-active-closed-host';
+      document.body.append(lateActiveClosedHost);
+      let lateActiveClosedCopy = null;
+      window.mountLateActiveClosedActionCopy = () => {
+        const target = document.getElementById('manual-interruption');
+        if (!target?.getAttribute('data-byebar-hidden')?.includes('manual')) return false;
+        const root = lateActiveClosedHost.attachShadow({ mode: 'closed' });
+        lateActiveClosedCopy = target.cloneNode(true);
+        lateActiveClosedCopy.id = 'late-active-closed-copy';
+        root.append(lateActiveClosedCopy);
+        lateActiveClosedCopy.style.setProperty('display', 'flex');
+        return true;
+      };
+      window.lateActiveClosedActionCopyState = () =>
+        lateActiveClosedCopy
+          ? {
+              display: getComputedStyle(lateActiveClosedCopy).display,
+              inlineDisplay: lateActiveClosedCopy.style.getPropertyValue('display'),
+              hidden: lateActiveClosedCopy.getAttribute('data-byebar-hidden'),
+              marker: lateActiveClosedCopy.getAttribute('data-byebar-action-copy-7c6f2a')
+            }
+          : null;
+
+      window.armReactiveRolePromotion = () => {
+        const target = document.getElementById('manual-interruption');
+        const observer = new MutationObserver(() => {
+          if (!target.getAttribute('data-byebar-hidden')?.includes('manual')) return;
+          observer.disconnect();
+          target.setAttribute('role', 'main');
+        });
+        observer.observe(target, { attributes: true, attributeFilter: ['data-byebar-hidden'] });
+      };
+
+      window.showTouchPickerTargets = () => {
+        [190, 290, 390].forEach((top, index) => {
+          const id = `touch-candidate-${index + 1}`;
+          if (document.getElementById(id)) return;
+          const target = document.createElement('aside');
+          target.id = id;
+          target.textContent = `Panel ${index + 1}`;
+          target.style.cssText =
+            `position:fixed;left:48px;top:${top}px;width:220px;height:64px;padding:16px;` +
+            'z-index:40;color:#fff;background:#315b58;border:2px solid #b9f0df';
+          document.body.append(target);
+        });
+      };
+
+      function createShadowPickerFixture(name, mode, landmark) {
+        class PickerFixtureHost extends HTMLElement {
+          constructor() {
+            super();
+            const root = this.attachShadow({ mode });
+            const content = document.createElement(landmark ? 'main' : 'div');
+            content.textContent = landmark ? 'Protected application content' : 'Dismissible floating panel';
+            content.style.cssText = 'display:block;width:100%;height:100%;padding:24px;box-sizing:border-box';
+            root.append(content);
+          }
+        }
+        customElements.define(name, PickerFixtureHost);
+        const host = document.createElement(name);
+        host.id = name;
+        host.style.cssText =
+          'display:none;position:fixed;left:320px;top:210px;width:360px;height:180px;' +
+          'z-index:100;color:#fff;background:#315b58;border:4px solid #ff7358';
+        document.body.append(host);
+        return host;
+      }
+
+      const shadowPickerFixtures = {
+        open: createShadowPickerFixture('open-picker-shell', 'open', true),
+        closedCustom: createShadowPickerFixture('closed-custom-picker-shell', 'closed', true),
+        safe: createShadowPickerFixture('safe-picker-overlay', 'open', false)
+      };
+      const closedBuiltInPickerShell = document.createElement('div');
+      closedBuiltInPickerShell.id = 'closed-built-in-picker-shell';
+      closedBuiltInPickerShell.style.cssText =
+        'display:none;position:fixed;left:320px;top:210px;width:360px;height:180px;' +
+        'z-index:100;color:#fff;background:#315b58;border:4px solid #ff7358';
+      const closedBuiltInRoot = closedBuiltInPickerShell.attachShadow({ mode: 'closed' });
+      const closedBuiltInMain = document.createElement('main');
+      closedBuiltInMain.textContent = 'Protected built-in shadow content';
+      closedBuiltInRoot.append(closedBuiltInMain);
+      document.body.append(closedBuiltInPickerShell);
+      shadowPickerFixtures.closedBuiltIn = closedBuiltInPickerShell;
+      let slottedPickerRoot;
+      class SlottedPickerShell extends HTMLElement {
+        constructor() {
+          super();
+          const root = this.attachShadow({ mode: 'open' });
+          slottedPickerRoot = root;
+          const wrapper = document.createElement('div');
+          wrapper.id = 'slotted-picker-wrapper';
+          wrapper.style.cssText =
+            'position:fixed;left:320px;top:210px;width:360px;height:180px;' +
+            'z-index:100;color:#fff;background:#315b58;border:4px solid #ff7358';
+          wrapper.append(document.createElement('slot'));
+          root.append(wrapper);
+        }
+      }
+      customElements.define('slotted-picker-shell', SlottedPickerShell);
+      const slottedPickerShell = document.createElement('slotted-picker-shell');
+      slottedPickerShell.id = 'slotted-picker-shell';
+      slottedPickerShell.style.display = 'none';
+      const slottedPickerMain = document.createElement('main');
+      slottedPickerMain.id = 'slotted-picker-main';
+      slottedPickerMain.textContent = 'Protected slotted application content';
+      slottedPickerShell.append(slottedPickerMain);
+      document.body.append(slottedPickerShell);
+      shadowPickerFixtures.slotted = slottedPickerShell;
+      window.slottedPickerRect = () => {
+        const rect = slottedPickerRoot.getElementById('slotted-picker-wrapper').getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      };
+      window.showShadowPickerFixture = (name) => {
+        Object.entries(shadowPickerFixtures).forEach(([key, fixture]) => {
+          fixture.style.display = key === name ? 'block' : 'none';
+        });
+      };
+
+      window.coverManualInterruption = () => {
+        document.getElementById('keyboard-occluder')?.remove();
+        const target = document.getElementById('manual-interruption');
+        const rect = target.getBoundingClientRect();
+        const cover = document.createElement('div');
+        cover.id = 'keyboard-occluder';
+        cover.style.cssText =
+          `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;` +
+          `height:${rect.height}px;z-index:1000;background:#eef6f2`;
+        document.body.append(cover);
+      };
+      window.removeManualInterruptionCover = () => {
+        document.getElementById('keyboard-occluder')?.remove();
+      };
+    </script>
+  </body>
+</html>

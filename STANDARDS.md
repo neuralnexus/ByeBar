@@ -7,7 +7,7 @@ Architecture, quality gates, and contributor workflow.
 | Platform              | Minimum version | Notes                              |
 | --------------------- | --------------- | ---------------------------------- |
 | Chrome / Edge         | 109+            | Load `dist/stage/chrome`           |
-| Firefox               | 115+            | Load `dist/stage/firefox`          |
+| Firefox (desktop)     | 140+            | Load `dist/stage/firefox`          |
 | Safari (macOS)        | 16.4+           | Build via `npm run build:safari`   |
 | Safari (iOS / iPadOS) | 16.4+           | Same Xcode project; syncs from Mac |
 
@@ -26,6 +26,7 @@ content/selectors.js    → SITE_RULES, selector registries
 content/shadow.js       → shadow DOM query helpers
 content/visibility.js   → reversible hiding and scroll handling
 content/actions.js      → action ledger, Undo, focus safety, diagnostics
+content/picker.js       → isolated one-shot manual picker and input shield
 content/engine.js       → validation engine, scoped mutation observer
 content/cookies.js
 content/tos.js
@@ -39,8 +40,9 @@ The content script declaration has `all_frames: false`; embedded frames are not 
 
 ```
 popup.js → versioned messages → service-worker.js (sole settings writer)
-        └→ document-scoped sweep/Undo → actions.js
-                                  ↓ settings: storage.local
+        └→ document-scoped sweep/Pick/Undo → actions.js
+browser shortcut → service-worker.js → state handshake → document-scoped sweep → transient badge
+                                   ↓ settings: storage.local
 content scripts read global + host feature settings on load/change
         ↓
 engine validates selector candidates with text + layout
@@ -61,6 +63,7 @@ decision metadata      → current page memory only
 4. **Site-specific before generic** ; add targeted candidates under `content/selectors.js` (`SITE_RULES`) before widening generic heuristics.
 5. **Canonical logic in `lib/`** ; regexes, host checks, settings, and text heuristics belong in `lib/*.mjs` with Vitest coverage. Export them from `src/classic-runtime.mjs`, run `npm run build:runtime`, and consume them through `ByeBar.lib`; do not duplicate or hand-edit generated logic.
 6. **Not an ad blocker** ; do not block ads, trackers, or network requests. DOM-only overlay/popup removal.
+7. **Manual Pick remains one-shot** ; never invoke the selected control, inspect frame contents, persist a selector, or let automatic passes run while the page shield is active. Every committed Pick must use the marker ledger and Undo.
 
 ## Adding a new site rule
 
@@ -127,7 +130,14 @@ Manual checks:
 - Scroll remains usable without deleting site classes or inline styles
 - Decline button clicked when cookie setting is on
 - Whole-site and individual feature overrides inherit/reset correctly
-- Undo restores only the latest reversible hide; cookie/legal/site clicks remain irreversible
+- Undo restores up to 10 recent reversible hide actions newest-first; cookie/legal/site clicks remain irreversible
+- Expired Undo metadata never restores elements or breaks reason-based settings restoration
+- Sweep reports only actions captured during its final fresh-settings pass; no-op leaves Undo intact
+- Keyboard Sweep uses the state/document handshake and never retries an ambiguous request
+- Pick uses document/session handshakes, ignores synthetic input and protected/frame targets, and never retries an ambiguous start or cancel
+- Pick cancellation, timeout, navigation, settings pause, and active top-layer UI leave the page interactive
+- Pick remains operable by pointer, keyboard, and its semantic in-page controls, then restores focus outside a hidden target
+- A successful Pick records one manual marker hide as the newest reversible Undo action without persisting a selector
 - Diagnostics record metadata without page text and clear decisions on reload
 - Same-origin and cross-origin iframe contents remain untouched
 
@@ -149,7 +159,7 @@ npm run validate:packages
 - Prettier check
 - Vitest unit tests
 
-`npm run test:e2e` runs the persistent Chromium extension suite. `npm run validate:packages` stages, lints, builds, and verifies Chrome and Firefox ZIPs. On a machine with full Xcode, `npm run validate:safari` converts the clean Safari stage and performs a no-sign macOS build.
+`npm run test:e2e` runs the persistent Chromium extension suite. `npm run validate:packages` stages, lints, builds, and verifies deterministic Chrome and Firefox ZIPs. Package builds require current generated assets and never rewrite source files. On a machine with full Xcode, `npm run validate:safari` converts the clean Safari stage and performs no-sign macOS and generic iOS device builds.
 
 ## Tests
 
@@ -161,13 +171,19 @@ npm run validate:packages
 | China commerce       | `test/china-commerce-heuristics.test.mjs` | Spinner wheels                                                                           |
 | TOS modals           | `test/tos-heuristics.test.mjs`            | Bloomberg CMP                                                                            |
 | Generic overlays     | `test/overlay-heuristics.test.mjs`        | Promotional text + geometry; inline/functional negatives                                 |
+| Manual picker policy | `test/pick-heuristics.test.mjs`           | Promotion, protected targets, frames, visibility, fullscreen, and shadow ancestry        |
+| Picker lifecycle     | `test/picker.test.mjs`                    | Startup timeout and hidden-document safety                                               |
 | Extension scope      | `test/extension-scope.test.mjs`           | Marker-only CSS and unrelated behavior exclusions                                        |
 | Host / settings      | `test/host.test.mjs`                      | Per-site overrides                                                                       |
 | Manifest             | `test/manifest.test.mjs`                  | MV3 structure                                                                            |
-| Worker protocol      | `test/service-worker.test.mjs`            | Serialization, migration, validation, storage errors, and quotas                         |
+| Visibility ownership | `test/visibility.test.mjs`                | Bounded Undo metadata without changing marker or settings ownership                      |
+| Worker protocol      | `test/service-worker.test.mjs`            | Settings serialization, shortcut orchestration, migration, failures, and quotas          |
 | Target manifests     | `test/staging.test.mjs`                   | Chrome, Firefox, and Safari background shapes                                            |
+| Package output       | `test/package.test.mjs`                   | Canonical ZIP bytes, ordering, timestamps, modes, and exact staged content               |
+| CRX3 signing         | `test/crx3.test.mjs`                      | Deterministic signatures, signer identity, embedded ZIP, and tamper rejection            |
+| Artifact publication | `test/artifact-output.test.mjs`           | Validation-before-publication, rollback, file types, and normalized modes                |
 
-Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, and popup Sweep/Undo/diagnostics.
+Playwright runs automated browser coverage for overlay negatives, trusted interaction, settings restoration, consent safety, focus/inert behavior, open Shadow DOM, late class activation, top-frame scope, mutation batching, popup Sweep/multi-step Undo/diagnostics behavior, and one-shot Pick input isolation, cancellation, transport reconciliation, and Undo.
 
 Live-site manual checks still include:
 
@@ -190,4 +206,4 @@ Live-site manual checks still include:
 | `activeTab`       | Popup reads the active tab hostname                               |
 | `<all_urls>` host | Content scripts run in eligible top-level pages to catch overlays |
 
-No `webRequest`, `declarativeNetRequest`, or broad history access ; ByeBar does not intercept network traffic.
+No `webRequest`, `webNavigation`, or `declarativeNetRequest`; ByeBar does not inspect browser history or intercept network traffic.

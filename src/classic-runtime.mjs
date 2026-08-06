@@ -1,9 +1,11 @@
+import * as aria from '../lib/aria.mjs';
 import * as bloomberg from '../lib/bloomberg-heuristics.mjs';
 import * as chinaCommerce from '../lib/china-commerce-heuristics.mjs';
 import * as constants from '../lib/constants.mjs';
 import * as cookie from '../lib/cookie-heuristics.mjs';
 import * as host from '../lib/host.mjs';
 import * as overlay from '../lib/overlay-heuristics.mjs';
+import * as pick from '../lib/pick-heuristics.mjs';
 import * as safari from '../lib/safari.mjs';
 import * as settings from '../lib/settings.mjs';
 import * as substack from '../lib/substack-heuristics.mjs';
@@ -11,15 +13,32 @@ import * as substackDetect from '../lib/substack-detect.mjs';
 import * as text from '../lib/text.mjs';
 import * as tos from '../lib/tos-heuristics.mjs';
 
-const BYEBAR = (globalThis.ByeBar ||= {});
+const namespaceScope = typeof window === 'undefined' ? globalThis : window;
+const ownNamespace = (scope) => Object.getOwnPropertyDescriptor(scope, 'ByeBar')?.value;
+const BYEBAR =
+  ownNamespace(namespaceScope) || (namespaceScope === globalThis ? null : ownNamespace(globalThis)) || {};
+
+function installNamespace(scope) {
+  Object.defineProperty(scope, 'ByeBar', {
+    configurable: true,
+    enumerable: true,
+    value: BYEBAR,
+    writable: true
+  });
+}
+
+installNamespace(namespaceScope);
+if (namespaceScope !== globalThis) installNamespace(globalThis);
 
 BYEBAR.lib = Object.freeze({
+  aria,
   bloomberg,
   chinaCommerce,
   constants,
   cookie,
   host,
   overlay,
+  pick,
   safari,
   settings,
   substack,

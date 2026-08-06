@@ -8,6 +8,8 @@ describe('target manifests', () => {
   function expectIconsPreserved(manifest) {
     expect(manifest.icons).toEqual(source.icons);
     expect(manifest.action.default_icon).toEqual(source.action.default_icon);
+    expect(manifest.commands).toEqual(source.commands);
+    expect(manifest.content_scripts[0].js).toContain('content/picker.js');
   }
 
   it('creates a Chrome-only service worker manifest', () => {
@@ -26,6 +28,7 @@ describe('target manifests', () => {
     expect(manifest.browser_specific_settings).toEqual({
       gecko: source.browser_specific_settings.gecko
     });
+    expect(manifest.browser_specific_settings).not.toHaveProperty('gecko_android');
     expect(manifest).not.toHaveProperty('minimum_chrome_version');
     expectIconsPreserved(manifest);
   });

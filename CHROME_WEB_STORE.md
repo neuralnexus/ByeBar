@@ -8,14 +8,14 @@ npm run test:e2e
 npm run build:store
 ```
 
-The build regenerates the canonical runtime and icons, stages only declared Chrome files, validates the target manifest, verifies the ZIP entry set and contents, and prints its SHA-256 digest.
+The build checks that the tracked runtime and icons are current, stages only declared Chrome files, and creates a deterministic ZIP with sorted entries, fixed metadata, and a SHA-256 checksum. Packaging fails rather than modifying source files when generated assets are stale.
 
 Upload a package in the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole):
 
 | Mode         | File                           | When                                              |
 | ------------ | ------------------------------ | ------------------------------------------------- |
-| Default      | `dist/byebar-chrome-0.7.0.zip` | Before opting in to verified CRX uploads          |
-| Verified CRX | `dist/byebar-chrome-0.7.0.crx` | After opting in (required for all future uploads) |
+| Default      | `dist/byebar-chrome-0.8.0.zip` | Before opting in to verified CRX uploads          |
+| Verified CRX | `dist/byebar-chrome-0.8.0.crx` | After opting in (required for all future uploads) |
 
 ## Verified CRX uploads (optional security)
 
@@ -59,7 +59,9 @@ npm run build:store:crx
 
 Upload the versioned `.crx` in `dist/` with **Upload New Package** (not the zip).
 
-Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem`. Set `CHROME_PATH` if Chrome is not in the default macOS location.
+Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem`. The build signs and verifies the CRX3 directly, so Chrome is not required. It prints the SHA-256 fingerprint of the signer public key and creates a checksum beside the CRX.
+
+For release automation, set `BYEBAR_CRX_PUBLIC_KEY_SHA256` to the expected 64-character signer fingerprint. The build then fails if the supplied private key does not match the pinned release identity. Given the same source tree and private key, repeated builds produce byte-identical ZIP and CRX artifacts.
 
 ## Store listing
 
@@ -76,7 +78,7 @@ Set `BYEBAR_CRX_PRIVATE_KEY` if your key is not at `store/signing/privatekey.pem
 
 **Description (listing tab):**
 
-> ByeBar hides validated newsletter modals and subscribe bars, and can click confirmed cookie-reject or optional terms controls. Its toolbar popup can run the same conservative rules on demand when a CSS-only page change evades automatic observation. Marker-based hides are reversible, while site control clicks are not. Not an ad blocker; it does not block ads, trackers, or network requests. No telemetry.
+> ByeBar hides validated newsletter modals and subscribe bars, and can click confirmed cookie-reject or optional terms controls. Its toolbar popup offers a conservative on-demand Sweep and a one-shot Pick to hide for an interruption you select by pointer, keyboard, or accessible in-page controls. Pick intercepts the selection action, stores no selector, and adds one reversible marker hide. Sweep can also run from a configurable keyboard shortcut with brief badge feedback. Up to 10 recent marker-based hide actions are reversible, while site control clicks are not. Not an ad blocker; it does not block ads, trackers, or network requests. No telemetry.
 
 ## Privacy practices tab (copy-paste)
 
@@ -91,7 +93,7 @@ Open your item → **Privacy practices** → fill every required field → **Sav
 | Field                              | Justification                                                                                                                                                                                                                          |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **storage**                        | Saves global defaults, hostname-keyed site overrides, and the diagnostics preference in device-local extension storage. Nothing is sent to the developer.                                                                              |
-| **activeTab**                      | Reads the active tab's URL hostname so the toolbar popup can show whether ByeBar is enabled on the current site and let the user set a local per-site override. No page content is collected or transmitted.                           |
+| **activeTab**                      | Identifies the active tab so the popup can show the current site, start or cancel a one-shot Pick, and let the keyboard shortcut target the page active at keypress. No page content is collected or transmitted.                      |
 | **Host permission** (`<all_urls>`) | Injects content scripts into eligible top-level pages to detect and remove intrusive overlays in the page DOM. Embedded frame contents are not processed. ByeBar does not send browsing data or diagnostic decisions to the developer. |
 | **Remote code**                    | ByeBar does not use remote code. All JavaScript and CSS are bundled in the published package. The extension does not fetch, load, or execute scripts from external servers at runtime.                                                 |
 
@@ -121,7 +123,10 @@ Add screenshots to `store/screenshots/` before publishing (not bundled in the zi
 
 ## Pre-submit checklist
 
-- [ ] `npm run validate`, `npm run test:e2e`, and `npm run build:store`
+- [ ] `npm run validate` and `npm run test:e2e`
+- [ ] Default ZIP upload: `npm run build:store`
+- [ ] Verified CRX upload: pin `BYEBAR_CRX_PUBLIC_KEY_SHA256` and run `npm run build:store:crx`
+- [ ] Verify the selected artifact against its adjacent `.sha256` checksum
 - [ ] Support URL live: https://byebar.mattivan.com/support.html
 - [ ] Privacy policy live: https://byebar.mattivan.com/privacy.html
 - [ ] Privacy practices tab: all justifications + single purpose + data certification

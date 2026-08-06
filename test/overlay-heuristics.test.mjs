@@ -74,6 +74,15 @@ describe('looksLikePromotionalOverlay', () => {
     expect(looksLikePromotionalOverlay(dialog, () => ({ position: 'fixed' }), viewport)).toBe(true);
   });
 
+  it('recognizes a normalized dialog fallback token', () => {
+    const dialog = mockElement({
+      role: 'alertdialog DIALOG',
+      textContent: 'Sign up for our newsletter',
+      rect: { left: 400, top: 200, width: 400, height: 300, right: 800, bottom: 500 }
+    });
+    expect(looksLikePromotionalOverlay(dialog, () => ({ position: 'static' }), viewport)).toBe(true);
+  });
+
   it('leaves an inline newsletter form alone', () => {
     const form = mockElement({
       tagName: 'FORM',
