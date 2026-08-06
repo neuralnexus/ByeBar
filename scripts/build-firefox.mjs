@@ -9,15 +9,16 @@ import { validatePackage } from './validate-package.mjs';
 const version = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8')).version;
 const distDir = join(projectRoot, 'dist');
 const archivePath = join(distDir, `byebar-firefox-${version}.zip`);
-let stageDir;
 
 const { sha256 } = await buildValidatedFile(archivePath, {
   build: async (candidatePath) => {
-    stageDir = await stageExtension('firefox');
-    runFirefoxLint(stageDir);
-    await writeDeterministicZip(stageDir, candidatePath);
+    await stageExtension('firefox', async (stageDir) => {
+      runFirefoxLint(stageDir);
+      await writeDeterministicZip(stageDir, candidatePath);
+      await validatePackage(candidatePath, stageDir);
+    });
   },
-  validate: (candidatePath) => validatePackage(candidatePath, stageDir)
+  validate: async () => {}
 });
 
 console.log(`firefox package: ${archivePath}`);

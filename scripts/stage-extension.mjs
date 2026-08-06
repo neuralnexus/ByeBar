@@ -74,7 +74,7 @@ function assertSourceFile(relativePath) {
   return sourcePath;
 }
 
-export async function stageExtension(target) {
+export async function stageExtension(target, consume) {
   if (!targets.has(target)) throw new Error(`unknown extension target: ${target}`);
   const stageDir = join(projectRoot, 'dist', 'stage', target);
   let manifest;
@@ -99,7 +99,8 @@ export async function stageExtension(target) {
       }
       writeFileSync(join(candidateStage, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
     },
-    validate: (candidateStage) => validateManifest(candidateStage, target)
+    validate: (candidateStage) => validateManifest(candidateStage, target),
+    consume
   });
   return stageDir;
 }

@@ -61,7 +61,9 @@ describe('extension scope', () => {
     const visibility = readProjectFile('content/visibility.js');
     expect(visibility).toContain('hiddenDisplayVariable');
     expect(visibility).toContain("setProperty(hiddenDisplayVariable, 'none', 'important')");
-    expect(visibility).toContain("setProperty('display', hiddenDisplayValue, 'important')");
+    expect(visibility).toContain(
+      "setProperty('display', markerDisplayValue(copyMarkerFor(el)), 'important')"
+    );
     expect(visibility).toContain('maxDisplayRetries');
     expect(visibility).toContain('disconnectedGraceMs');
     expect(visibility).toContain('restoreInlineDisplay(el)');

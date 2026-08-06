@@ -7,6 +7,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outfile = 'shared/runtime.generated.js';
 const check = process.argv.includes('--check');
 const expectedInputs = [
+  'lib/aria.mjs',
   'lib/bloomberg-heuristics.mjs',
   'lib/china-commerce-heuristics.mjs',
   'lib/constants.mjs',

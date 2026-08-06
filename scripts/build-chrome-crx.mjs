@@ -12,7 +12,6 @@ const keyPath = process.env.BYEBAR_CRX_PRIVATE_KEY || defaultKey;
 const version = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8')).version;
 const outCrx = join(distDir, `byebar-chrome-${version}.crx`);
 
-let stageDir;
 let expectedPublicKey;
 let signerFingerprint;
 const { sha256 } = await buildValidatedFile(outCrx, {
@@ -25,20 +24,19 @@ const { sha256 } = await buildValidatedFile(outCrx, {
     const privateKey = readFileSync(keyPath);
     expectedPublicKey = signerPublicKey(privateKey);
     signerFingerprint = publicKeyFingerprint(expectedPublicKey);
-    stageDir = await stageExtension('chrome');
-    const embeddedZip = join(workspace, 'embedded.zip');
-    const zip = await writeDeterministicZip(stageDir, embeddedZip);
-    writeFileSync(candidatePath, createCrx3(zip, privateKey), { mode: 0o644 });
-  },
-  validate: async (candidatePath, workspace) => {
-    const result = validateCrx3(readFileSync(candidatePath), {
-      expectedPublicKey,
-      expectedFingerprint: process.env.BYEBAR_CRX_PUBLIC_KEY_SHA256 || ''
+    await stageExtension('chrome', async (stageDir) => {
+      const embeddedZip = join(workspace, 'embedded.zip');
+      const zip = await writeDeterministicZip(stageDir, embeddedZip);
+      writeFileSync(candidatePath, createCrx3(zip, privateKey), { mode: 0o644 });
+      const result = validateCrx3(readFileSync(candidatePath), {
+        expectedPublicKey,
+        expectedFingerprint: process.env.BYEBAR_CRX_PUBLIC_KEY_SHA256 || ''
+      });
+      writeFileSync(embeddedZip, result.zip);
+      await validatePackage(embeddedZip, stageDir);
     });
-    const embeddedZip = join(workspace, 'embedded.zip');
-    writeFileSync(embeddedZip, result.zip);
-    await validatePackage(embeddedZip, stageDir);
-  }
+  },
+  validate: async () => {}
 });
 
 console.log(`signed chrome package: ${outCrx}`);

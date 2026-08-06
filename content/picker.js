@@ -7,11 +7,15 @@
   const START_TIMEOUT_MS = 5_000;
   const SESSION_TIMEOUT_MS = 60_000;
   const CLICK_TAIL_MS = 500;
+  const POINTER_SETTLE_TIMEOUT_MS = 1_000;
   const SUCCESS_NOTICE_MS = 1_800;
+  const HIDE_SETTLE_MS = 120;
+  const CONTROL_CLICK_DEDUPE_MS = 750;
   const MAX_KEYBOARD_SCAN_ELEMENTS = 5_000;
+  const MAX_TOP_LAYER_SCAN_ELEMENTS = 5_000;
   const KEYBOARD_SEED_SELECTOR = [
     'dialog',
-    '[role="dialog"]',
+    '[role~="dialog" i]',
     '[aria-modal="true"]',
     'button',
     'a[href]',
@@ -25,6 +29,7 @@
   ].join(',');
   const eventOptions = { capture: true, passive: false };
   const activePointers = new Set();
+  const pendingControlClicks = new Map();
   let mode = 'idle';
   let sessionId = '';
   let host = null;
@@ -45,20 +50,35 @@
   let sessionTimer = null;
   let routeTimer = null;
   let settleTimer = null;
+  let pointerSettleTimer = null;
   let noticeTimer = null;
+  let hideSettleTimer = null;
+  let controlClickTimer = null;
   let settleResume = true;
-  let startedUrl = '';
+  let startedRoute = null;
+  let navigationGeneration = 0;
   let suppressEscapeKeyup = false;
   let sessionGeneration = 0;
   let lastPointerPoint = null;
+  let pointerInteractionDeadline = 0;
   let startupCanResume = false;
   let returnFocus = null;
   let hiddenFocusTarget = null;
   let keyboardCandidateCount = 0;
   let keyboardCandidateIndex = -1;
+  let pendingHide = null;
+  let controlPress = null;
+  const hasRole =
+    BYEBAR.lib.aria?.hasRole ||
+    ((el, role) =>
+      String(el?.getAttribute?.('role') || '')
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .includes(role));
 
   function isSessionActive() {
-    return mode === 'starting' || mode === 'active';
+    return mode === 'starting' || mode === 'active' || mode === 'verifying';
   }
 
   function blocksAutomation() {
@@ -66,21 +86,64 @@
   }
 
   function capturesInput() {
-    return Boolean(host && (mode === 'active' || mode === 'settling'));
+    return Boolean(host && (mode === 'active' || mode === 'verifying' || mode === 'settling'));
+  }
+
+  function available() {
+    const probe = document.documentElement || document.body || document.createElement?.('div');
+    return BYEBAR.shadow?.canInspectClosedRoots?.(probe) === true && captureRouteIdentity() !== null;
   }
 
   function state() {
     return {
       active: isSessionActive(),
+      available: available(),
       busy: blocksAutomation(),
       sessionId: isSessionActive() ? sessionId : ''
     };
   }
 
+  function captureRouteIdentity() {
+    try {
+      const entry = window.navigation?.currentEntry;
+      const navigationId = entry?.id ?? null;
+      const navigationKey = entry?.key ?? null;
+      const navigationIndex = entry?.index ?? null;
+      if (!entry || (navigationId === null && navigationKey === null && navigationIndex === null))
+        return null;
+      return { navigationGeneration, navigationId, navigationKey, navigationIndex };
+    } catch {
+      return null;
+    }
+  }
+
+  function routeIsCurrent() {
+    if (!startedRoute) return false;
+    const current = captureRouteIdentity();
+    return Boolean(
+      current &&
+      current.navigationGeneration === startedRoute.navigationGeneration &&
+      current.navigationId === startedRoute.navigationId &&
+      current.navigationKey === startedRoute.navigationKey &&
+      current.navigationIndex === startedRoute.navigationIndex
+    );
+  }
+
   function activeTopLayerError() {
     if (document.fullscreenElement) return 'fullscreen-active';
-    if (BYEBAR.shadow?.query?.('dialog:modal', document)) return 'native-modal-active';
-    if (BYEBAR.shadow?.query?.(':popover-open', document)) return 'top-layer-active';
+    if (BYEBAR.shadow?.findIncludingClosed) {
+      const result = BYEBAR.shadow.findIncludingClosed(
+        ['dialog:modal', ':popover-open'],
+        document,
+        MAX_TOP_LAYER_SCAN_ELEMENTS
+      );
+      if (result.element) {
+        return result.selector === 'dialog:modal' ? 'native-modal-active' : 'top-layer-active';
+      }
+      return result.exhausted ? 'top-layer-active' : '';
+    }
+    if (BYEBAR.shadow?.queryIncludingClosed?.('dialog:modal', document)) return 'native-modal-active';
+    if (BYEBAR.shadow?.queryIncludingClosed?.(':popover-open', document)) return 'top-layer-active';
     return '';
   }
 
@@ -284,13 +347,47 @@
     routeTimer = null;
   }
 
+  function trackPointer(pointerId) {
+    if (activePointers.size === 0) {
+      pointerInteractionDeadline = Date.now() + POINTER_SETTLE_TIMEOUT_MS;
+    }
+    activePointers.add(pointerId);
+  }
+
+  function releasePointer(pointerId) {
+    activePointers.delete(pointerId);
+    if (activePointers.size === 0) pointerInteractionDeadline = 0;
+  }
+
+  function clearTrackedPointers() {
+    activePointers.clear();
+    pointerInteractionDeadline = 0;
+  }
+
+  function rollbackPendingHide() {
+    clearTimeout(hideSettleTimer);
+    hideSettleTimer = null;
+    if (!pendingHide) return null;
+    const pending = pendingHide;
+    pendingHide = null;
+    BYEBAR.visibility.restoreAction(pending.action.id);
+    hiddenFocusTarget = null;
+    return pending;
+  }
+
   function removeUi() {
+    rollbackPendingHide();
     if (highlightFrame !== null) cancelAnimationFrame(highlightFrame);
     clearTimeout(settleTimer);
+    clearTimeout(pointerSettleTimer);
     clearTimeout(noticeTimer);
+    clearTimeout(controlClickTimer);
     highlightFrame = null;
     settleTimer = null;
+    pointerSettleTimer = null;
     noticeTimer = null;
+    controlClickTimer = null;
+    pendingControlClicks.clear();
     host?.remove();
     host = null;
     pickerRoot = null;
@@ -306,10 +403,11 @@
     cancelButton = null;
     candidate = null;
     pressed = null;
+    controlPress = null;
     lastPointerPoint = null;
     keyboardCandidateCount = 0;
     keyboardCandidateIndex = -1;
-    activePointers.clear();
+    clearTrackedPointers();
   }
 
   function isWithinTarget(element, target) {
@@ -324,40 +422,91 @@
   function canRestoreFocus(element) {
     if (!element?.isConnected || typeof element.focus !== 'function') return false;
     if (hiddenFocusTarget && isWithinTarget(element, hiddenFocusTarget)) return false;
-    return !BYEBAR.visibility.isHidden(element);
+    if (BYEBAR.visibility.isHidden(element)) return false;
+    let node = element;
+    while (node) {
+      if (
+        node.inert === true ||
+        node.hasAttribute?.('inert') ||
+        node.getAttribute?.('aria-hidden') === 'true'
+      ) {
+        return false;
+      }
+      node = BYEBAR.lib.pick.composedParent(node);
+    }
+    try {
+      if (element.matches?.(':disabled')) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect?.();
+      return Boolean(
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        (!rect || (rect.width > 0 && rect.height > 0))
+      );
+    } catch {
+      return false;
+    }
   }
 
-  function restorePageFocus() {
-    if (!returnFocus || mode !== 'idle' || !document.hasFocus()) return;
-    const rootFocus = returnFocus === document.body || returnFocus === document.documentElement;
-    const target =
-      !rootFocus && canRestoreFocus(returnFocus)
-        ? returnFocus
-        : document.querySelector('main') || document.body;
-    if (!canRestoreFocus(target)) return;
-    const hadTabIndex = target.hasAttribute?.('tabindex');
-    const previousTabIndex = target.getAttribute?.('tabindex');
-    if (!hadTabIndex) target.setAttribute?.('tabindex', '-1');
+  function deepActiveElement() {
+    let active = document.activeElement;
+    const visited = new Set();
+    while (active && !visited.has(active)) {
+      visited.add(active);
+      const nested = BYEBAR.shadow?.openOrClosedRoot?.(active)?.activeElement;
+      if (!nested) break;
+      active = nested;
+    }
+    return active;
+  }
+
+  function focusPageTarget(target) {
+    if (!canRestoreFocus(target)) return false;
+    const temporaryTabIndex = !target.hasAttribute?.('tabindex');
+    if (temporaryTabIndex) target.setAttribute?.('tabindex', '-1');
     try {
       target.focus({ preventScroll: true });
     } catch {
-      if (!hadTabIndex) target.removeAttribute?.('tabindex');
-      return;
+      if (temporaryTabIndex && target.getAttribute?.('tabindex') === '-1') {
+        target.removeAttribute?.('tabindex');
+      }
+      return false;
     }
-    if (document.activeElement === target) {
+    if (deepActiveElement() !== target) {
+      if (temporaryTabIndex && target.getAttribute?.('tabindex') === '-1') {
+        target.removeAttribute?.('tabindex');
+      }
+      return false;
+    }
+    if (temporaryTabIndex) {
+      target.addEventListener(
+        'blur',
+        () => {
+          if (target.getAttribute('tabindex') === '-1') target.removeAttribute('tabindex');
+        },
+        { once: true }
+      );
+    }
+    return true;
+  }
+
+  function restorePageFocus(beforeCommit = false) {
+    if (!returnFocus || (mode !== 'idle' && !beforeCommit) || !document.hasFocus()) return;
+    const rootFocus = returnFocus === document.body || returnFocus === document.documentElement;
+    const fallback = document.querySelector('main') || document.body;
+    const targets = rootFocus ? [fallback] : [returnFocus, fallback];
+    for (const target of new Set(targets.filter(Boolean))) {
+      if (!focusPageTarget(target)) continue;
       returnFocus = null;
       hiddenFocusTarget = null;
-      if (!hadTabIndex) {
-        target.addEventListener('blur', () => target.removeAttribute('tabindex'), { once: true });
-      } else if (previousTabIndex !== null) target.setAttribute?.('tabindex', previousTabIndex);
-    } else if (!hadTabIndex) {
-      target.removeAttribute?.('tabindex');
+      return;
     }
   }
 
   function finishIdle(resume = true) {
     mode = 'idle';
     sessionId = '';
+    startedRoute = null;
     pressed = null;
     startupCanResume = false;
     if (resume) BYEBAR.engine?.resumeAutomation?.();
@@ -366,6 +515,9 @@
 
   function completePointerSettle() {
     if (mode !== 'settling' || settleTimer !== null) return;
+    clearTimeout(pointerSettleTimer);
+    pointerSettleTimer = null;
+    pointerInteractionDeadline = 0;
     settleTimer = setTimeout(() => {
       removeUi();
       finishIdle(settleResume);
@@ -377,6 +529,7 @@
     const resume = mode === 'settling' ? settleResume : mode === 'starting' ? startupCanResume : true;
     sessionGeneration += 1;
     clearLifecycleTimers();
+    rollbackPendingHide();
     candidate = null;
     if (outline) outline.hidden = true;
     if (settlePointer && host) {
@@ -384,6 +537,19 @@
       sessionId = '';
       pressed = null;
       settleResume = resume;
+      if (!pointerInteractionDeadline) {
+        pointerInteractionDeadline = Date.now() + POINTER_SETTLE_TIMEOUT_MS;
+      }
+      if (pointerSettleTimer === null) {
+        pointerSettleTimer = setTimeout(
+          () => {
+            pointerSettleTimer = null;
+            clearTrackedPointers();
+            completePointerSettle();
+          },
+          Math.max(0, pointerInteractionDeadline - Date.now())
+        );
+      }
       return;
     }
     removeUi();
@@ -398,8 +564,9 @@
     try {
       hit = document.elementsFromPoint(x, y).find((el) => el !== host) || null;
       for (let depth = 0; depth < 8 && hit?.shadowRoot; depth += 1) {
-        const inner = hit.shadowRoot.elementFromPoint?.(x, y);
-        if (!inner || inner === hit) break;
+        const root = hit.shadowRoot;
+        const inner = root.elementFromPoint?.(x, y);
+        if (!inner || inner === hit || inner.getRootNode?.() !== root) break;
         hit = inner;
       }
     } catch {
@@ -410,14 +577,27 @@
     return hit;
   }
 
-  function resolveElement(hit) {
+  function resolveElement(hit, scan = null) {
     return BYEBAR.lib.pick.resolvePickCandidate(hit, {
       getStyle: getComputedStyle,
       viewport: { width: window.innerWidth, height: window.innerHeight },
       documentRoot: document,
       pickerHost: host,
       fullscreenElement: document.fullscreenElement,
-      isHidden: BYEBAR.visibility.isHidden
+      isHidden: BYEBAR.visibility.isHidden,
+      getShadowRoot: (el) => BYEBAR.shadow.openOrClosedRoot(el),
+      canInspectClosedRoots: (el) => BYEBAR.shadow.canInspectClosedRoots(el),
+      scan
+    });
+  }
+
+  function targetRemainsSafe(target) {
+    return BYEBAR.lib.pick.isSafePickTarget(target, {
+      documentRoot: document,
+      pickerHost: host,
+      fullscreenElement: document.fullscreenElement,
+      getShadowRoot: (el) => BYEBAR.shadow.openOrClosedRoot(el),
+      canInspectClosedRoots: (el) => BYEBAR.shadow.canInspectClosedRoots(el)
     });
   }
 
@@ -446,23 +626,26 @@
   function collectKeyboardCandidates() {
     const candidates = [];
     const targets = new Set();
+    const scan = { remaining: MAX_KEYBOARD_SCAN_ELEMENTS, landmarkCache: new WeakMap() };
     const add = (seed) => {
-      const resolved = resolveElement(seed);
+      const resolved = resolveElement(seed, scan);
       if (!resolved || targets.has(resolved.target)) return;
       targets.add(resolved.target);
       candidates.push(resolved);
     };
-    const seeded = BYEBAR.shadow?.queryAll?.(KEYBOARD_SEED_SELECTOR, document) || [];
-    seeded.slice(0, MAX_KEYBOARD_SCAN_ELEMENTS).forEach(add);
-
-    const all = BYEBAR.shadow?.queryAll?.('*', document) || [];
-    for (const element of all.slice(0, MAX_KEYBOARD_SCAN_ELEMENTS)) {
+    const all = BYEBAR.shadow?.collectElements?.(document, MAX_KEYBOARD_SCAN_ELEMENTS) || [];
+    for (const element of all) {
+      try {
+        if (element.matches?.(KEYBOARD_SEED_SELECTOR)) add(element);
+      } catch {
+        /* Ignore selector support gaps in older engines. */
+      }
       const style = getComputedStyle(element);
       if (
         style.position === 'fixed' ||
         style.position === 'sticky' ||
         element.tagName === 'DIALOG' ||
-        element.getAttribute?.('role') === 'dialog' ||
+        hasRole(element, 'dialog') ||
         element.getAttribute?.('aria-modal') === 'true'
       ) {
         add(element);
@@ -509,7 +692,7 @@
     const style = getComputedStyle(target);
     return Boolean(
       target.tagName === 'DIALOG' ||
-      target.getAttribute?.('role') === 'dialog' ||
+      hasRole(target, 'dialog') ||
       target.getAttribute?.('aria-modal') === 'true' ||
       (style.position === 'fixed' &&
         rect.width >= window.innerWidth * 0.75 &&
@@ -517,38 +700,38 @@
     );
   }
 
-  function commitCandidate(next, point = lastPointerPoint) {
-    if (mode !== 'active' || !next?.target?.isConnected) return false;
-    if (activeTopLayerError() || (point ? !shieldOwnsPoint(point.x, point.y) : !shieldCoversViewport())) {
-      stop('top-layer-changed');
-      return false;
-    }
-    const current = point ? resolveAt(point.x, point.y) : resolveElement(next.target);
-    if (!current || current.target !== next.target) {
-      renderCandidate(current);
-      if (coachCopy) coachCopy.textContent = 'That item changed. Pick another.';
-      return false;
-    }
-    next = current;
-    const action = BYEBAR.actions.begin({
-      feature: 'manualHide',
-      rule: 'manual-pick',
-      operation: 'hide',
-      reason: 'user-picked'
-    });
-    hiddenFocusTarget = next.target;
-    if (
-      !BYEBAR.actions.hide(action, next.target, 'manual', {
-        blocksScroll: blocksScroll(next.target, next.rect),
-        userInitiated: true
-      }) ||
-      !BYEBAR.actions.commit(action)
-    ) {
-      hiddenFocusTarget = null;
-      renderCandidate(null);
-      if (coachCopy) coachCopy.textContent = 'That item changed. Pick another.';
-      return false;
-    }
+  function resolveCommitCandidate(next, point) {
+    if (point) return resolveAt(point.x, point.y);
+    const refreshed = resolveElement(next.target);
+    if (!refreshed) return null;
+    const left = Math.max(0, refreshed.rect.left);
+    const top = Math.max(0, refreshed.rect.top);
+    const right = Math.min(
+      window.innerWidth,
+      refreshed.rect.right ?? refreshed.rect.left + refreshed.rect.width
+    );
+    const bottom = Math.min(
+      window.innerHeight,
+      refreshed.rect.bottom ?? refreshed.rect.top + refreshed.rect.height
+    );
+    if (right <= left || bottom <= top) return null;
+    const hit = hitTest(left + (right - left) / 2, top + (bottom - top) / 2);
+    return isWithinTarget(hit, refreshed.target) ? refreshed : resolveElement(hit);
+  }
+
+  function restorePickerAfterFailedHide() {
+    const failed = rollbackPendingHide();
+    if (!failed || mode !== 'verifying') return;
+    mode = 'active';
+    if (coach) coach.classList.remove('success');
+    if (coachControls) coachControls.hidden = false;
+    if (coachTitle) coachTitle.textContent = 'Pick to hide';
+    if (coachCopy) coachCopy.textContent = 'That item would not stay hidden. Pick another.';
+    renderCandidate(failed.target.isConnected ? resolveElement(failed.target) : null);
+    coach?.focus({ preventScroll: true });
+  }
+
+  function finishSuccessfulHide() {
     BYEBAR.visibility.syncScrollLock();
     clearLifecycleTimers();
     mode = 'settling';
@@ -568,6 +751,100 @@
         restorePageFocus();
       }, SUCCESS_NOTICE_MS);
     }, CLICK_TAIL_MS);
+  }
+
+  function finalizePendingHide(expected) {
+    hideSettleTimer = null;
+    if (pendingHide !== expected || mode !== 'verifying') return;
+    const pageIsStable = () =>
+      routeIsCurrent() &&
+      document.visibilityState !== 'hidden' &&
+      host?.isConnected &&
+      !activeTopLayerError() &&
+      shieldCoversViewport();
+    const hideIsValid = () =>
+      pendingHide === expected &&
+      mode === 'verifying' &&
+      BYEBAR.engine.siteEnabled() &&
+      pageIsStable() &&
+      BYEBAR.visibility.isActionRetained(expected.action.id) &&
+      targetRemainsSafe(expected.target);
+    const rejectHide = () => {
+      if (pendingHide !== expected || mode !== 'verifying') return;
+      if (!BYEBAR.engine.siteEnabled()) stop('paused');
+      else if (!pageIsStable()) stop('page-changed');
+      else restorePickerAfterFailedHide();
+    };
+
+    if (!hideIsValid()) {
+      rejectHide();
+      return;
+    }
+    restorePageFocus(true);
+    if (!hideIsValid() || !BYEBAR.actions.commit(expected.action, hideIsValid)) {
+      rejectHide();
+      return;
+    }
+    pendingHide = null;
+    finishSuccessfulHide();
+  }
+
+  function commitCandidate(next, point = lastPointerPoint) {
+    if (mode !== 'active' || !next?.target?.isConnected) return false;
+    if (!BYEBAR.engine.siteEnabled()) {
+      stop('paused');
+      return false;
+    }
+    if (!routeIsCurrent()) {
+      stop('page-changed');
+      return false;
+    }
+    if (activeTopLayerError() || (point ? !shieldOwnsPoint(point.x, point.y) : !shieldCoversViewport())) {
+      stop('top-layer-changed');
+      return false;
+    }
+    const current = resolveCommitCandidate(next, point);
+    if (!current || current.target !== next.target) {
+      renderCandidate(current);
+      if (coachCopy) coachCopy.textContent = 'That item changed. Pick another.';
+      return false;
+    }
+    next = current;
+    if (!BYEBAR.engine.siteEnabled()) {
+      stop('paused');
+      return false;
+    }
+    if (!routeIsCurrent()) {
+      stop('page-changed');
+      return false;
+    }
+    const action = BYEBAR.actions.begin({
+      feature: 'manualHide',
+      rule: 'manual-pick',
+      operation: 'hide',
+      reason: 'user-picked'
+    });
+    hiddenFocusTarget = next.target;
+    if (
+      !BYEBAR.actions.hide(action, next.target, 'manual', {
+        blocksScroll: blocksScroll(next.target, next.rect),
+        userInitiated: true,
+        trackCopies: true
+      })
+    ) {
+      hiddenFocusTarget = null;
+      renderCandidate(null);
+      if (coachCopy) coachCopy.textContent = 'That item changed. Pick another.';
+      return false;
+    }
+    mode = 'verifying';
+    pendingHide = { action, target: next.target };
+    renderCandidate(null);
+    if (coachControls) coachControls.hidden = true;
+    if (coachTitle) coachTitle.textContent = 'Checking item';
+    if (coachCopy) coachCopy.textContent = 'Confirming that the page keeps it hidden.';
+    const expected = pendingHide;
+    hideSettleTimer = setTimeout(() => finalizePendingHide(expected), HIDE_SETTLE_MS);
     return true;
   }
 
@@ -609,6 +886,30 @@
     return pickerControls().includes(active) ? active : null;
   }
 
+  function clearControlClickDedupe() {
+    clearTimeout(controlClickTimer);
+    controlClickTimer = null;
+    pendingControlClicks.clear();
+  }
+
+  function suppressNextControlClick(control) {
+    pendingControlClicks.set(control, (pendingControlClicks.get(control) || 0) + 1);
+    clearTimeout(controlClickTimer);
+    controlClickTimer = setTimeout(clearControlClickDedupe, CONTROL_CLICK_DEDUPE_MS);
+  }
+
+  function consumesControlClick(control) {
+    const count = pendingControlClicks.get(control) || 0;
+    if (count === 0) return false;
+    if (count === 1) pendingControlClicks.delete(control);
+    else pendingControlClicks.set(control, count - 1);
+    if (pendingControlClicks.size === 0) {
+      clearTimeout(controlClickTimer);
+      controlClickTimer = null;
+    }
+    return true;
+  }
+
   function activateControl(control) {
     if (!control || control.disabled || mode !== 'active') return;
     const action = control.dataset.action;
@@ -628,8 +929,21 @@
         event.type === 'pointercancel' ||
         event.type === 'lostpointercapture'
       ) {
-        activePointers.delete(event.pointerId);
+        releasePointer(event.pointerId);
         if (activePointers.size === 0) completePointerSettle();
+      }
+      return;
+    }
+    if (mode === 'verifying') {
+      suppress(event);
+      if (!event.isTrusted) return;
+      if (event.type === 'pointerdown') trackPointer(event.pointerId);
+      else if (
+        event.type === 'pointerup' ||
+        event.type === 'pointercancel' ||
+        event.type === 'lostpointercapture'
+      ) {
+        releasePointer(event.pointerId);
       }
       return;
     }
@@ -637,16 +951,44 @@
       suppress(event);
       return;
     }
+    if (controlPress?.pointerId === event.pointerId && event.type !== 'pointerdown') {
+      suppress(event);
+      if (event.type === 'pointermove') return;
+      const press = controlPress;
+      controlPress = null;
+      if (event.type === 'pointerup') {
+        const moved = Math.hypot(event.clientX - press.x, event.clientY - press.y) > 8;
+        const matches = controlAtPoint(event.clientX, event.clientY) === press.control;
+        if (!moved && matches && validPrimaryPointer(event) && press.pointerType !== 'mouse') {
+          suppressNextControlClick(press.control);
+          activateControl(press.control);
+        }
+      }
+      releasePointer(event.pointerId);
+      if (mode === 'settling' && activePointers.size === 0) completePointerSettle();
+      return;
+    }
     const control = controlAtPoint(event.clientX, event.clientY);
     if (control) {
       suppress(event);
-      if (event.type === 'pointerdown') activePointers.add(event.pointerId);
-      else if (
+      if (event.type === 'pointerdown') {
+        trackPointer(event.pointerId);
+        controlPress = validPrimaryPointer(event)
+          ? {
+              control,
+              pointerId: event.pointerId,
+              pointerType: event.pointerType,
+              x: event.clientX,
+              y: event.clientY
+            }
+          : null;
+      } else if (
         event.type === 'pointerup' ||
         event.type === 'pointercancel' ||
         event.type === 'lostpointercapture'
       ) {
-        activePointers.delete(event.pointerId);
+        releasePointer(event.pointerId);
+        controlPress = null;
         pressed = null;
       }
       return;
@@ -658,7 +1000,7 @@
     }
     suppress(event);
     if (event.type === 'pointerdown') {
-      activePointers.add(event.pointerId);
+      trackPointer(event.pointerId);
       keyboardCandidateIndex = -1;
       keyboardCandidateCount = 0;
       if (!validPrimaryPointer(event)) {
@@ -674,14 +1016,14 @@
       return;
     }
     if (event.type === 'pointercancel' || event.type === 'lostpointercapture') {
-      activePointers.delete(event.pointerId);
+      releasePointer(event.pointerId);
       if (!pressed || pressed.pointerId === event.pointerId) pressed = null;
       return;
     }
     if (event.type !== 'pointerup') return;
     if (!pressed || !validPrimaryPointer(event)) {
       pressed = null;
-      activePointers.delete(event.pointerId);
+      releasePointer(event.pointerId);
       return;
     }
     const moved = Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) > 8;
@@ -689,7 +1031,7 @@
     const matches = next?.target === pressed.target && event.pointerId === pressed.pointerId;
     pressed = null;
     if (matches) commitCandidate(next, { x: event.clientX, y: event.clientY });
-    activePointers.delete(event.pointerId);
+    releasePointer(event.pointerId);
     if (mode === 'settling' && activePointers.size === 0) completePointerSettle();
   }
 
@@ -699,6 +1041,7 @@
       const control = controlForEvent(event);
       if (control) {
         suppress(event);
+        if (consumesControlClick(control)) return;
         activateControl(control);
         return;
       }
@@ -708,8 +1051,14 @@
 
   function handleKeydown(event) {
     if (!capturesInput()) return;
-    if (mode !== 'active') return suppress(event);
     if (!event.isTrusted || event.isComposing) return suppress(event);
+    if (mode === 'verifying' && event.key === 'Escape') {
+      suppress(event);
+      suppressEscapeKeyup = true;
+      stop('escape');
+      return;
+    }
+    if (mode !== 'active') return suppress(event);
     if (event.key === 'Escape') {
       suppress(event);
       suppressEscapeKeyup = true;
@@ -772,6 +1121,7 @@
     if (!SESSION_ID_RE.test(requestedSessionId || '')) {
       return { ok: false, error: { code: 'invalid-picker-session' } };
     }
+    if (!available()) return { ok: false, error: { code: 'picker-unavailable' } };
     if (isSessionActive()) {
       return sessionId === requestedSessionId
         ? { ok: true }
@@ -783,13 +1133,13 @@
     const topLayerError = activeTopLayerError();
     if (topLayerError) return { ok: false, error: { code: topLayerError } };
 
-    returnFocus = document.activeElement;
+    returnFocus = deepActiveElement();
     hiddenFocusTarget = null;
     removeUi();
     mode = 'starting';
     startupCanResume = false;
     sessionId = requestedSessionId;
-    startedUrl = location.href;
+    startedRoute = captureRouteIdentity();
     const generation = ++sessionGeneration;
     try {
       await loadSettingsWithTimeout();
@@ -802,7 +1152,7 @@
     if (generation !== sessionGeneration || mode !== 'starting' || sessionId !== requestedSessionId) {
       return { ok: false, error: { code: 'picker-cancelled' } };
     }
-    if (location.href !== startedUrl || document.visibilityState === 'hidden') {
+    if (!routeIsCurrent() || document.visibilityState === 'hidden') {
       stop('page-changed');
       return { ok: false, error: { code: 'page-changed' } };
     }
@@ -829,12 +1179,7 @@
     coach?.focus({ preventScroll: true });
     sessionTimer = setTimeout(() => stop('timeout'), SESSION_TIMEOUT_MS);
     routeTimer = setInterval(() => {
-      if (
-        !host?.isConnected ||
-        location.href !== startedUrl ||
-        activeTopLayerError() ||
-        !shieldCoversViewport()
-      ) {
+      if (!host?.isConnected || !routeIsCurrent() || activeTopLayerError() || !shieldCoversViewport()) {
         stop('page-changed');
       }
     }, 500);
@@ -851,8 +1196,15 @@
   }
 
   function onEffectiveSettingsChanged(effective) {
-    if (effective?.enabled === false && mode === 'active') stop('paused');
+    if (effective?.enabled === false && isSessionActive()) stop('paused');
   }
+
+  function onRouteChanged() {
+    navigationGeneration += 1;
+    if (mode !== 'idle') stop('page-changed');
+  }
+
+  window.navigation?.addEventListener?.('currententrychange', onRouteChanged);
 
   window.addEventListener('pointermove', handlePointer, eventOptions);
   window.addEventListener('pointerdown', handlePointer, eventOptions);
@@ -923,7 +1275,7 @@
     if (document.fullscreenElement) stop('fullscreen-active');
   });
   window.addEventListener('blur', () => {
-    activePointers.clear();
+    clearTrackedPointers();
     if (mode === 'settling') completePointerSettle();
   });
   document.addEventListener('visibilitychange', () => {
@@ -931,6 +1283,7 @@
   });
 
   BYEBAR.picker = {
+    available,
     start,
     cancel,
     state,

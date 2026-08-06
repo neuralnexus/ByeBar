@@ -26,12 +26,24 @@ describe('manifest.json', () => {
     expect(manifest.content_scripts[0].css).toEqual(['content/styles.css']);
   });
 
+  it('declares only the permissions required for settings, active-tab UI, and route safety', () => {
+    expect(manifest.permissions).toEqual(['storage', 'activeTab']);
+  });
+
   it('declares safari minimum version', () => {
     expect(manifest.browser_specific_settings?.safari?.strict_min_version).toBe('16.4');
   });
 
-  it('supports currently signed Firefox releases', () => {
-    expect(manifest.browser_specific_settings?.gecko?.strict_min_version).toBe('115.0');
+  it('targets Firefox desktop 140 with the AMO no-data declaration', () => {
+    expect(manifest.browser_specific_settings?.gecko).toEqual({
+      id: 'byebar@neuralnexus.dev',
+      strict_min_version: '140.0',
+      data_collection_permissions: {
+        required: ['none'],
+        optional: []
+      }
+    });
+    expect(manifest.browser_specific_settings).not.toHaveProperty('gecko_android');
   });
 
   it('declares crisp extension and toolbar icon sizes', () => {
@@ -58,8 +70,12 @@ describe('manifest.json', () => {
     expect(manifest.description.length).toBeLessThanOrEqual(132);
   });
 
-  it('matches package version', () => {
+  it('matches the current package and lockfile release version', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    const lock = JSON.parse(readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'));
+    expect(manifest.version).toBe('0.8.0');
     expect(manifest.version).toBe(pkg.version);
+    expect(lock.version).toBe(pkg.version);
+    expect(lock.packages[''].version).toBe(pkg.version);
   });
 });

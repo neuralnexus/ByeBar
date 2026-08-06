@@ -1,24 +1,127 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
+import { MESSAGE_PROTOCOL_VERSION } from '../lib/constants.mjs';
 import { DEFAULT_SETTINGS, normalizeSettings } from '../lib/settings.mjs';
 
-const source = readFileSync(new URL('../shared/browser.js', import.meta.url), 'utf8');
+const browserSource = readFileSync(new URL('../shared/browser.js', import.meta.url), 'utf8');
+const runtimeSource = readFileSync(new URL('../shared/runtime.generated.js', import.meta.url), 'utf8');
 
-function loadBrowserShim(extensionApi, namespace = 'chrome') {
+function loadBrowserShim(extensionApi, namespace = 'chrome', cleanupWriter = true) {
   const context = {
     [namespace]: extensionApi,
-    ByeBar: { settings: { DEFAULT_SETTINGS, normalizeSettings } },
+    ByeBar: {
+      lib: { constants: { MESSAGE_PROTOCOL_VERSION } },
+      settings: { DEFAULT_SETTINGS, normalizeSettings }
+    },
     console
   };
-  vm.runInNewContext(source, context);
+  vm.runInNewContext(browserSource, context);
+  if (cleanupWriter) context.ByeBar.browser.configureLegacySyncCleanupWriter();
   return context.ByeBar.browser;
 }
 
+function createFirefoxContentContext(pageWindow, browserApi = {}) {
+  const contentWindow = Object.create(pageWindow);
+  const context = vm.createContext({ window: contentWindow, browser: browserApi, console });
+  vm.runInContext('Object.setPrototypeOf(globalThis, window)', context);
+  return { contentWindow, context };
+}
+
+function loadRuntimeAndBrowser(context) {
+  vm.runInContext(runtimeSource, context);
+  vm.runInContext(browserSource, context);
+}
+
 describe('browser adapters', () => {
+  it('shares an isolated window namespace across Firefox content-script realms', () => {
+    const pageNamespace = { owner: 'page' };
+    const pageWindow = { ByeBar: pageNamespace };
+    const browserApi = {};
+    const { contentWindow, context } = createFirefoxContentContext(pageWindow, browserApi);
+
+    expect(
+      vm.runInContext('globalThis !== window && Object.getPrototypeOf(globalThis) === window', context)
+    ).toBe(true);
+    vm.runInContext(runtimeSource, context);
+    const namespace = contentWindow.ByeBar;
+    vm.runInContext(browserSource, context);
+
+    expect(Object.hasOwn(contentWindow, 'ByeBar')).toBe(true);
+    expect(vm.runInContext('globalThis.ByeBar === window.ByeBar', context)).toBe(true);
+    expect(contentWindow.ByeBar).toBe(namespace);
+    expect(namespace.browser.api).toBe(browserApi);
+    expect(pageWindow.ByeBar).toBe(pageNamespace);
+    expect(pageNamespace).toEqual({ owner: 'page' });
+  });
+
+  it('does not invoke inherited Firefox namespace accessors', () => {
+    const pageNamespace = { owner: 'page' };
+    const get = vi.fn(() => pageNamespace);
+    const set = vi.fn();
+    const pageWindow = {};
+    Object.defineProperty(pageWindow, 'ByeBar', { configurable: true, get, set });
+    const browserApi = {};
+    const { contentWindow, context } = createFirefoxContentContext(pageWindow, browserApi);
+
+    loadRuntimeAndBrowser(context);
+
+    const namespace = Object.getOwnPropertyDescriptor(contentWindow, 'ByeBar')?.value;
+    expect(get).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalled();
+    expect(Object.hasOwn(contentWindow, 'ByeBar')).toBe(true);
+    expect(vm.runInContext("Object.hasOwn(globalThis, 'ByeBar')", context)).toBe(true);
+    expect(namespace).not.toBe(pageNamespace);
+    expect(namespace.lib).toBeDefined();
+    expect(namespace.browser.api).toBe(browserApi);
+    expect(pageNamespace).toEqual({ owner: 'page' });
+  });
+
+  it('shadows inherited non-writable Firefox namespace properties', () => {
+    const pageNamespace = { owner: 'page' };
+    const pageWindow = {};
+    Object.defineProperty(pageWindow, 'ByeBar', {
+      configurable: false,
+      value: pageNamespace,
+      writable: false
+    });
+    const browserApi = {};
+    const { contentWindow, context } = createFirefoxContentContext(pageWindow, browserApi);
+
+    loadRuntimeAndBrowser(context);
+
+    const descriptor = Object.getOwnPropertyDescriptor(contentWindow, 'ByeBar');
+    expect(descriptor).toMatchObject({ configurable: true, enumerable: true, writable: true });
+    expect(descriptor.value).not.toBe(pageNamespace);
+    expect(descriptor.value.lib).toBeDefined();
+    expect(descriptor.value.browser.api).toBe(browserApi);
+    expect(Object.getOwnPropertyDescriptor(pageWindow, 'ByeBar')?.value).toBe(pageNamespace);
+    expect(pageNamespace).toEqual({ owner: 'page' });
+  });
+
+  it.each([
+    ['worker', 'globalThis.self = globalThis', 'self'],
+    ['popup', 'globalThis.window = globalThis', 'window']
+  ])('uses one namespace in %s contexts', (_contextType, setup, scope) => {
+    const context = vm.createContext({ browser: {}, console });
+    vm.runInContext(setup, context);
+    vm.runInContext(runtimeSource, context);
+    vm.runInContext(browserSource, context);
+
+    expect(vm.runInContext(`${scope}.ByeBar === globalThis.ByeBar`, context)).toBe(true);
+    expect(vm.runInContext('Boolean(globalThis.ByeBar.lib && globalThis.ByeBar.browser)', context)).toBe(
+      true
+    );
+  });
+
   it('supports callback-based Chrome APIs', async () => {
     const setBadgeText = vi.fn((_details, callback) => callback());
-    const stored = { enabled: false, siteOverrides: { 'legacy.example': false } };
+    const stored = {
+      settingsSchemaVersion: 1,
+      enabled: false,
+      tosAccept: false,
+      siteOverrides: { 'legacy.example': false }
+    };
     const localStored = { enabled: true, siteOverrides: { 'stale.example': true } };
     const chrome = {
       runtime: {
@@ -32,10 +135,6 @@ describe('browser adapters', () => {
         sync: {
           get(_keys, callback) {
             callback(stored);
-          },
-          set(values, callback) {
-            Object.assign(stored, values);
-            callback();
           },
           remove(keys, callback) {
             keys.forEach((key) => delete stored[key]);
@@ -70,8 +169,12 @@ describe('browser adapters', () => {
     });
     await browser.storageSet({ ...DEFAULT_SETTINGS, enabled: true });
     expect(localStored.enabled).toBe(true);
-    expect(stored).not.toHaveProperty('siteOverrides');
-    expect(localStored).toMatchObject({ siteOverrides: {}, siteFeatureOverrides: {} });
+    expect(stored).toEqual({});
+    expect(localStored).toMatchObject({
+      siteOverrides: {},
+      siteFeatureOverrides: {},
+      'byebar.legacySyncCleanupVersion': 1
+    });
     expect(await browser.tabsQuery({ active: true })).toEqual([{ id: 1 }]);
     expect((await browser.sendRuntimeMessage({ type: 'test' })).ok).toBe(true);
     expect(await browser.sendTabMessage(1, { type: 'test' })).toEqual({
@@ -175,18 +278,20 @@ describe('browser adapters', () => {
     );
   });
 
-  it('prefers a migrated local record and cleans stale sync settings', async () => {
-    const remove = vi.fn(async () => {});
-    const localStored = {
-      'byebar.localSettingsVersion': 1,
+  it('removes legacy sync settings only after establishing local authority', async () => {
+    const legacySync = {
       settingsSchemaVersion: 1,
-      enabled: false
+      enabled: false,
+      tosAccept: false,
+      siteOverrides: { 'legacy.example': false }
     };
+    const remove = vi.fn(async (keys) => keys.forEach((key) => delete legacySync[key]));
+    const localStored = {};
     const browserApi = {
       runtime: {},
       storage: {
         sync: {
-          get: async () => ({ settingsSchemaVersion: 1, enabled: true }),
+          get: async () => structuredClone(legacySync),
           remove
         },
         local: {
@@ -198,13 +303,199 @@ describe('browser adapters', () => {
     };
     const browser = loadBrowserShim(browserApi, 'browser');
 
-    expect((await browser.storageGet(DEFAULT_SETTINGS)).enabled).toBe(false);
-    await vi.waitFor(() => expect(localStored['byebar.legacySyncCleanupVersion']).toBe(1));
-    await browser.storageGet(DEFAULT_SETTINGS);
+    const migrated = await browser.storageGet(DEFAULT_SETTINGS);
+    expect(migrated).toMatchObject({
+      enabled: false,
+      tosAccept: false,
+      siteOverrides: { 'legacy.example': false }
+    });
+
+    await browser.storageSet({
+      ...migrated,
+      enabled: true,
+      siteOverrides: { 'new.example': true }
+    });
+
+    expect(localStored).toMatchObject({
+      'byebar.localSettingsVersion': 1,
+      enabled: true,
+      tosAccept: false,
+      siteOverrides: { 'new.example': true }
+    });
+    expect(localStored['byebar.legacySyncCleanupVersion']).toBe(1);
+    expect(await browser.storageGet(DEFAULT_SETTINGS)).toMatchObject({
+      enabled: true,
+      siteOverrides: { 'new.example': true }
+    });
+    expect(await browserApi.storage.sync.get(null)).toEqual({});
     expect(remove).toHaveBeenCalledOnce();
     expect(remove.mock.calls[0][0]).toEqual(
-      expect.arrayContaining(['locationDecline', 'netsuiteLeadRedirect'])
+      expect.arrayContaining(['settingsSchemaVersion', 'tosAccept', 'locationDecline'])
     );
+  });
+
+  it('treats a future local migration marker as authoritative on downgrade', async () => {
+    const localStored = {
+      'byebar.localSettingsVersion': 2,
+      settingsSchemaVersion: 9,
+      enabled: false,
+      genericBlocking: false,
+      tosAccept: false,
+      siteOverrides: { 'future.example': false },
+      futureSetting: { mode: 'preserve-me' }
+    };
+    const originalLocal = structuredClone(localStored);
+    const staleSync = {
+      settingsSchemaVersion: 1,
+      enabled: true,
+      genericBlocking: true,
+      siteOverrides: { 'stale.example': true }
+    };
+    const originalSync = structuredClone(staleSync);
+    const syncGet = vi.fn(async () => structuredClone(staleSync));
+    const syncSet = vi.fn(async () => {});
+    const syncRemove = vi.fn(async () => {});
+    const localSet = vi.fn(async () => {});
+    const browserApi = {
+      runtime: {},
+      storage: {
+        sync: { get: syncGet, set: syncSet, remove: syncRemove },
+        local: {
+          get: async () => structuredClone(localStored),
+          set: localSet
+        },
+        onChanged: { addListener: vi.fn() }
+      }
+    };
+    const browser = loadBrowserShim(browserApi, 'browser');
+
+    expect(await browser.storageGet(DEFAULT_SETTINGS)).toMatchObject({
+      settingsSchemaVersion: 9,
+      enabled: false,
+      genericBlocking: false,
+      siteOverrides: { 'future.example': false }
+    });
+    expect(syncGet).not.toHaveBeenCalled();
+    expect(syncSet).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(syncRemove).toHaveBeenCalledOnce());
+    expect(localSet).toHaveBeenCalledWith({ 'byebar.legacySyncCleanupVersion': 1 });
+    expect(localStored).toEqual(originalLocal);
+    expect(staleSync).toEqual(originalSync);
+  });
+
+  it('preserves a future migration marker when a downgraded version writes compatible settings', async () => {
+    const localStored = {
+      'byebar.localSettingsVersion': 2,
+      settingsSchemaVersion: 1,
+      enabled: false
+    };
+    const browserApi = {
+      runtime: {},
+      storage: {
+        sync: { get: vi.fn(async () => ({})), remove: vi.fn(async () => {}) },
+        local: {
+          get: async () => structuredClone(localStored),
+          set: async (values) => Object.assign(localStored, values)
+        },
+        onChanged: { addListener: vi.fn() }
+      }
+    };
+    const browser = loadBrowserShim(browserApi, 'browser');
+
+    const settings = await browser.storageGet(DEFAULT_SETTINGS);
+    await browser.storageSet({ ...settings, enabled: true });
+
+    expect(localStored['byebar.localSettingsVersion']).toBe(2);
+    expect(localStored.enabled).toBe(true);
+    expect(browserApi.storage.sync.get).not.toHaveBeenCalled();
+  });
+
+  it('treats a future legacy cleanup marker as complete without downgrading it', async () => {
+    const localStored = {
+      'byebar.localSettingsVersion': 1,
+      'byebar.legacySyncCleanupVersion': 4,
+      settingsSchemaVersion: 1,
+      enabled: false
+    };
+    const remove = vi.fn(async () => {});
+    const set = vi.fn(async () => {});
+    const browser = loadBrowserShim(
+      {
+        runtime: {},
+        storage: {
+          sync: { remove },
+          local: { get: async () => structuredClone(localStored), set },
+          onChanged: { addListener: vi.fn() }
+        }
+      },
+      'browser'
+    );
+
+    expect((await browser.storageGet(DEFAULT_SETTINGS)).enabled).toBe(false);
+    expect(remove).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalled();
+    expect(localStored['byebar.legacySyncCleanupVersion']).toBe(4);
+  });
+
+  it('re-reads and preserves a concurrently newer cleanup marker after removing sync keys', async () => {
+    const localStored = {
+      'byebar.localSettingsVersion': 1,
+      settingsSchemaVersion: 1,
+      enabled: true
+    };
+    const remove = vi.fn(async () => {
+      localStored['byebar.legacySyncCleanupVersion'] = 3;
+    });
+    const set = vi.fn(async (values) => Object.assign(localStored, values));
+    const browser = loadBrowserShim(
+      {
+        runtime: {},
+        storage: {
+          sync: { remove },
+          local: { get: async () => structuredClone(localStored), set },
+          onChanged: { addListener: vi.fn() }
+        }
+      },
+      'browser'
+    );
+
+    await browser.storageGet(DEFAULT_SETTINGS);
+
+    expect(remove).toHaveBeenCalledOnce();
+    expect(set).not.toHaveBeenCalled();
+    expect(localStored['byebar.legacySyncCleanupVersion']).toBe(3);
+  });
+
+  it('routes cleanup from non-writer contexts instead of racing local storage writes', async () => {
+    const localStored = {
+      'byebar.localSettingsVersion': 1,
+      settingsSchemaVersion: 1,
+      enabled: true
+    };
+    const sendMessage = vi.fn(async () => ({ ok: true }));
+    const remove = vi.fn(async () => {});
+    const set = vi.fn(async () => {});
+    const browser = loadBrowserShim(
+      {
+        runtime: { sendMessage },
+        storage: {
+          sync: { remove },
+          local: { get: async () => structuredClone(localStored), set },
+          onChanged: { addListener: vi.fn() }
+        }
+      },
+      'browser',
+      false
+    );
+
+    await browser.storageGet(DEFAULT_SETTINGS);
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: 'byebar.storage.cleanupLegacySync',
+      protocol: MESSAGE_PROTOCOL_VERSION
+    });
+    expect(remove).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalled();
   });
 
   it('prefers a local migration completed while a legacy sync read is pending', async () => {

@@ -53,7 +53,7 @@
       BYEBAR.shadow?.closestDeep(el, BYEBAR.TOS_BANNER_ANCESTORS) ||
       el.closest?.(BYEBAR.TOS_BANNER_ANCESTORS);
     if (known) return known;
-    const dialogSelector = 'dialog, [role="dialog"], [aria-modal="true"]';
+    const dialogSelector = 'dialog, [role~="dialog" i], [aria-modal="true"]';
     return BYEBAR.shadow?.closestDeep(el, dialogSelector) || el.closest?.(dialogSelector);
   }
 
@@ -101,7 +101,7 @@
     if (!BYEBAR.lib.tos.matchesTosModalText(text)) return false;
 
     const style = getComputedStyle(el);
-    const modal = el.getAttribute('role') === 'dialog' || el.getAttribute('aria-modal') === 'true';
+    const modal = BYEBAR.lib.aria.hasRole(el, 'dialog') || el.getAttribute('aria-modal') === 'true';
     const hasClassHint = cls.includes('tos-modal') || cls.includes('terms-modal');
     const positioned =
       style.position === 'fixed' ||
@@ -138,7 +138,7 @@
 
   function acceptViaTextScan(root = document) {
     const controls = queryAll(
-      'button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]',
+      'button, a[role~="button" i], input[type="button"], input[type="submit"], [role~="button" i]',
       root
     );
     for (const el of controls) {

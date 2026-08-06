@@ -98,8 +98,10 @@ When **Block promotional popups & bars** is enabled, ByeBar hides modal or fixed
 | Browser              | Minimum version | Install                                          |
 | -------------------- | --------------- | ------------------------------------------------ |
 | Chrome / Edge        | 109+            | [Load unpacked](#install-chrome--edge--firefox)  |
-| Firefox              | 115+            | [Staged temporary add-on or package](FIREFOX.md) |
+| Firefox (desktop)    | 140+            | [Staged temporary add-on or package](FIREFOX.md) |
 | Safari (macOS / iOS) | 16.4+           | [SAFARI.md](SAFARI.md)                           |
+
+Automatic blocking, Sweep, settings, and Undo support the minimum versions above. Pick additionally requires closed-shadow-root inspection and Navigation API entry identity, so it is available in Chrome/Edge 109+, Firefox 147+, and Safari 26.2+; older Firefox and Safari versions keep Pick disabled rather than risk committing a stale or protected selection.
 
 ## Install (Chrome / Edge / Firefox)
 
@@ -151,7 +153,7 @@ Open the popup from the toolbar:
 
 Use **This site** to inherit or override each setting for the current host. **Global defaults** changes the values inherited by sites without an override. **Use global defaults** clears every override for the current host.
 
-Global defaults, hostname-keyed site overrides, and the diagnostics preference stay in device-local extension storage. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Sweep page** reruns the enabled safe rules without broadening what ByeBar may act on and reports counts for direct actions from that pass. **Pick to hide** pauses automatic passes while its isolated page shield is active, commits at most one manual marker hide, and stores no selector. **Undo hide** restores up to 10 recent marker-based hide actions in the current document, newest first. Cookie, legal, and site close-button clicks cannot be undone.
+Global defaults, hostname-keyed site overrides, and the diagnostics preference use device-local extension storage. After a successful pre-0.7 migration, ByeBar removes the obsolete browser-sync settings so a later downgrade cannot revive stale site or irreversible-action choices. Diagnostic decisions contain only rule/result metadata, live in page memory, and clear on reload; no page text or telemetry is recorded. **Sweep page** reruns the enabled safe rules without broadening what ByeBar may act on and reports counts for direct actions from that pass. **Pick to hide** pauses automatic passes while its isolated page shield is active, commits at most one manual marker hide, and stores no selector. During that one-shot session it retains only opaque Navigation API entry identity so a selection cannot cross routes. **Undo hide** restores up to 10 recent marker-based hide actions in the current document, newest first. Cookie, legal, and site close-button clicks cannot be undone.
 
 ## Troubleshooting
 

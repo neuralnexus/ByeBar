@@ -61,6 +61,7 @@ function loadWorker({
   tabsQuery,
   sendTabMessage,
   setActionBadgeText,
+  cleanupLegacySync,
   setTimer = setTimeout,
   clearTimer = clearTimeout
 } = {}) {
@@ -102,7 +103,9 @@ function loadWorker({
     }),
     setActionBadgeText: vi.fn(async (details) => {
       if (setActionBadgeText) return setActionBadgeText(details);
-    })
+    }),
+    configureLegacySyncCleanupWriter: vi.fn(),
+    cleanupLegacySync: vi.fn(async () => (cleanupLegacySync ? cleanupLegacySync() : true))
   };
   const context = vm.createContext({
     self: { ByeBar: { browser, settings, lib: { constants } } },
@@ -174,6 +177,26 @@ describe('service worker protocol', () => {
       ok: false,
       error: { code: 'unknown-message', message: 'Unknown request' }
     });
+  });
+
+  it('serializes delegated legacy cleanup through the settings mutation queue', async () => {
+    let releaseCleanup;
+    const pendingCleanup = new Promise((resolve) => {
+      releaseCleanup = resolve;
+    });
+    const worker = loadWorker({ cleanupLegacySync: async () => pendingCleanup });
+    expect(worker.browser.configureLegacySyncCleanupWriter).toHaveBeenCalledOnce();
+
+    const cleanup = worker.dispatch(request('byebar.storage.cleanupLegacySync'));
+    await vi.waitFor(() => expect(worker.browser.cleanupLegacySync).toHaveBeenCalledOnce());
+    const settingsRead = worker.dispatch(request('byebar.settings.get', { host: 'example.com' }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(worker.browser.storageGet).not.toHaveBeenCalled();
+
+    releaseCleanup(true);
+    await expect(cleanup.response).resolves.toEqual({ ok: true });
+    await expect(settingsRead.response).resolves.toMatchObject({ ok: true });
+    expect(worker.browser.storageGet).toHaveBeenCalledOnce();
   });
 
   it('returns normalized, cloneable global, site, and debug state', async () => {
@@ -382,13 +405,56 @@ describe('service worker Sweep command', () => {
     ]);
 
     releaseWrite();
-    await update.response;
+    expect((await update.response).ok).toBe(true);
     await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(2));
     expect(worker.browser.sendTabMessage.mock.calls[1]).toEqual([
       15,
       { protocol, type: 'byebar.page.sweep', documentId: 'document-id' }
     ]);
   });
+
+  it.each([
+    ['storage', new Error('sync storage offline'), 'storage-unavailable'],
+    ['quota', new Error('QUOTA_BYTES_PER_ITEM quota exceeded'), 'quota-exceeded']
+  ])(
+    'fails closed on a pending %s write failure without poisoning a later command',
+    async (_kind, error, code) => {
+      const timers = createTimerHarness();
+      let rejectWrite;
+      const pendingWrite = new Promise((_resolve, reject) => {
+        rejectWrite = reject;
+      });
+      const worker = loadWorker({
+        storageSet: async () => pendingWrite,
+        setTimer: timers.setTimeout,
+        clearTimer: timers.clearTimeout
+      });
+      const update = worker.dispatch(
+        request('byebar.settings.update', { scope: 'global', key: 'enabled', value: false })
+      );
+      await vi.waitFor(() => expect(worker.browser.storageSet).toHaveBeenCalledOnce());
+
+      await worker.command('sweep-page', { id: 15 });
+      await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce());
+      expect(worker.browser.sendTabMessage.mock.calls[0]).toEqual([
+        15,
+        { protocol, type: 'byebar.page.getState' }
+      ]);
+
+      rejectWrite(error);
+      expect((await update.response).error.code).toBe(code);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(worker.browser.sendTabMessage).toHaveBeenCalledOnce();
+
+      timers.run(2_000);
+      await worker.command('sweep-page', { id: 15 });
+      await vi.waitFor(() => expect(worker.browser.sendTabMessage).toHaveBeenCalledTimes(3));
+      expect(worker.browser.sendTabMessage.mock.calls.slice(1)).toEqual([
+        [15, { protocol, type: 'byebar.page.getState' }],
+        [15, { protocol, type: 'byebar.page.sweep', documentId: 'document-id' }]
+      ]);
+    }
+  );
 
   it.each([
     ['4', sweepResponse({ counts: { ...emptySweepCounts, reversibleHides: 3, cookieDeclines: 1 } })],

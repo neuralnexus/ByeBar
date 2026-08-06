@@ -22,9 +22,11 @@
   let settingsLoaded = false;
   const metrics = { mutationFlushes: 0, mutationRoots: 0 };
 
-  const genericCandidateSelector = ['[role="dialog"]', '[aria-modal="true"]', ...BYEBAR.GENERIC_REMOVE].join(
-    ','
-  );
+  const genericCandidateSelector = [
+    '[role~="dialog" i]',
+    '[aria-modal="true"]',
+    ...BYEBAR.GENERIC_REMOVE
+  ].join(',');
   const interactionCandidateSelector = [
     genericCandidateSelector,
     BYEBAR.COOKIE_BANNER_ANCESTORS,
@@ -68,7 +70,7 @@
   function collectInteractionCandidates(root = document) {
     const candidates = new Set(queryMatches(interactionCandidateSelector, root));
     const controls = queryMatches(
-      'button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]',
+      'button, a[role~="button" i], input[type="button"], input[type="submit"], [role~="button" i]',
       root
     );
     if (root?.nodeType === 1 && !controls.includes(root)) controls.unshift(root);
@@ -212,7 +214,7 @@
   function isModal(el) {
     return (
       el?.tagName === 'DIALOG' ||
-      el?.getAttribute?.('role') === 'dialog' ||
+      LIB.aria.hasRole(el, 'dialog') ||
       el?.getAttribute?.('aria-modal') === 'true'
     );
   }
@@ -265,7 +267,7 @@
 
   function tryDismiss(el, meta) {
     if (!el?.querySelectorAll || dismissed.has(el)) return false;
-    for (const control of el.querySelectorAll('button, [role="button"]')) {
+    for (const control of el.querySelectorAll('button, [role~="button" i]')) {
       const label = LIB.text.normalizeText(
         control.getAttribute('aria-label') ||
           control.getAttribute('title') ||
@@ -372,7 +374,7 @@
     };
     const action = BYEBAR.actions.begin(meta);
     const modalSelector = [
-      '[role="dialog"]',
+      '[role~="dialog" i]',
       '[aria-modal="true"]',
       ...BYEBAR.SITE_RULES.substack.remove
     ].join(',');
@@ -392,7 +394,7 @@
     if (hiddenAny) {
       const scope = root === document ? root : root.parentElement || root;
       const scrimSelector =
-        'div[class^="background-"], div[class*=" background-"], div[class^="overlay-"], div[class*=" overlay-"], [class*="modalScrim"], [class*="modal-scrim"], [class*="ModalScrim"], [id^="radix-"][data-state="open"]:not([role="dialog"])';
+        'div[class^="background-"], div[class*=" background-"], div[class^="overlay-"], div[class*=" overlay-"], [class*="modalScrim"], [class*="modal-scrim"], [class*="ModalScrim"], [id^="radix-"][data-state="open"]:not([role~="dialog" i])';
       queryMatches(scrimSelector, scope).forEach((el) => {
         if (
           LIB.substack.isSubstackModalScrim(el, getComputedStyle, onSubstack, {
@@ -413,7 +415,7 @@
     let hiddenAny = false;
     const seen = new Set();
     const selector =
-      '[class*="_showOnMobile"], [class*="_showOnDesktop"], a[href*="/subscriptions"], [role="banner"], div, section';
+      '[class*="_showOnMobile"], [class*="_showOnDesktop"], a[href*="/subscriptions"], [role~="banner" i], div, section';
 
     queryMatches(selector, root).forEach((el) => {
       if (

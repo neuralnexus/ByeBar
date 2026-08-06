@@ -6,6 +6,25 @@
       __defProp(target, name, { get: all[name], enumerable: true });
   };
 
+  // lib/aria.mjs
+  var aria_exports = {};
+  __export(aria_exports, {
+    hasAnyRole: () => hasAnyRole,
+    hasRole: () => hasRole,
+    roleTokens: () => roleTokens
+  });
+  function roleTokens(value) {
+    return String(value || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  }
+  function hasRole(el, role) {
+    const expected = String(role || "").toLowerCase();
+    return Boolean(expected && roleTokens(el?.getAttribute?.("role")).includes(expected));
+  }
+  function hasAnyRole(el, roles) {
+    const expected = roles instanceof Set ? roles : new Set(roles || []);
+    return roleTokens(el?.getAttribute?.("role")).some((role) => expected.has(role));
+  }
+
   // lib/bloomberg-heuristics.mjs
   var bloomberg_heuristics_exports = {};
   __export(bloomberg_heuristics_exports, {
@@ -190,7 +209,7 @@
   }
   function looksLikeSpinnerOverlay(el, getComputedStyle = () => ({})) {
     if (!el || !matchesSpinnerText(el.textContent || "")) return false;
-    const modal = el.getAttribute?.("role") === "dialog" || el.getAttribute?.("aria-modal") === "true";
+    const modal = hasRole(el, "dialog") || el.getAttribute?.("aria-modal") === "true";
     const style = getComputedStyle(el);
     if (el.hidden || el.getAttribute?.("aria-hidden") === "true" || style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
       return false;
@@ -222,7 +241,7 @@
       if (positioned && highZ && hasSpinnerText) {
         return node;
       }
-      if ((node.getAttribute?.("role") === "dialog" || node.getAttribute?.("aria-modal") === "true") && hasSpinnerText) {
+      if ((hasRole(node, "dialog") || node.getAttribute?.("aria-modal") === "true") && hasSpinnerText) {
         return node;
       }
       const parent = node.parentElement;
@@ -352,6 +371,7 @@
     isSubstackPageHtml: () => isSubstackPageHtml,
     isSubstackSite: () => isSubstackSite,
     normalizeHost: () => normalizeHost,
+    parseUrlContext: () => parseUrlContext,
     siteEnabledForHost: () => siteEnabledForHost
   });
 
@@ -373,6 +393,14 @@
   });
   var HOST_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i;
   var MAX_SITE_OVERRIDES = 500;
+  function isIpv6Host(host) {
+    if (!/^\[[0-9a-f:.]+\]$/i.test(host)) return false;
+    try {
+      return new URL(`http://${host}/`).hostname.toLowerCase() === host.toLowerCase();
+    } catch {
+      return false;
+    }
+  }
   function validationError(message, code = "invalid-setting") {
     const error = new TypeError(message);
     error.code = code;
@@ -385,7 +413,7 @@
     if (typeof host !== "string") return "";
     const key = host.trim().replace(/^www\./i, "").slice(0, 253).toLowerCase();
     if (!key || key === "__proto__" || key === "prototype" || key === "constructor") return "";
-    return HOST_RE.test(key) ? key : "";
+    return HOST_RE.test(key) || isIpv6Host(key) ? key : "";
   }
   function isFeatureKey(key) {
     return FEATURE_KEYS.includes(key);
@@ -548,10 +576,14 @@
     return normalizeHostKey(hostname);
   }
   function normalizeHost(url) {
+    return parseUrlContext(url).host;
+  }
+  function parseUrlContext(url) {
+    if (typeof url !== "string" || !url.trim()) return { readable: false, host: "" };
     try {
-      return hostKey(new URL(url).hostname);
+      return { readable: true, host: hostKey(new URL(url).hostname) };
     } catch {
-      return "";
+      return { readable: false, host: "" };
     }
   }
   function siteEnabledForHost(settings, hostname) {
@@ -581,7 +613,7 @@
     if (!el) return null;
     let node = el;
     for (let depth = 0; depth < 10 && node; depth += 1) {
-      const modal = node.tagName === "DIALOG" || node.getAttribute?.("role") === "dialog" || node.getAttribute?.("aria-modal") === "true";
+      const modal = node.tagName === "DIALOG" || hasRole(node, "dialog") || node.getAttribute?.("aria-modal") === "true";
       const position = getStyle(node).position;
       if (modal || position === "fixed" || position === "sticky") return node;
       const parent = node.parentElement;
@@ -595,8 +627,8 @@
     if (["HEADER", "NAV", "FOOTER"].includes(el.tagName)) return false;
     const label = [el.getAttribute?.("aria-label"), el.getAttribute?.("title"), el.textContent].filter(Boolean).join(" ");
     if (!matchesPromotionalOverlayText(label)) return false;
-    const modal = el.tagName === "DIALOG" || el.getAttribute?.("role") === "dialog" || el.getAttribute?.("aria-modal") === "true";
-    if (el.querySelector?.('nav, [role="navigation"]')) return false;
+    const modal = el.tagName === "DIALOG" || hasRole(el, "dialog") || el.getAttribute?.("aria-modal") === "true";
+    if (el.querySelector?.('nav, [role~="navigation" i]')) return false;
     const style = getStyle(el);
     if (el.hidden || el.getAttribute?.("aria-hidden") === "true" || style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
       return false;
@@ -627,6 +659,7 @@
   var pick_heuristics_exports = {};
   __export(pick_heuristics_exports, {
     composedParent: () => composedParent,
+    isSafePickTarget: () => isSafePickTarget,
     resolvePickCandidate: () => resolvePickCandidate
   });
   var PROTECTED_TAGS = /* @__PURE__ */ new Set([
@@ -675,21 +708,64 @@
     "treegrid",
     "treeitem"
   ]);
-  var APP_ROOT_IDS = /* @__PURE__ */ new Set(["app", "root", "__next", "__nuxt"]);
+  var APP_ROOT_IDS = /* @__PURE__ */ new Set([
+    "app",
+    "app-root",
+    "application",
+    "page",
+    "page-root",
+    "root",
+    "__next",
+    "__nuxt",
+    "___gatsby",
+    "gatsby-focus-wrapper"
+  ]);
   var PROTECTED_ROLES = /* @__PURE__ */ new Set(["application", "banner", "contentinfo", "main", "navigation"]);
+  var SHADOW_HOST_TAGS = /* @__PURE__ */ new Set([
+    "ARTICLE",
+    "ASIDE",
+    "BLOCKQUOTE",
+    "BODY",
+    "DIV",
+    "FOOTER",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "HEADER",
+    "MAIN",
+    "NAV",
+    "P",
+    "SECTION",
+    "SPAN"
+  ]);
+  var LANDMARK_SELECTOR = 'main, article, nav, [role~="application" i], [role~="banner" i], [role~="contentinfo" i], [role~="main" i], [role~="navigation" i]';
+  var DEFAULT_LANDMARK_SCAN_ELEMENTS = 5e3;
   function composedParent(el) {
     if (!el) return null;
     return el.assignedSlot || el.parentElement || el.getRootNode?.()?.host || null;
   }
+  function isComposedWithin(el, ancestor) {
+    if (!ancestor) return false;
+    const visited = /* @__PURE__ */ new Set();
+    let node = el;
+    while (node && !visited.has(node)) {
+      if (node === ancestor) return true;
+      visited.add(node);
+      node = composedParent(node);
+    }
+    return false;
+  }
   function isInteractive(el) {
     const tagName = String(el?.tagName || "").toUpperCase();
-    const role = String(el?.getAttribute?.("role") || "").toLowerCase();
-    const modalContainer = tagName === "DIALOG" || role === "dialog" || el?.getAttribute?.("aria-modal") === "true";
+    const modalContainer = tagName === "DIALOG" || hasRole(el, "dialog") || el?.getAttribute?.("aria-modal") === "true";
     const linked = (tagName === "A" || tagName === "AREA") && el?.hasAttribute?.("href");
     const mediaControl = (tagName === "AUDIO" || tagName === "VIDEO") && el?.hasAttribute?.("controls");
     const keyboardFocusable = !modalContainer && el?.hasAttribute?.("tabindex") && Number(el.tabIndex) >= 0;
     return Boolean(
-      INTERACTIVE_TAGS.has(tagName) || linked || mediaControl || keyboardFocusable || el?.isContentEditable || INTERACTIVE_ROLES.has(role)
+      INTERACTIVE_TAGS.has(tagName) || linked || mediaControl || keyboardFocusable || el?.isContentEditable || hasAnyRole(el, INTERACTIVE_ROLES)
     );
   }
   function isNativeModal(el) {
@@ -718,16 +794,106 @@
     if (right <= 0 || bottom <= 0 || rect.left >= viewport.width || rect.top >= viewport.height) return null;
     return rect;
   }
-  function containsPageLandmark(el) {
-    try {
-      return Boolean(
-        el.querySelector?.(
-          'main, article, nav, [role="application"], [role="banner"], [role="contentinfo"], [role="main"], [role="navigation"]'
-        )
-      );
-    } catch {
-      return true;
+  function canHostShadowRoot(el) {
+    const name = String(el?.localName || el?.tagName || "").toLowerCase();
+    return name.includes("-") || SHADOW_HOST_TAGS.has(String(el?.tagName || "").toUpperCase());
+  }
+  function scanState(provided) {
+    if (provided && Number.isSafeInteger(provided.remaining) && provided.remaining >= 0 && typeof provided.landmarkCache?.has === "function" && typeof provided.landmarkCache?.get === "function" && typeof provided.landmarkCache?.set === "function") {
+      return provided;
     }
+    return { remaining: DEFAULT_LANDMARK_SCAN_ELEMENTS, landmarkCache: /* @__PURE__ */ new WeakMap() };
+  }
+  function containsPageLandmark(el, getShadowRoot, canInspectClosedRoots, providedScan) {
+    const scan = scanState(providedScan);
+    if (scan.landmarkCache.has(el)) return scan.landmarkCache.get(el);
+    const pending = [{ node: el, siblings: false, counted: false }];
+    const visited = /* @__PURE__ */ new Set();
+    let protectedSubtree = false;
+    while (pending.length > 0) {
+      const item = pending.pop();
+      if (item.slot) {
+        const candidate = item.node;
+        if (!candidate) continue;
+        if (candidate.nextElementSibling) {
+          pending.push({ ...item, node: candidate.nextElementSibling });
+        }
+        if (scan.remaining === 0) {
+          protectedSubtree = true;
+          break;
+        }
+        scan.remaining -= 1;
+        if (candidate.assignedSlot === item.slot) {
+          pending.push({ node: candidate, siblings: false, counted: true });
+        }
+        continue;
+      }
+      const node = item.node;
+      if (!node) continue;
+      if (item.siblings && node.nextElementSibling) {
+        pending.push({ node: node.nextElementSibling, siblings: true, counted: false });
+      }
+      if (visited.has(node)) continue;
+      visited.add(node);
+      if (!item.counted) {
+        if (scan.remaining === 0) {
+          protectedSubtree = true;
+          break;
+        }
+        scan.remaining -= 1;
+      }
+      try {
+        if (node.matches?.(LANDMARK_SELECTOR)) {
+          protectedSubtree = true;
+          break;
+        }
+        if (String(node.tagName || "").toUpperCase() === "SLOT") {
+          const slotHost = node.getRootNode?.()?.host;
+          if (slotHost?.firstElementChild) {
+            pending.push({ slot: node, node: slotHost.firstElementChild });
+          } else if (!slotHost && typeof node.assignedElements === "function") {
+            protectedSubtree = true;
+            break;
+          }
+        }
+        if (canHostShadowRoot(node)) {
+          const shadowRoot = getShadowRoot(node);
+          if (shadowRoot?.firstElementChild) {
+            pending.push({ node: shadowRoot.firstElementChild, siblings: true, counted: false });
+          } else if (!shadowRoot && !canInspectClosedRoots(node)) {
+            protectedSubtree = true;
+            break;
+          }
+        }
+        if (node.firstElementChild) {
+          pending.push({ node: node.firstElementChild, siblings: true, counted: false });
+        }
+      } catch {
+        protectedSubtree = true;
+        break;
+      }
+    }
+    scan.landmarkCache.set(el, protectedSubtree);
+    return protectedSubtree;
+  }
+  function isSafePickTarget(candidate, {
+    documentRoot = null,
+    pickerHost = null,
+    fullscreenElement = null,
+    isHidden = () => false,
+    getShadowRoot = (el) => el?.shadowRoot || null,
+    canInspectClosedRoots = () => false,
+    scan = null
+  } = {}) {
+    const tagName = String(candidate?.tagName || "").toUpperCase();
+    if (!candidate || isComposedWithin(candidate, pickerHost) || candidate.isConnected === false || PROTECTED_TAGS.has(tagName) || hasAnyRole(candidate, PROTECTED_ROLES) || APP_ROOT_IDS.has(String(candidate.id || "").toLowerCase()) || isInteractive(candidate) || isNativeModal(candidate) || isHidden(candidate)) {
+      return false;
+    }
+    if (documentRoot && candidate.ownerDocument && candidate.ownerDocument !== documentRoot) return false;
+    if (fullscreenElement && (fullscreenElement === candidate || fullscreenElement.contains?.(candidate))) {
+      return false;
+    }
+    return !containsPageLandmark(candidate, getShadowRoot, canInspectClosedRoots, scan);
   }
   function resolvePickCandidate(hit, {
     getStyle = () => ({}),
@@ -735,9 +901,12 @@
     documentRoot = null,
     pickerHost = null,
     fullscreenElement = null,
-    isHidden = () => false
+    isHidden = () => false,
+    getShadowRoot = (el) => el?.shadowRoot || null,
+    canInspectClosedRoots = () => false,
+    scan = null
   } = {}) {
-    if (!hit || hit === pickerHost) return null;
+    if (!hit || isComposedWithin(hit, pickerHost)) return null;
     let node = hit;
     let promoted = null;
     let interactiveAncestor = null;
@@ -745,7 +914,7 @@
       if (node === pickerHost) return null;
       if (isInteractive(node)) interactiveAncestor ||= node;
       const style2 = styleFor(node, getStyle);
-      const modal = String(node.tagName || "").toUpperCase() === "DIALOG" || node.getAttribute?.("role") === "dialog" || node.getAttribute?.("aria-modal") === "true";
+      const modal = String(node.tagName || "").toUpperCase() === "DIALOG" || hasRole(node, "dialog") || node.getAttribute?.("aria-modal") === "true";
       if (modal || style2.position === "fixed" || style2.position === "sticky") {
         promoted = node;
         break;
@@ -761,15 +930,16 @@
       const parent = composedParent(candidate);
       if ((style2.display === "inline" || style2.display === "contents") && parent) candidate = parent;
     }
-    const tagName = String(candidate?.tagName || "").toUpperCase();
-    const role = String(candidate?.getAttribute?.("role") || "").toLowerCase();
-    if (!candidate || candidate === pickerHost || candidate.isConnected === false || PROTECTED_TAGS.has(tagName) || PROTECTED_ROLES.has(role) || APP_ROOT_IDS.has(String(candidate.id || "").toLowerCase()) || isInteractive(candidate) || isNativeModal(candidate) || isHidden(candidate)) {
+    if (!isSafePickTarget(candidate, {
+      documentRoot,
+      pickerHost,
+      fullscreenElement,
+      isHidden,
+      getShadowRoot,
+      canInspectClosedRoots,
+      scan
+    }))
       return null;
-    }
-    if (documentRoot && candidate.ownerDocument && candidate.ownerDocument !== documentRoot) return null;
-    if (fullscreenElement && (fullscreenElement === candidate || fullscreenElement.contains?.(candidate)))
-      return null;
-    if (containsPageLandmark(candidate)) return null;
     const style = styleFor(candidate, getStyle);
     const rect = visibleRect(candidate, style, viewport);
     return rect ? { target: candidate, rect } : null;
@@ -826,11 +996,11 @@
   function hasSubstackSignupActions(el, onSubstackPage = false) {
     if (!onSubstackPage || !el?.querySelector) return false;
     const text = el.textContent || "";
-    return Boolean(el.querySelector('button, a[role="button"]') && SUBSTACK_ACTION_TEXT_RE.test(text));
+    return Boolean(el.querySelector('button, a[role~="button" i]') && SUBSTACK_ACTION_TEXT_RE.test(text));
   }
   function isSubstackRadixDialog(el, onSubstackPage = false) {
     if (!el || el.nodeType !== 1) return false;
-    if (el.getAttribute("role") !== "dialog") return false;
+    if (!hasRole(el, "dialog")) return false;
     const hasModalChrome = el.getAttribute("data-testid") === "modal" || Boolean(el.querySelector?.('[data-modal-role="header"], [data-modal-role="footer"]'));
     if (!hasModalChrome) return false;
     return matchesSubstackSignupText(el.textContent || "", onSubstackPage) || hasSubstackSignupActions(el, onSubstackPage);
@@ -853,7 +1023,7 @@
   }
   function isSubstackRadixBackdrop(el, onSubstackPage = false) {
     if (!el || el.nodeType !== 1) return false;
-    if (el.getAttribute("role") === "dialog") return false;
+    if (hasRole(el, "dialog")) return false;
     if ((el.textContent || "").trim().length > 0) return false;
     const id = el.id || "";
     if (id.startsWith("radix-") && el.getAttribute("data-state") === "open") {
@@ -867,7 +1037,7 @@
   }
   function looksLikeSubstackSignupModal(el, onSubstackPage = false) {
     if (!el || el.nodeType !== 1) return false;
-    if (el.getAttribute("role") !== "dialog" && el.getAttribute("aria-modal") !== "true") {
+    if (!hasRole(el, "dialog") && el.getAttribute("aria-modal") !== "true") {
       return false;
     }
     if (onSubstackPage && /subscribe/i.test(el.getAttribute?.("aria-label") || "")) return true;
@@ -929,8 +1099,21 @@
   }
 
   // src/classic-runtime.mjs
-  var BYEBAR = globalThis.ByeBar ||= {};
+  var namespaceScope = typeof window === "undefined" ? globalThis : window;
+  var ownNamespace = (scope) => Object.getOwnPropertyDescriptor(scope, "ByeBar")?.value;
+  var BYEBAR = ownNamespace(namespaceScope) || (namespaceScope === globalThis ? null : ownNamespace(globalThis)) || {};
+  function installNamespace(scope) {
+    Object.defineProperty(scope, "ByeBar", {
+      configurable: true,
+      enumerable: true,
+      value: BYEBAR,
+      writable: true
+    });
+  }
+  installNamespace(namespaceScope);
+  if (namespaceScope !== globalThis) installNamespace(globalThis);
   BYEBAR.lib = Object.freeze({
+    aria: aria_exports,
     bloomberg: bloomberg_heuristics_exports,
     chinaCommerce: china_commerce_heuristics_exports,
     constants: constants_exports,

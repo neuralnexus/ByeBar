@@ -8,7 +8,8 @@ const source = readFileSync(new URL('../content/actions.js', import.meta.url), '
 function loadActions(
   localGet = async (defaults) => defaults,
   visibilityOverrides = {},
-  pickerOverrides = {}
+  pickerOverrides = {},
+  documentOverrides = {}
 ) {
   const listeners = {};
   const browser = {
@@ -33,7 +34,8 @@ function loadActions(
     body: null,
     hasFocus: () => true,
     addEventListener: vi.fn(),
-    querySelector: () => null
+    querySelector: () => null,
+    ...documentOverrides
   };
   const engine = {
     sweepPage: vi.fn(async () => ({
@@ -62,7 +64,7 @@ function loadActions(
     console
   });
   vm.runInContext(source, context);
-  return { actions: ByeBar.actions, engine, listeners, picker };
+  return { actions: ByeBar.actions, document, engine, listeners, picker };
 }
 
 function createActionVisibility() {
@@ -142,6 +144,21 @@ describe('page action state', () => {
     );
   });
 
+  it('omits and rejects Pick when the picker cannot inspect closed roots', async () => {
+    const start = vi.fn(async () => ({ ok: true }));
+    const loaded = loadActions(undefined, {}, { available: () => false, start });
+    await loaded.actions.ready;
+
+    expect(loaded.actions.pageState().capabilities).toEqual(['sweep']);
+    await expect(
+      sendPageRequest(loaded.listeners, 'byebar.page.pick.start', {
+        documentId: 'document-id',
+        sessionId: 'pick-1'
+      })
+    ).resolves.toEqual({ ok: false, error: { code: 'picker-unavailable' } });
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it('rejects stale sweeps before scanning and returns the current sweep result', async () => {
     const { actions, engine, listeners } = loadActions();
     await actions.ready;
@@ -211,6 +228,17 @@ describe('page action state', () => {
       outcome: 'applied',
       counts: { reversibleHides: 2, dismissActions: 1, cookieDeclines: 1, legalAccepts: 1 }
     });
+  });
+
+  it('does not record a hide that fails post-focus validation', () => {
+    const visibility = createActionVisibility();
+    const { actions } = loadActions(undefined, visibility);
+    const action = actions.begin({ operation: 'hide' });
+    expect(actions.hide(action, {}, 'manual')).toBe(true);
+
+    expect(actions.commit(action, () => false)).toBe(false);
+    expect(actions.pageState().lastAction).toBeNull();
+    expect(actions.pageState().undoActionCount).toBe(0);
   });
 
   it('routes document-scoped picker sessions and blocks other page actions while active', async () => {
@@ -384,5 +412,98 @@ describe('page action state', () => {
     expect(actions.hide(repick, element, 'manual', { userInitiated: true })).toBe(true);
     expect(actions.commit(repick)).toBe(true);
     expect(actions.isSuppressed(element)).toBe(false);
+  });
+
+  it('exposes suppression for late restored copies', () => {
+    const visibility = createActionVisibility();
+    const { actions } = loadActions(undefined, visibility);
+    const element = {};
+
+    actions.suppress(element);
+    const automatic = actions.begin({ operation: 'hide' });
+    expect(actions.hide(automatic, element, 'generic')).toBe(false);
+
+    const manual = actions.begin({ operation: 'hide' });
+    expect(actions.hide(manual, element, 'manual', { userInitiated: true })).toBe(true);
+    expect(actions.isSuppressed(element)).toBe(false);
+  });
+
+  it('preserves a synchronous page tabindex change while repairing focus', () => {
+    const attributes = new Map([['tabindex', '0']]);
+    const fallback = {
+      hasAttribute: (name) => attributes.has(name),
+      getAttribute: (name) => attributes.get(name) ?? null,
+      setAttribute: (name, value) => attributes.set(name, String(value)),
+      removeAttribute: (name) => attributes.delete(name),
+      addEventListener: vi.fn(),
+      focus: () => attributes.set('tabindex', '7')
+    };
+    const target = {};
+    const visibility = createActionVisibility();
+    const { actions } = loadActions(
+      undefined,
+      visibility,
+      {},
+      {
+        activeElement: target,
+        body: fallback,
+        querySelector: () => fallback
+      }
+    );
+    const action = actions.begin({ operation: 'hide' });
+
+    expect(actions.hide(action, target, 'generic')).toBe(true);
+    expect(actions.commit(action)).toBe(true);
+    expect(fallback.getAttribute('tabindex')).toBe('7');
+  });
+
+  it('does not remove a page-owned tabindex from the temporary fallback blur handler', () => {
+    const attributes = new Map();
+    let onBlur = null;
+    const fallback = {
+      hasAttribute: (name) => attributes.has(name),
+      getAttribute: (name) => attributes.get(name) ?? null,
+      setAttribute: (name, value) => attributes.set(name, String(value)),
+      removeAttribute: (name) => attributes.delete(name),
+      addEventListener: (_type, listener) => (onBlur = listener),
+      focus: vi.fn()
+    };
+    const target = {};
+    const visibility = createActionVisibility();
+    const { actions } = loadActions(
+      undefined,
+      visibility,
+      {},
+      {
+        activeElement: target,
+        body: fallback,
+        querySelector: () => fallback
+      }
+    );
+    const action = actions.begin({ operation: 'hide' });
+
+    expect(actions.hide(action, target, 'generic')).toBe(true);
+    expect(actions.commit(action)).toBe(true);
+    fallback.setAttribute('tabindex', '7');
+    onBlur();
+    expect(fallback.getAttribute('tabindex')).toBe('7');
+  });
+
+  it('suppresses every current copy returned by Undo', async () => {
+    const visibility = createActionVisibility();
+    const restoreOriginal = visibility.restoreAction;
+    const copy = {};
+    visibility.restoreAction = vi.fn((actionId) => [...restoreOriginal(actionId), copy]);
+    const { actions, listeners } = loadActions(undefined, visibility);
+    const { action, element } = commitHide(actions);
+    await actions.ready;
+
+    await sendPageRequest(listeners, 'byebar.page.undo', {
+      documentId: 'document-id',
+      actionId: action.id
+    });
+
+    expect(actions.isSuppressed(element)).toBe(true);
+    expect(actions.isSuppressed(copy)).toBe(true);
   });
 });

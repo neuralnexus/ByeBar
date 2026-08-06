@@ -14,8 +14,8 @@ Upload a package in the [Chrome Developer Dashboard](https://chrome.google.com/w
 
 | Mode         | File                           | When                                              |
 | ------------ | ------------------------------ | ------------------------------------------------- |
-| Default      | `dist/byebar-chrome-0.7.0.zip` | Before opting in to verified CRX uploads          |
-| Verified CRX | `dist/byebar-chrome-0.7.0.crx` | After opting in (required for all future uploads) |
+| Default      | `dist/byebar-chrome-0.8.0.zip` | Before opting in to verified CRX uploads          |
+| Verified CRX | `dist/byebar-chrome-0.8.0.crx` | After opting in (required for all future uploads) |
 
 ## Verified CRX uploads (optional security)
 

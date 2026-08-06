@@ -7,7 +7,7 @@ Architecture, quality gates, and contributor workflow.
 | Platform              | Minimum version | Notes                              |
 | --------------------- | --------------- | ---------------------------------- |
 | Chrome / Edge         | 109+            | Load `dist/stage/chrome`           |
-| Firefox               | 115+            | Load `dist/stage/firefox`          |
+| Firefox (desktop)     | 140+            | Load `dist/stage/firefox`          |
 | Safari (macOS)        | 16.4+           | Build via `npm run build:safari`   |
 | Safari (iOS / iPadOS) | 16.4+           | Same Xcode project; syncs from Mac |
 
@@ -206,4 +206,4 @@ Live-site manual checks still include:
 | `activeTab`       | Popup reads the active tab hostname                               |
 | `<all_urls>` host | Content scripts run in eligible top-level pages to catch overlays |
 
-No `webRequest`, `declarativeNetRequest`, or broad history access ; ByeBar does not intercept network traffic.
+No `webRequest`, `webNavigation`, or `declarativeNetRequest`; ByeBar does not inspect browser history or intercept network traffic.

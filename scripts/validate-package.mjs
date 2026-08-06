@@ -13,6 +13,8 @@ const CANONICAL_FILE_MODE = 0o100644;
 const CANONICAL_VERSION_MADE_BY = 0x031e;
 const STORE_COMPRESSION = 0;
 const DEFLATE_COMPRESSION = 8;
+const STORE_VERSION_NEEDED = 10;
+const DEFLATE_VERSION_NEEDED = 20;
 
 function assertArchiveEntry(entry) {
   const normalized = posix.normalize(entry);
@@ -60,6 +62,7 @@ export function centralDirectoryEntries(buffer) {
     if (offset + 46 > eocd) throw new Error('truncated ZIP central-directory entry');
     if (buffer.readUInt32LE(offset) !== 0x02014b50) throw new Error('invalid ZIP central-directory entry');
     const versionMadeBy = buffer.readUInt16LE(offset + 4);
+    const versionNeeded = buffer.readUInt16LE(offset + 6);
     const flags = buffer.readUInt16LE(offset + 8);
     const compression = buffer.readUInt16LE(offset + 10);
     const dosTime = buffer.readUInt16LE(offset + 12);
@@ -81,7 +84,10 @@ export function centralDirectoryEntries(buffer) {
       .toString('utf8');
     entries.push({
       name,
+      centralHeaderOffset: offset,
+      localHeaderOffset,
       versionMadeBy,
+      versionNeeded,
       flags,
       compression,
       dosTime,
@@ -90,6 +96,7 @@ export function centralDirectoryEntries(buffer) {
       commentLength,
       uncompressedSize: buffer.readUInt32LE(offset + 24),
       mode: externalAttributes >>> 16,
+      localVersionNeeded: buffer.readUInt16LE(localHeaderOffset + 4),
       localFlags: buffer.readUInt16LE(localHeaderOffset + 6),
       localCompression: buffer.readUInt16LE(localHeaderOffset + 8),
       localDosTime: buffer.readUInt16LE(localHeaderOffset + 10),
@@ -131,6 +138,11 @@ export async function validatePackage(archivePath, stageDir) {
     const expectedCompression = entry.uncompressedSize === 0 ? STORE_COMPRESSION : DEFLATE_COMPRESSION;
     if (entry.compression !== expectedCompression || entry.localCompression !== expectedCompression) {
       throw new Error(`archive compression is not canonical: ${entry.name}`);
+    }
+    const expectedVersionNeeded =
+      expectedCompression === STORE_COMPRESSION ? STORE_VERSION_NEEDED : DEFLATE_VERSION_NEEDED;
+    if (entry.versionNeeded !== expectedVersionNeeded || entry.localVersionNeeded !== expectedVersionNeeded) {
+      throw new Error(`archive version-needed is not canonical: ${entry.name}`);
     }
     if (
       entry.dosTime !== CANONICAL_DOS_TIME ||

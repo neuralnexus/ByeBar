@@ -113,8 +113,15 @@
     const previousTabIndex = fallback.getAttribute('tabindex');
     fallback.setAttribute('tabindex', '-1');
     fallback.focus({ preventScroll: true });
+    if (fallback.getAttribute('tabindex') !== '-1') return;
     if (previousTabIndex === null) {
-      fallback.addEventListener('blur', () => fallback.removeAttribute('tabindex'), { once: true });
+      fallback.addEventListener(
+        'blur',
+        () => {
+          if (fallback.getAttribute('tabindex') === '-1') fallback.removeAttribute('tabindex');
+        },
+        { once: true }
+      );
     } else fallback.setAttribute('tabindex', previousTabIndex);
   }
 
@@ -176,9 +183,10 @@
     return undoHistory[undoHistory.length - 1] || null;
   }
 
-  function commit(action) {
+  function commit(action, validate = null) {
     if (!action?.targets.length) return false;
     repairFocusAfterHide(action.previousFocus, action.targets);
+    if (validate && !validate()) return false;
     const completed = {
       id: action.id,
       at: action.at,
@@ -225,8 +233,14 @@
     return suppressed.has(el);
   }
 
+  function suppress(el) {
+    if (el) suppressed.add(el);
+  }
+
   function pageState() {
     const latestReversibleAction = pruneUndoHistory();
+    const pickerState = BYEBAR.picker?.state?.() || { active: false, busy: false, sessionId: '' };
+    const supportsPick = BYEBAR.picker?.available?.() !== false;
     const action = latestAction
       ? {
           ...latestAction,
@@ -242,8 +256,8 @@
     return {
       ok: true,
       documentId,
-      capabilities: ['sweep', 'pick'],
-      picker: BYEBAR.picker?.state?.() || { active: false, busy: false, sessionId: '' },
+      capabilities: supportsPick ? ['sweep', 'pick'] : ['sweep'],
+      picker: pickerState,
       lastAction: action,
       undoAction,
       undoActionCount: undoHistory.length,
@@ -268,7 +282,7 @@
       return { ok: false, error: { code: 'target-gone' } };
     }
     undoHistory.pop();
-    restored.forEach((el) => suppressed.add(el));
+    restored.forEach(suppress);
     pushDecision({ ...latestReversibleAction, operation: 'undo', reason: 'user-request' }, 'applied', false);
     latestAction = {
       ...latestReversibleAction,
@@ -293,7 +307,9 @@
 
   async function startPicker(message) {
     if (message.documentId !== documentId) return { ok: false, error: { code: 'stale-document' } };
-    if (!BYEBAR.picker?.start) return { ok: false, error: { code: 'picker-unavailable' } };
+    if (!BYEBAR.picker?.start || BYEBAR.picker.available?.() === false) {
+      return { ok: false, error: { code: 'picker-unavailable' } };
+    }
     const response = await BYEBAR.picker.start(message.sessionId);
     return response.ok ? pageState() : response;
   }
@@ -363,6 +379,7 @@
     skip,
     recordIrreversible,
     captureSweepResult,
+    suppress,
     isSuppressed,
     pageState
   };

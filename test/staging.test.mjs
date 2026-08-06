@@ -28,6 +28,7 @@ describe('target manifests', () => {
     expect(manifest.browser_specific_settings).toEqual({
       gecko: source.browser_specific_settings.gecko
     });
+    expect(manifest.browser_specific_settings).not.toHaveProperty('gecko_android');
     expect(manifest).not.toHaveProperty('minimum_chrome_version');
     expectIconsPreserved(manifest);
   });

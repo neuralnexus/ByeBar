@@ -3,8 +3,18 @@ if (typeof importScripts === 'function') {
 }
 
 const BYEBAR = self.ByeBar;
-const { api, storageGet, storageSet, localGet, localSet, tabsQuery, sendTabMessage, setActionBadgeText } =
-  BYEBAR.browser;
+const {
+  api,
+  storageGet,
+  storageSet,
+  localGet,
+  localSet,
+  tabsQuery,
+  sendTabMessage,
+  setActionBadgeText,
+  configureLegacySyncCleanupWriter,
+  cleanupLegacySync
+} = BYEBAR.browser;
 const SETTINGS = BYEBAR.settings;
 const DEFAULTS = SETTINGS.DEFAULT_SETTINGS;
 const DEBUG_KEY = 'byebar.debug';
@@ -14,7 +24,10 @@ const COMMAND_REPEAT_QUIET_MS = 2_000;
 const SWEEP_BADGE_DURATION_MS = 3_000;
 const SWEEP_COUNT_KEYS = ['cookieDeclines', 'dismissActions', 'legalAccepts', 'reversibleHides'];
 
+configureLegacySyncCleanupWriter();
+
 let mutationQueue = Promise.resolve();
+const pendingMutationResults = new Set();
 let commandQuietTimer = null;
 const sweepingTabs = new Set();
 const badgeClearTimers = new Map();
@@ -23,6 +36,9 @@ const badgeStartupReady = clearExistingSweepBadges();
 function enqueue(operation) {
   const result = mutationQueue.then(operation, operation);
   mutationQueue = result.catch(() => {});
+  pendingMutationResults.add(result);
+  const untrack = () => pendingMutationResults.delete(result);
+  void result.then(untrack, untrack);
   return result;
 }
 
@@ -208,12 +224,19 @@ function claimSweepCommand() {
 
 api.commands?.onCommand?.addListener((command, tab) => {
   if (command !== SWEEP_PAGE_COMMAND || !claimSweepCommand()) return;
-  const pendingMutations = mutationQueue;
+  const pendingMutations = Promise.all([...pendingMutationResults]);
   void sweepActiveTab(tab, pendingMutations).catch(() => {});
 });
 
 async function handleMessage(message) {
   if (message?.protocol !== PROTOCOL) return responseError('protocol-mismatch', 'Unsupported protocol');
+
+  if (message.type === 'byebar.storage.cleanupLegacySync') {
+    return enqueue(async () => {
+      if (!(await cleanupLegacySync())) throw new Error('Legacy sync cleanup failed');
+      return { ok: true };
+    });
+  }
 
   if (message.type === 'byebar.settings.get') {
     return enqueue(async () => {

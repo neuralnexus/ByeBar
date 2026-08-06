@@ -44,6 +44,7 @@ const legalConfirmScopeEl = document.getElementById('legal-confirm-scope');
 
 let scope = 'site';
 let host = '';
+let urlReadable = false;
 let tabId = null;
 let settingsState = null;
 let pageState = null;
@@ -96,7 +97,7 @@ function renderSiteState() {
   if (!settingsState && initializationState !== 'loading') {
     state = 'unavailable';
     label = initializationState === 'error' ? 'Error' : 'Verify';
-  } else if (settingsState && (!host || !pageState)) {
+  } else if (settingsState && (!urlReadable || !pageState)) {
     state = 'unavailable';
     label = 'No access';
   } else if (pageState?.picker?.active === true) {
@@ -209,13 +210,17 @@ function renderPageState() {
     (pickerBusy && !pickerActive) ||
     tabId === null ||
     !supportsPick ||
-    (!pickerActive && settingsState?.site?.effective.enabled !== true);
+    (!pickerActive && (!urlReadable || settingsState?.site?.effective.enabled !== true));
   pickPageEl.title =
     pageState && !supportsPick
-      ? 'Reload this page to use Pick'
-      : !pickerActive && settingsState?.site?.effective.enabled === false
-        ? 'Enable ByeBar on this site to use Pick'
-        : '';
+      ? pageState.picker?.available === false
+        ? 'Pick requires closed component inspection and safe route identity in this browser'
+        : 'Reload this page to use Pick'
+      : !pickerActive && !urlReadable
+        ? 'Pick is unavailable because this page address cannot be read'
+        : !pickerActive && settingsState?.site?.effective.enabled === false
+          ? 'Enable ByeBar on this site to use Pick'
+          : '';
   debugListEl.replaceChildren();
   const decisions = pageState?.decisions || [];
   decisions.forEach((decision) => {
@@ -299,9 +304,12 @@ async function mutateSettings(message, matches) {
 
 async function readActiveContext() {
   const [tab] = await tabsQuery({ active: true, currentWindow: true });
+  const tabUrl = typeof tab?.url === 'string' ? tab.url : '';
+  const parsed = window.ByeBar.lib.host.parseUrlContext(tabUrl);
   return {
     tabId: Number.isInteger(tab?.id) ? tab.id : null,
-    host: tab?.incognito ? '' : window.ByeBar.lib.host.normalizeHost(tab?.url || '')
+    host: parsed.host,
+    urlReadable: parsed.readable
   };
 }
 
@@ -310,6 +318,7 @@ async function loadActiveContext(context, initial = false) {
   pageState = null;
   tabId = context.tabId;
   host = context.host;
+  urlReadable = context.urlReadable;
   if (!host && (initial || scope === 'site')) scope = 'global';
   await requestSettings({ type: 'byebar.settings.get', host });
   await refreshPageState();
@@ -317,7 +326,7 @@ async function loadActiveContext(context, initial = false) {
 
 async function confirmActiveContext() {
   const current = await readActiveContext();
-  if (current.tabId === tabId && current.host === host) return true;
+  if (current.tabId === tabId && current.host === host && current.urlReadable === urlReadable) return true;
   await loadActiveContext(current);
   setStatus('Active page changed; review and try again', true);
   return false;
@@ -351,8 +360,9 @@ async function refreshPageState() {
 async function recoverActiveState() {
   try {
     const current = await readActiveContext();
-    if (current.tabId !== tabId || current.host !== host) await loadActiveContext(current);
-    else await refreshPageState();
+    if (current.tabId !== tabId || current.host !== host || current.urlReadable !== urlReadable) {
+      await loadActiveContext(current);
+    } else await refreshPageState();
     return Boolean(pageState);
   } catch {
     pageState = null;

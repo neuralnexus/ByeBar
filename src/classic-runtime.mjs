@@ -1,3 +1,4 @@
+import * as aria from '../lib/aria.mjs';
 import * as bloomberg from '../lib/bloomberg-heuristics.mjs';
 import * as chinaCommerce from '../lib/china-commerce-heuristics.mjs';
 import * as constants from '../lib/constants.mjs';
@@ -12,9 +13,25 @@ import * as substackDetect from '../lib/substack-detect.mjs';
 import * as text from '../lib/text.mjs';
 import * as tos from '../lib/tos-heuristics.mjs';
 
-const BYEBAR = (globalThis.ByeBar ||= {});
+const namespaceScope = typeof window === 'undefined' ? globalThis : window;
+const ownNamespace = (scope) => Object.getOwnPropertyDescriptor(scope, 'ByeBar')?.value;
+const BYEBAR =
+  ownNamespace(namespaceScope) || (namespaceScope === globalThis ? null : ownNamespace(globalThis)) || {};
+
+function installNamespace(scope) {
+  Object.defineProperty(scope, 'ByeBar', {
+    configurable: true,
+    enumerable: true,
+    value: BYEBAR,
+    writable: true
+  });
+}
+
+installNamespace(namespaceScope);
+if (namespaceScope !== globalThis) installNamespace(globalThis);
 
 BYEBAR.lib = Object.freeze({
+  aria,
   bloomberg,
   chinaCommerce,
   constants,

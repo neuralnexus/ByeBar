@@ -9,7 +9,7 @@ import {
   CANONICAL_ZIP_DATE,
   createDeterministicZip
 } from '../scripts/deterministic-zip.mjs';
-import { listRegularFiles, validatePackage } from '../scripts/validate-package.mjs';
+import { centralDirectoryEntries, listRegularFiles, validatePackage } from '../scripts/validate-package.mjs';
 
 const roots = [];
 
@@ -34,13 +34,19 @@ async function createCustomZip(stage, options = {}) {
       unixPermissions: options.mode || CANONICAL_FILE_MODE
     });
   }
-  return zip.generateAsync({
+  const archive = await zip.generateAsync({
     type: 'nodebuffer',
     compression: 'DEFLATE',
     compressionOptions: { level: 9 },
     platform: 'UNIX',
     streamFiles: false
   });
+  for (const entry of centralDirectoryEntries(archive)) {
+    const versionNeeded = entry.compression === 8 ? 20 : 10;
+    archive.writeUInt16LE(versionNeeded, entry.centralHeaderOffset + 6);
+    archive.writeUInt16LE(versionNeeded, entry.localHeaderOffset + 4);
+  }
+  return archive;
 }
 
 afterEach(() => {
@@ -61,6 +67,26 @@ describe('deterministic extension packages', () => {
 
     const zip = await JSZip.loadAsync(first, { createFolders: false });
     expect(Object.keys(zip.files)).toEqual(['content/main.js', 'empty.txt', 'manifest.json']);
+
+    for (const entry of centralDirectoryEntries(first)) {
+      const expectedVersion = entry.compression === 8 ? 20 : 10;
+      expect(entry.versionNeeded).toBe(expectedVersion);
+      expect(entry.localVersionNeeded).toBe(expectedVersion);
+    }
+  });
+
+  it('rejects a method-8 entry that advertises ZIP version 1.0', async () => {
+    const { root, stage } = createStage();
+    const archive = await createDeterministicZip(stage);
+    const entry = centralDirectoryEntries(archive).find(({ compression }) => compression === 8);
+    archive.writeUInt16LE(10, entry.centralHeaderOffset + 6);
+    archive.writeUInt16LE(10, entry.localHeaderOffset + 4);
+    const archivePath = join(root, 'package.zip');
+    writeFileSync(archivePath, archive);
+
+    await expect(validatePackage(archivePath, stage)).rejects.toThrow(
+      'archive version-needed is not canonical'
+    );
   });
 
   it('rejects noncanonical bytes even when content and primary metadata still match', async () => {

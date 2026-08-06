@@ -375,3 +375,108 @@ test('undoes recent hides newest-first and reconciles a lost response', async ({
   await expect(overlays[0]).not.toHaveAttribute('data-byebar-hidden', /.+/);
   await expect(undo).toBeDisabled();
 });
+
+test('uses the active tab host for incognito Pick gating and fails closed without a URL', async ({
+  page,
+  context,
+  serviceWorker,
+  extensionId
+}) => {
+  await serviceWorker.evaluate(async () => {
+    await chrome.storage.local.set({ siteOverrides: { '127.0.0.1': false } });
+  });
+  await page.goto('/picker.html');
+  const fixtureTabId = await serviceWorker.evaluate(async () => {
+    const tabs = await chrome.tabs.query({});
+    return tabs.find((tab) => tab.url?.includes('/picker.html'))?.id;
+  });
+
+  const incognitoPopup = await context.newPage();
+  await incognitoPopup.addInitScript(
+    ({ tabId, url }) => {
+      chrome.tabs.query = (queryInfo, callback) => {
+        void queryInfo;
+        const tabs = [{ id: tabId, url, incognito: true }];
+        if (callback) callback(tabs);
+        else return Promise.resolve(tabs);
+      };
+    },
+    { tabId: fixtureTabId, url: page.url() }
+  );
+  await serviceWorker.evaluate((tabId) => chrome.tabs.update(tabId, { active: true }), fixtureTabId);
+  await incognitoPopup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+
+  await expect(incognitoPopup.locator('#host-label')).toContainText('127.0.0.1');
+  await expect(incognitoPopup.locator('#site-state-label')).toHaveText('Paused');
+  await expect(incognitoPopup.locator('#pick-page')).toBeDisabled();
+  await incognitoPopup.close();
+
+  const missingUrlPopup = await context.newPage();
+  await missingUrlPopup.addInitScript((tabId) => {
+    chrome.tabs.query = (queryInfo, callback) => {
+      void queryInfo;
+      const tabs = [{ id: tabId, incognito: true }];
+      if (callback) callback(tabs);
+      else return Promise.resolve(tabs);
+    };
+  }, fixtureTabId);
+  await missingUrlPopup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+
+  await expect(missingUrlPopup.locator('#pick-page')).toBeDisabled();
+  await expect(missingUrlPopup.locator('#pick-page')).toHaveAttribute(
+    'title',
+    'Pick is unavailable because this page address cannot be read'
+  );
+  await missingUrlPopup.close();
+
+  const hostlessPopup = await context.newPage();
+  await hostlessPopup.addInitScript((tabId) => {
+    chrome.tabs.query = (queryInfo, callback) => {
+      void queryInfo;
+      const tabs = [{ id: tabId, url: 'file:///tmp/byebar-picker.html' }];
+      if (callback) callback(tabs);
+      else return Promise.resolve(tabs);
+    };
+  }, fixtureTabId);
+  await hostlessPopup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+
+  await expect(hostlessPopup.locator('#scope-global')).toHaveAttribute('aria-pressed', 'true');
+  await expect(hostlessPopup.locator('#pick-page')).toBeEnabled();
+  await expect(hostlessPopup.locator('#pick-page')).not.toHaveAttribute(
+    'title',
+    'Pick is unavailable because this page address cannot be read'
+  );
+  await hostlessPopup.close();
+
+  const ipv6Popup = await context.newPage();
+  await ipv6Popup.addInitScript((tabId) => {
+    chrome.tabs.query = (queryInfo, callback) => {
+      void queryInfo;
+      const tabs = [{ id: tabId, url: 'http://[2001:db8::1]/picker.html' }];
+      if (callback) callback(tabs);
+      else return Promise.resolve(tabs);
+    };
+  }, fixtureTabId);
+  await ipv6Popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+
+  await expect(ipv6Popup.locator('#host-label')).toContainText('[2001:db8::1]');
+  await expect(ipv6Popup.locator('#pick-page')).toBeEnabled();
+  await ipv6Popup.close();
+
+  const malformedUrlPopup = await context.newPage();
+  await malformedUrlPopup.addInitScript((tabId) => {
+    chrome.tabs.query = (queryInfo, callback) => {
+      void queryInfo;
+      const tabs = [{ id: tabId, url: 'not a url' }];
+      if (callback) callback(tabs);
+      else return Promise.resolve(tabs);
+    };
+  }, fixtureTabId);
+  await malformedUrlPopup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+
+  await expect(malformedUrlPopup.locator('#pick-page')).toBeDisabled();
+  await expect(malformedUrlPopup.locator('#pick-page')).toHaveAttribute(
+    'title',
+    'Pick is unavailable because this page address cannot be read'
+  );
+});

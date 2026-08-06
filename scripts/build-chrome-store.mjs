@@ -8,14 +8,15 @@ import { validatePackage } from './validate-package.mjs';
 const version = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8')).version;
 const distDir = join(projectRoot, 'dist');
 const zipPath = join(distDir, `byebar-chrome-${version}.zip`);
-let stageDir;
 
 const { sha256 } = await buildValidatedFile(zipPath, {
   build: async (candidatePath) => {
-    stageDir = await stageExtension('chrome');
-    await writeDeterministicZip(stageDir, candidatePath);
+    await stageExtension('chrome', async (stageDir) => {
+      await writeDeterministicZip(stageDir, candidatePath);
+      await validatePackage(candidatePath, stageDir);
+    });
   },
-  validate: (candidatePath) => validatePackage(candidatePath, stageDir)
+  validate: async () => {}
 });
 
 console.log(`chrome web store package: ${zipPath}`);

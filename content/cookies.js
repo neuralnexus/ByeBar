@@ -221,7 +221,7 @@
 
   function declineViaTextScan(root = document) {
     const controls = queryAll(
-      'button, a[role="button"], input[type="button"], input[type="submit"], [role="button"]',
+      'button, a[role~="button" i], input[type="button"], input[type="submit"], [role~="button" i]',
       root
     );
     for (const el of controls) {

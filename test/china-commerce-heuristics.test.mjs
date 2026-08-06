@@ -66,6 +66,13 @@ describe('looksLikeSpinnerOverlay', () => {
       looksLikeSpinnerOverlay(section, () => ({ position: 'fixed', zIndex: '200', display: 'none' }))
     ).toBe(false);
   });
+
+  it('recognizes a normalized dialog fallback token', () => {
+    const section = mockNode({ role: 'alertdialog DIALOG' });
+    section.textContent = 'Spin to win your coupon';
+
+    expect(looksLikeSpinnerOverlay(section, () => ({ position: 'static' }))).toBe(true);
+  });
 });
 
 describe('findSpinnerRoot', () => {
