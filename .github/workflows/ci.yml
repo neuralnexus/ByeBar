@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(((((github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && vars.NEXUS_RUNS_ON_LINUX) || '["ubuntu-26.04"]')) }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
 
   browser-packages:
     needs: validate
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(((((github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && vars.NEXUS_RUNS_ON_UBUNTU_26_04_BROWSER) || '["ubuntu-26.04"]')) }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +65,7 @@ jobs:
 
   safari:
     needs: validate
-    runs-on: macos-15
+    runs-on: ${{ fromJSON(((((github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) && vars.NEXUS_RUNS_ON_MACOS_15_ARM64_DEVELOPER) || '["macos-15"]')) }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
